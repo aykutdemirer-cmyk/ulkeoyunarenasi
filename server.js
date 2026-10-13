@@ -193,9 +193,9 @@ function startGame(room, botCount, continuing = false) {
 
   if (!reuse) room.botEntries = entries.filter((e) => e.bot).map((e) => ({ ...e }));
   if (!continuing) { room.lastBots = bots; room.series = { round: 0, wins: new Map() }; }
-  if (entries.length < 2) return 'En az 2 oyuncu gerekli (bot ekleyebilirsin).';
+  if (entries.length < 2) return 'min_players';
   if (teamMode(room)) {
-    if (new Set(entries.map((e) => e.team)).size < 2) return 'Takım modunda iki takımda da oyuncu olmalı.';
+    if (new Set(entries.map((e) => e.team)).size < 2) return 'need_teams';
   } else {
     entries.forEach((e) => { e.team = 'F'; });
   }
@@ -1106,11 +1106,11 @@ io.on('connection', (socket) => {
     if (typeof cb !== 'function') return;
     data = data || {};
     const code = normCode(data.code);
-    if (!CODE_RE.test(code)) return cb({ ok: false, error: 'Geçersiz oda kodu. Örnek: ARENA-AB12' });
+    if (!CODE_RE.test(code)) return cb({ ok: false, error: 'bad_code' });
     const room = rooms.get(code);
-    if (!room) return cb({ ok: false, error: 'Oda bulunamadı.' });
+    if (!room) return cb({ ok: false, error: 'not_found' });
     if (curRoom() === room) return cb({ ok: true, id: pid, code });
-    if (room.players.size >= MAX_PLAYERS) return cb({ ok: false, error: 'Oda dolu.' });
+    if (room.players.size >= MAX_PLAYERS) return cb({ ok: false, error: 'full' });
     if (curRoom()) leave();
     enter(room, data);
     cb({ ok: true, id: pid, code, spectating: room.phase !== 'lobby' });
@@ -1182,8 +1182,8 @@ io.on('connection', (socket) => {
   socket.on('startGame', safe((data, cb) => {
     const reply = typeof cb === 'function' ? cb : () => {};
     const room = curRoom();
-    if (!room || room.host !== pid) return reply({ ok: false, error: 'Sadece oda sahibi başlatabilir.' });
-    if (room.phase !== 'lobby') return reply({ ok: false, error: 'Oyun zaten başladı.' });
+    if (!room || room.host !== pid) return reply({ ok: false, error: 'not_host' });
+    if (room.phase !== 'lobby') return reply({ ok: false, error: 'started' });
     room.quick = false;
     const err = startGame(room, Number(data && data.bots) || 0);
     reply(err ? { ok: false, error: err } : { ok: true });

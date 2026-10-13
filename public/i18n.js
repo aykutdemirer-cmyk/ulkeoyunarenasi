@@ -1,0 +1,178 @@
+/* Çok dilli arayüz (TR / EN). Marka başlığı ("LAST ONE WINS!") her dilde aynı kalır. */
+
+const DICT = {
+  tr: {
+    name_lbl: 'İSMİN', name_ph: 'Oyuncu adı', pick_country: 'ÜLKENİ SEÇ', quick: 'HIZLI OYNA', create: 'ODA KUR',
+    or_join: 'veya kodla katıl', join: 'KATIL', open_rooms: 'AÇIK ODALAR', room_code: 'ODA KODU', copy_title: 'Kopyala',
+    sound_on: 'SES: AÇIK', sound_off: 'SES: KAPALI', leave: 'AYRIL', mode: 'MOD', map: 'HARİTA', bot_diff: 'BOT ZORLUĞU',
+    easy: 'KOLAY', normal: 'NORMAL', hard: 'ZOR', series: 'SERİ', series1: 'TEK MAÇ', series3: "İLK 2'YE", series5: "İLK 3'E",
+    your_team: 'TAKIMIN', team_a: 'TAKIM A', team_b: 'TAKIM B', players: 'OYUNCULAR', bots: 'BOT SAYISI', start: 'OYUNU BAŞLAT',
+    wait_host: 'Oda sahibinin oyunu başlatması bekleniyor...',
+    controls_hint: 'WASD / Yön tuşları: hareket • SPACE: dash • 1-4: tepki • Mobil: sol yarı joystick, sağ alt dash',
+    side_map: 'HARİTA', side_mode: 'MOD', exit_aria: 'Odadan ayrıl', net_lost: 'Bağlantı koptu - yeniden bağlanılıyor...',
+    random: 'RASTGELE', random_title: 'RASTGELE HARİTA', random_sub: 'Sürpriz harita.', difficulty: 'Zorluk: ', tip_lbl: 'İpucu: ',
+    'mode.FFA': 'HERKES TEK', 'mode.TEAM': 'TAKIM A vs B', 'mode.BOMB': 'BOMB TAG', 'mode.HILL': 'KING OF THE HILL', 'mode.SOCCER': 'FUTBOL', 'mode.COINS': 'COIN RUSH',
+    'modedesc.FFA': 'Son kalan kazanır.',
+    'modedesc.TEAM': 'Rakip takımı eleyin; takım arkadaşına yumuşak çarparsın.',
+    'modedesc.BOMB': 'Halka kapalı! Bombayı taşıyan süre bitince patlar; çarparak başkasına devret.',
+    'modedesc.COINS': '60 sn: altınları topla! Güçlü çarpışmada az hızlı olan bir coin kaybeder. Halka kapalı.',
+    'modedesc.SOCCER': 'Takım A vs B: topu rakip kaleye sok! İlk 5 gol ya da 2 dk. Kaleler yarığın olduğu iki uç; dash = şut. Harita sabit.',
+    'modedesc.HILL': '60 sn: tepede tek başına kalan puan kazanır. Halka kapalı, en çok puan kazanır.',
+    'modewin.FFA': 'Son kalan kazanır', 'modewin.TEAM': 'Rakip takımın hepsini ele', 'modewin.BOMB': 'Son hayatta kalan',
+    'modewin.HILL': 'En çok puan (60 sn)', 'modewin.SOCCER': 'İlk 5 gol ya da 2 dk', 'modewin.COINS': 'En çok coin (60 sn)',
+    'moderules.FFA': "2-16 oyuncu, herkes tek|Yarıktan çıkan top elenir|Power-up'lar 15-20 sn'de bir çıkar",
+    'moderules.TEAM': 'Takım A (turkuaz) vs Takım B (turuncu)|Dosta yumuşak, rakibe sert çarpma|Takım seçimi lobide',
+    'moderules.BOMB': 'Halka kapalı: dışarı çıkış yok|Bomba taşıyan ~9 sn sonra patlar|Çarparak bombayı devret|Her patlamadan sonra süre kısalır',
+    'moderules.HILL': "Tepede tek başına kalan saniyede 1 puan|Tepe 15 sn'de bir yer değiştirir|Halka kapalı, kimse elenmez",
+    'moderules.SOCCER': 'A solda, B sağda; kaleler halkanın yarıkları|Dash = şut, ağır zırh = güçlü vuruş|Beraberlikte altın gol|Harita sabit (Football Arena)',
+    'moderules.COINS': 'Sarı coin 1, büyük altın 3 puan|Sert çarpışmada yavaş olan 1 coin kaybeder|Zırh coin kaybettirmez|Halka kapalı',
+    'modetip.FFA': 'Rakibi kapıya it, kendin kapıya yaklaşma.', 'modetip.TEAM': 'Birlikte hareket et, rakibi sıkıştır.',
+    'modetip.BOMB': 'Bombayı alınca kalabalığa dal!', 'modetip.HILL': 'Tepedekini dash ile it, yerini al.',
+    'modetip.SOCCER': 'Topun arkasına geç, kaleye sür.', 'modetip.COINS': "Altın coin'leri kovala, kalabalıktan kaç.",
+    'mapdesc.classic': 'Dönen çift yarıklı neon çember.', 'mapdesc.collider': 'Ortada seni fırlatan bumper ve dönen tamponlar.',
+    'mapdesc.shrinking': 'Halka zamanla daralır.', 'mapdesc.gauntlet': '4 kapı, çılgın dönüş, ani ölümde kapılar patlar.',
+    'mapdesc.ice': 'Buz gibi kaygan zemin: durmak zor, yönü bulmak zor.', 'mapdesc.whirlpool': 'Girdap seni sürekli döndürür; 3 kapı.',
+    'mapdesc.pinball': '4 sabit tampon seni oradan oraya fırlatır.', 'mapdesc.pulse': 'Halka nefes alır: sürekli genişler ve daralır.',
+    'mapdesc.lava': 'Zeminin dilimleri kızarır, sonra yakar! Kırmızıdan kaç.', 'mapdesc.blackhole': 'Merkez seni çeker; içine düşersen elenirsin.',
+    'maptips.classic': '2 kapı (35°), yavaş dönen neon halka|Ani ölüm: 35. sn sonra kapılar genişler|Yeni başlayanlar için ideal',
+    'maptips.collider': 'Ortada devasa bumper + 2 dönen tampon|Bumper seni rastgele yöne fırlatır|Kaotik: kimse güvende değil',
+    'maptips.shrinking': 'Halka 360 → 170 px daralır|Alan daraldıkça çarpışma artar|Erken saldırgan ol, sonra hayatta kal',
+    'maptips.gauntlet': '4 dar kapı, çılgın dönüş hızı|Ani ölümde kapılar patlayarak genişler|Kapılara yaklaşmak çok riskli',
+    'maptips.ice': 'Zemin buz gibi kaygan: durmak zor|İvme yarıya iner ama hız korunur|Dash ile uzun süzülürsün',
+    'maptips.whirlpool': 'Girdap seni sürekli döndürür|3 kapı (30°), yavaş dönüş|Akıntıya karşı koymak enerji ister',
+    'maptips.pinball': '4 sabit tampon seni fırlatır|Tamponların arkasına saklanmak zor|Rakibi tampona doğru it',
+    'maptips.pulse': 'Halka nefes alır: genişler ve daralır|Daralırken duvara sıkışma|Zamanlamayı iyi tut',
+    'maptips.lava': 'Dilimler turuncu yanıp söner, sonra yakar|Uyarıda güvenli dilime geç!|Zamanla daha fazla dilim yanar|Ghost Shield lavdan korur',
+    'maptips.blackhole': 'Merkez seni çeker, içine düşen elenir|Kara delikten uzak dur, rakibi içine it|Çekim yaklaştıkça güçlü hissedilir',
+    'maptips.random': 'Her maçta rastgele bir harita seçilir|Sürprizlere hazır ol!',
+    map_fixed_soccer: 'Futbolda harita sabit (Football Arena).', map_random_desc: 'Her maçta rastgele bir harita seçilir.',
+    err_bad_code: 'Geçersiz oda kodu. Örnek: ARENA-AB12', err_not_found: 'Oda bulunamadı.', err_full: 'Oda dolu.',
+    err_not_host: 'Sadece oda sahibi başlatabilir.', err_started: 'Oyun zaten başladı.',
+    err_min_players: 'En az 2 oyuncu gerekli (bot ekleyebilirsin).', err_need_teams: 'Takım modunda iki takımda da oyuncu olmalı.',
+    err_connect: 'Bağlanılamadı.', err_start: 'Başlatılamadı.',
+    stats_line: 'Oyun: {games} · Galibiyet: {wins} · Eleme: {kills}', stats_first: 'İlk maçını oyna, istatistiklerin burada görünsün!',
+    quick_search: 'Rakip aranıyor... 8 sn içinde botlarla başlayacak.', enter_code: 'Oda kodunu gir.', copied: 'Kod kopyalandı: {code}',
+    no_rooms: 'Şu an açık oda yok. Bir tane kur!', st_lobby: 'LOBİ', st_full: 'DOLU', st_playing: 'OYNANIYOR', watch: 'İZLE', join_btn: 'KATIL',
+    offline: ' (bağlantı yok)', reconnecting: 'Bağlantı koptu, yeniden bağlanılıyor...',
+    dropped: 'Odadan düşüldün (bağlantı çok uzun süre koptu).', disconnected: 'Sunucu bağlantısı koptu.',
+    ffa_label: 'FFA',
+    hint_touch: '<b>Sürükle</b>: hareket · <b>DASH</b>: sağ alt düğme', hint_kb: '<b>WASD / OK</b>: hareket · <b>SPACE</b>: dash',
+    hint_goal: 'Rakipleri <b>yarıktan</b> dışarı it, kendin yaklaşma!',
+    left: 'KALAN', time: 'SÜRE', spectating: 'İzleyici: {n}', you_out: ' · elendin', you_watching: ' · izliyorsun',
+    leader: 'Lider: {name} {pts}', leader_none: 'Lider: -', you_pts: ' · Sen: {pts}',
+    golden: 'ALTIN GOL!', goal: 'GOL!', team_x: 'TAKIM {t}', golden_banner: 'ALTIN GOL', next_goal: 'sıradaki gol kazanır',
+    boom: 'PATLADI!', bomb: 'BOMBA!', out: 'ELENDİN!', out_sub: '#{rank} · izliyorsun',
+    results: 'SONUÇLAR', results_round: 'SONUÇLAR · RAUNT {r}/{n}', series_lbl: 'SERİ: {list}', champion: 'SERİ ŞAMPİYONU: {name}',
+    next_round: 'sıradaki raunt başlıyor...', draw: 'BERABERE!', wins_x: '{name} KAZANDI!', team_wins: 'TAKIM {t}<br>KAZANDI!',
+    you_win: 'SEN KAZANDIN!', pts: 'puan', g_unit: 'G', k_unit: 'E',
+    danger_zone: '! TEHLİKE !', edge_danger: 'KENAR TEHLİKESİ', armor: 'ZIRH', superdash: 'SÜPER DASH', ghost: 'HAYALET', score: 'SKOR',
+    feed_out: 'elendi', eliminated: 'ELENENLER', goals: 'GOLLER', round_lbl: 'RAUNT'
+  },
+  en: {
+    name_lbl: 'YOUR NAME', name_ph: 'Player name', pick_country: 'PICK YOUR COUNTRY', quick: 'QUICK PLAY', create: 'CREATE ROOM',
+    or_join: 'or join with a code', join: 'JOIN', open_rooms: 'OPEN ROOMS', room_code: 'ROOM CODE', copy_title: 'Copy',
+    sound_on: 'SOUND: ON', sound_off: 'SOUND: OFF', leave: 'LEAVE', mode: 'MODE', map: 'MAP', bot_diff: 'BOT DIFFICULTY',
+    easy: 'EASY', normal: 'NORMAL', hard: 'HARD', series: 'SERIES', series1: 'SINGLE MATCH', series3: 'FIRST TO 2', series5: 'FIRST TO 3',
+    your_team: 'YOUR TEAM', team_a: 'TEAM A', team_b: 'TEAM B', players: 'PLAYERS', bots: 'BOT COUNT', start: 'START GAME',
+    wait_host: 'Waiting for the host to start the game...',
+    controls_hint: 'WASD / Arrow keys: move • SPACE: dash • 1-4: emotes • Mobile: left-half joystick, bottom-right dash',
+    side_map: 'MAP', side_mode: 'MODE', exit_aria: 'Leave room', net_lost: 'Connection lost - reconnecting...',
+    random: 'RANDOM', random_title: 'RANDOM MAP', random_sub: 'A surprise map.', difficulty: 'Difficulty: ', tip_lbl: 'Tip: ',
+    'mode.FFA': 'FREE FOR ALL', 'mode.TEAM': 'TEAM A vs B', 'mode.BOMB': 'BOMB TAG', 'mode.HILL': 'KING OF THE HILL', 'mode.SOCCER': 'FOOTBALL', 'mode.COINS': 'COIN RUSH',
+    'modedesc.FFA': 'Last one standing wins.',
+    'modedesc.TEAM': 'Eliminate the other team; you bump teammates softly.',
+    'modedesc.BOMB': 'The ring is closed! The bomb carrier explodes when the timer ends; pass it on by bumping someone.',
+    'modedesc.COINS': '60 s: collect the coins! On a hard hit the slower ball drops a coin. The ring is closed.',
+    'modedesc.SOCCER': 'Team A vs B: put the ball in the opponent goal! First to 5 goals or 2 minutes. Goals are the two gaps of the ring; dash = shoot. Fixed map.',
+    'modedesc.HILL': '60 s: the one alone on the hill scores. The ring is closed; most points wins.',
+    'modewin.FFA': 'Last one standing wins', 'modewin.TEAM': 'Eliminate the whole opposing team', 'modewin.BOMB': 'Last survivor wins',
+    'modewin.HILL': 'Most points (60 s)', 'modewin.SOCCER': 'First to 5 goals or 2 min', 'modewin.COINS': 'Most coins (60 s)',
+    'moderules.FFA': '2-16 players, everyone for themselves|A ball that leaves through a gap is eliminated|Power-ups spawn every 15-20 s',
+    'moderules.TEAM': 'Team A (cyan) vs Team B (orange)|Soft bumps with teammates, hard hits on rivals|Pick your team in the lobby',
+    'moderules.BOMB': 'Ring is closed: no way out|The carrier explodes after ~9 s|Pass the bomb by bumping|Timer shortens after each blast',
+    'moderules.HILL': 'Alone on the hill = 1 point per second|The hill moves every 15 s|Ring is closed, nobody is eliminated',
+    'moderules.SOCCER': 'A on the left, B on the right; goals are the ring gaps|Dash = shot, heavy armor = strong kick|Golden goal on a draw|Fixed map (Football Arena)',
+    'moderules.COINS': 'Yellow coin = 1, big gold = 3 points|On a hard hit the slower ball loses 1 coin|Armor cannot lose coins|Ring is closed',
+    'modetip.FFA': 'Push rivals toward the gap, never go near it yourself.', 'modetip.TEAM': 'Move together and corner your rivals.',
+    'modetip.BOMB': 'Got the bomb? Dive into the crowd!', 'modetip.HILL': 'Dash the holder off the hill and take their spot.',
+    'modetip.SOCCER': 'Get behind the ball and drive it to the goal.', 'modetip.COINS': 'Chase the gold coins and avoid the crowd.',
+    'mapdesc.classic': 'A neon ring with two rotating gaps.', 'mapdesc.collider': 'A big central bumper and orbiting bumpers fling you around.',
+    'mapdesc.shrinking': 'The ring shrinks over time.', 'mapdesc.gauntlet': '4 gates, crazy rotation; gates blow wide open in sudden death.',
+    'mapdesc.ice': 'Slippery ice: hard to stop, hard to steer.', 'mapdesc.whirlpool': 'A whirlpool keeps spinning you; 3 gates.',
+    'mapdesc.pinball': '4 fixed bumpers pinball you around.', 'mapdesc.pulse': 'The ring breathes: it keeps widening and narrowing.',
+    'mapdesc.lava': 'Floor slices glow, then burn! Run from the red.', 'mapdesc.blackhole': 'The center pulls you in; fall in and you are out.',
+    'maptips.classic': '2 gates (35°), slowly rotating neon ring|Sudden death: gates widen after 35 s|Great for beginners',
+    'maptips.collider': 'Huge central bumper + 2 orbiting bumpers|Bumpers fling you in random directions|Chaotic: nobody is safe',
+    'maptips.shrinking': 'The ring shrinks 360 → 170 px|Collisions increase as space shrinks|Attack early, survive later',
+    'maptips.gauntlet': '4 narrow gates, insane rotation speed|Gates burst wide in sudden death|Going near a gate is very risky',
+    'maptips.ice': 'Ice-slick floor: hard to stop|Acceleration halves but speed is kept|Dash lets you glide far',
+    'maptips.whirlpool': 'The whirlpool keeps spinning you|3 gates (30°), slow rotation|Fighting the current costs effort',
+    'maptips.pinball': '4 fixed bumpers launch you|Hard to hide behind bumpers|Push rivals into the bumpers',
+    'maptips.pulse': 'The ring breathes: widens and narrows|Do not get squeezed against the wall|Keep your timing',
+    'maptips.lava': 'Slices flash orange, then burn|Move to a safe slice on warning!|More slices burn over time|Ghost Shield protects from lava',
+    'maptips.blackhole': 'The center pulls you; fall in and you are out|Stay away, push rivals in|Pull feels stronger closer to it',
+    'maptips.random': 'A random map is picked every match|Be ready for surprises!',
+    map_fixed_soccer: 'The map is fixed in football (Football Arena).', map_random_desc: 'A random map is picked every match.',
+    err_bad_code: 'Invalid room code. Example: ARENA-AB12', err_not_found: 'Room not found.', err_full: 'Room is full.',
+    err_not_host: 'Only the host can start the game.', err_started: 'The game has already started.',
+    err_min_players: 'At least 2 players needed (you can add bots).', err_need_teams: 'Team modes need players on both teams.',
+    err_connect: 'Could not connect.', err_start: 'Could not start.',
+    stats_line: 'Games: {games} · Wins: {wins} · Eliminations: {kills}', stats_first: 'Play your first match to see your stats here!',
+    quick_search: 'Looking for opponents... starting with bots in 8 s.', enter_code: 'Enter a room code.', copied: 'Code copied: {code}',
+    no_rooms: 'No open rooms right now. Create one!', st_lobby: 'LOBBY', st_full: 'FULL', st_playing: 'IN GAME', watch: 'WATCH', join_btn: 'JOIN',
+    offline: ' (offline)', reconnecting: 'Connection lost, reconnecting...',
+    dropped: 'You were dropped from the room (disconnected too long).', disconnected: 'Server connection lost.',
+    hint_touch: '<b>Drag</b>: move · <b>DASH</b>: bottom-right button', hint_kb: '<b>WASD / ARROWS</b>: move · <b>SPACE</b>: dash',
+    hint_goal: 'Push rivals out through the <b>gap</b>, don\'t go near it yourself!',
+    left: 'LEFT', time: 'TIME', spectating: 'Spectating: {n}', you_out: ' · you are out', you_watching: ' · you are watching',
+    leader: 'Leader: {name} {pts}', leader_none: 'Leader: -', you_pts: ' · You: {pts}',
+    golden: 'GOLDEN GOAL!', goal: 'GOAL!', team_x: 'TEAM {t}', golden_banner: 'GOLDEN GOAL', next_goal: 'next goal wins',
+    boom: 'BOOM!', bomb: 'BOMB!', out: 'OUT!', out_sub: '#{rank} · spectating',
+    results: 'RESULTS', results_round: 'RESULTS · ROUND {r}/{n}', series_lbl: 'SERIES: {list}', champion: 'SERIES CHAMPION: {name}',
+    next_round: 'next round starting...', draw: 'DRAW!', wins_x: '{name} WINS!', team_wins: 'TEAM {t}<br>WINS!',
+    you_win: 'YOU WIN!', pts: 'pts', g_unit: 'G', k_unit: 'K',
+    danger_zone: '! DANGER ZONE !', edge_danger: 'EDGE DANGER', armor: 'ARMOR', superdash: 'SUPER DASH', ghost: 'GHOST', score: 'SCORE',
+    feed_out: 'is out', eliminated: 'ELIMINATED', goals: 'GOALS', round_lbl: 'ROUND'
+  }
+};
+
+const COUNTRY_NAMES = {
+  tr: { TR: 'Türkiye', ZA: 'Güney Afrika', NO: 'Norveç', CN: 'Çin', PK: 'Pakistan', US: 'ABD', GB: 'İngiltere', DE: 'Almanya', FR: 'Fransa', JP: 'Japonya', BR: 'Brezilya', AR: 'Arjantin', IT: 'İtalya', ES: 'İspanya', KR: 'G. Kore', NL: 'Hollanda' },
+  en: { TR: 'Turkey', ZA: 'South Africa', NO: 'Norway', CN: 'China', PK: 'Pakistan', US: 'USA', GB: 'UK', DE: 'Germany', FR: 'France', JP: 'Japan', BR: 'Brazil', AR: 'Argentina', IT: 'Italy', ES: 'Spain', KR: 'S. Korea', NL: 'Netherlands' }
+};
+
+let lang = 'en';
+try {
+  const saved = localStorage.getItem('low_lang');
+  if (saved === 'tr' || saved === 'en') lang = saved;
+  else lang = (navigator.language || 'en').toLowerCase().startsWith('tr') ? 'tr' : 'en';
+} catch (e) { /* varsayılan */ }
+
+const listeners = [];
+
+export const getLang = () => lang;
+export function t(key, vars) {
+  let s = (DICT[lang] && DICT[lang][key]) ?? DICT.en[key] ?? key;
+  if (vars) for (const k of Object.keys(vars)) s = s.split('{' + k + '}').join(String(vars[k]));
+  return s;
+}
+export const tl = (key) => String(t(key)).split('|'); // '|' ile ayrılmış liste
+export const countryName = (code) => (COUNTRY_NAMES[lang] || COUNTRY_NAMES.en)[code] || code;
+export const onLang = (fn) => listeners.push(fn);
+
+export function applyStatic() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+  document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+  document.querySelectorAll('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
+  document.querySelectorAll('.lang-sw button').forEach((b) => b.classList.toggle('on', b.dataset.lang === lang));
+}
+
+export function setLang(l) {
+  if (l !== 'tr' && l !== 'en') return;
+  lang = l;
+  try { localStorage.setItem('low_lang', l); } catch (e) { /* yok */ }
+  applyStatic();
+  listeners.forEach((fn) => fn(l));
+}
