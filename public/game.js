@@ -13,6 +13,7 @@ const INTERP_MS = 100;
 const TEAM_COL = { A: '#22d3ee', B: '#f97316', F: '#ffffff' };
 const PU_COL = ['#94a3b8', '#facc15', '#22d3ee'];
 const PU_LABEL = ['ARMOR', 'SUPER DASH', 'GHOST'];
+const EMOTES = ['GG', 'LOL', 'OOPS!', '!!!'];
 
 const COUNTRIES = [
   ['TR', 'Turkey'], ['ZA', 'South Africa'], ['NO', 'Norway'], ['CN', 'China'],
@@ -181,6 +182,9 @@ let noiseBuf = null;
 let lastHit = 0;
 let lastWall = 0;
 let lastBump = 0;
+let master = null;
+let muted = false;
+try { muted = localStorage.getItem('low_muted') === '1'; } catch (e) { /* yok */ }
 
 function initAudio() {
   try {
@@ -188,6 +192,9 @@ function initAudio() {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
       actx = new AC();
+      master = actx.createGain();
+      master.gain.value = muted ? 0 : 0.9;
+      master.connect(actx.destination);
       noiseBuf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
       const d = noiseBuf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -200,7 +207,7 @@ function envGain(vol, dur, t0 = actx.currentTime, attack = 0.005) {
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(Math.max(vol, 0.0002), t0 + attack);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  g.connect(actx.destination);
+  g.connect(master);
   return g;
 }
 function tone(type, f0, f1, dur, vol, delay = 0, attack = 0.005) {
@@ -302,6 +309,29 @@ function getPid() {
   } catch (e) { return genPid(); }
 }
 const PID = getPid();
+
+/* Yerel istatistikler */
+function loadStats() {
+  try { return Object.assign({ games: 0, wins: 0, kills: 0 }, JSON.parse(localStorage.getItem('low_stats') || '{}')); } catch (e) { return { games: 0, wins: 0, kills: 0 }; }
+}
+function saveStats(st) { try { localStorage.setItem('low_stats', JSON.stringify(st)); } catch (e) { /* yok */ } }
+function renderStats() {
+  const st = loadStats();
+  const el = document.getElementById('statsLine');
+  if (el) el.textContent = st.games ? `Oyun: ${st.games} · Galibiyet: ${st.wins} · Eleme: ${st.kills}` : 'İlk maçını oyna, istatistiklerin burada görünsün!';
+}
+function renderMute() {
+  const m1 = document.getElementById('muteBtn');
+  const m2 = document.getElementById('muteBtn2');
+  if (m1) m1.classList.toggle('off', muted);
+  if (m2) m2.textContent = muted ? 'SES: KAPALI' : 'SES: AÇIK';
+}
+function toggleMute() {
+  muted = !muted;
+  try { localStorage.setItem('low_muted', muted ? '1' : '0'); } catch (e) { /* yok */ }
+  if (master) master.gain.value = muted ? 0 : 0.9;
+  renderMute();
+}
 const socket = window.io({ auth: { pid: PID } });
 
 const S = {
@@ -328,7 +358,8 @@ const S = {
   myCountry: 'TR',
   lastAlarm: 0,
   danger: 0,
-  puSeen: new Set()
+  puSeen: new Set(),
+  bubbles: new Map()
 };
 try { S.myCountry = localStorage.getItem('low_country') || 'TR'; } catch (e) { /* yok */ }
 if (!CNAME[S.myCountry]) S.myCountry = 'TR';
@@ -400,6 +431,21 @@ $('createBtn').addEventListener('click', () => {
   $('entryMsg').textContent = '';
   socket.emit('createRoom', { name: myName(), country: S.myCountry }, onEnter);
 });
+$('quickBtn').addEventListener('click', () => {
+  initAudio();
+  $('entryMsg').textContent = '';
+  socket.emit('quickPlay', { name: myName(), country: S.myCountry }, (res) => {
+    onEnter(res);
+    if (res && res.ok && res.quick) $('roomMsg').textContent = 'Rakip aranıyor... 8 sn içinde botlarla başlayacak.';
+  });
+});
+document.querySelectorAll('#diffSeg button').forEach((b) => b.addEventListener('click', () => socket.emit('setDiff', b.dataset.diff)));
+$('muteBtn').addEventListener('click', (e) => { e.stopPropagation(); toggleMute(); });
+$('muteBtn').addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+$('muteBtn2').addEventListener('click', toggleMute);
+document.querySelectorAll('#emotes button').forEach((b) => b.addEventListener('click', () => socket.emit('emote', Number(b.dataset.i))));
+renderMute();
+renderStats();
 $('joinBtn').addEventListener('click', () => joinCode($('codeInput').value));
 $('codeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinCode($('codeInput').value); });
 function joinCode(raw) {
@@ -497,6 +543,7 @@ function renderLobby() {
   $('modeTEAM').disabled = !isHost;
   Object.entries(mapBtns).forEach(([k, b]) => { b.classList.toggle('on', r.map === k); b.disabled = !isHost; });
   $('mapDesc').textContent = r.map === 'random' ? 'Her maçta rastgele bir harita seçilir.' : (MAPS[r.map] ? MAPS[r.map].desc : '');
+  document.querySelectorAll('#diffSeg button').forEach((b) => { b.classList.toggle('on', b.dataset.diff === r.diff); b.disabled = !isHost; });
   $('teamPick').classList.toggle('hidden', !team);
   $('teamA').classList.toggle('on', !!me && me.team === 'A');
   $('teamB').classList.toggle('on', !!me && me.team === 'B');
@@ -518,6 +565,7 @@ function renderLobby() {
     nm.className = 'nm';
     nm.textContent = p.name + ' · ' + CNAME[p.country] + (p.off ? ' (bağlantı yok)' : '');
     li.appendChild(nm);
+    if (p.wins) { const t = document.createElement('span'); t.className = 'tag w'; t.textContent = '\u{1F3C6} ' + p.wins; li.appendChild(t); }
     if (p.id === r.host) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'HOST'; li.appendChild(t); }
     if (team) { const t = document.createElement('span'); t.className = 'tag ' + p.team.toLowerCase(); t.textContent = 'TAKIM ' + p.team; li.appendChild(t); }
     ul.appendChild(li);
@@ -579,12 +627,17 @@ socket.on('gameStart', (g) => {
   S.lastPhase = '';
   S.lastCd = 0;
   S.over = false;
+  S.bubbles = new Map();
   S.alive = S.roster.has(PID);
   P.b = null; P.env = null; P.inputs = []; P.seq = 0; P.acc = 0; P.err = { x: 0, y: 0 }; P.dashPending = false;
   $('elimList').innerHTML = '';
   (g.elims || []).forEach((e) => addElim(e.id, e.rank, false));
   $('leftNum').textContent = String(g.total - (g.elims || []).length);
   $('banner').classList.add('hidden');
+  $('banner').classList.remove('over');
+  $('results').classList.add('hidden');
+  $('feed').innerHTML = '';
+  $('hint').classList.add('hidden');
   keys.clear();
   lastSent = '';
   showScreen(true);
@@ -593,6 +646,9 @@ socket.on('gameStart', (g) => {
 });
 socket.on('toLobby', () => {
   S.over = false;
+  $('results').classList.add('hidden');
+  $('banner').classList.remove('over');
+  renderStats();
   showScreen(false);
   renderLobby();
 });
@@ -665,6 +721,7 @@ function onSnap(s) {
     if (S.lastPhase === '') sfx.gong();
     if (s.cd !== S.lastCd) { S.lastCd = s.cd; sfx.beep(false); }
     showBanner(`${s.cd}<small>${S.map.name}</small>`);
+    maybeHint();
   } else if (S.lastPhase === 'countdown' && s.ph === 'play') {
     showBanner('GO!');
     sfx.beep(true);
@@ -699,12 +756,73 @@ function onSnap(s) {
       burst(e.x, e.y, 26, PU_COL[e.type], 380);
       S.rings.push({ x: e.x, y: e.y, r: 20, max: 200, life: 0.55, max_life: 0.55, col: PU_COL[e.type] });
       S.floaters.push({ x: e.x, y: e.y - 40, text: PU_LABEL[e.type] + '!', col: PU_COL[e.type], life: 1.2 });
+    } else if (e.k === 'emote') {
+      S.bubbles.set(e.id, { i: e.i, until: performance.now() + 2200 });
+      if (e.id !== PID) sfx.pickup();
     } else if (e.k === 'elim') {
       onElim(e);
     } else if (e.k === 'over') {
       onOver(e);
     }
   }
+}
+
+function maybeHint() {
+  if (!S.roster.has(PID)) return;
+  let seen = '0';
+  try { seen = localStorage.getItem('low_seen') || '0'; } catch (e) { /* yok */ }
+  if (seen === '1') return;
+  const h = $('hint');
+  h.innerHTML = (isTouch()
+    ? '<b>Sürükle</b>: hareket · <b>DASH</b>: sağ alt düğme'
+    : '<b>WASD / OK</b>: hareket · <b>SPACE</b>: dash') + '<br>Rakipleri <b>yarıktan</b> dışarı it, kendin yaklaşma!';
+  h.classList.remove('hidden');
+  try { localStorage.setItem('low_seen', '1'); } catch (e) { /* yok */ }
+  setTimeout(() => h.classList.add('hidden'), 7000);
+}
+
+function feedRow(by, victim) {
+  const feed = $('feed');
+  const v = S.roster.get(victim);
+  if (!v) return;
+  const row = document.createElement('div');
+  row.className = 'row' + (by === PID || victim === PID ? ' me' : '');
+  const k = by ? S.roster.get(by) : null;
+  if (k) {
+    row.appendChild(flagIcon(k.country, 40));
+    const a = document.createElement('span'); a.className = 'arrow'; a.textContent = '\u279C'; row.appendChild(a);
+  }
+  row.appendChild(flagIcon(v.country, 40));
+  const t = document.createElement('span');
+  t.textContent = k ? CNAME[v.country] : CNAME[v.country] + ' is out';
+  row.appendChild(t);
+  feed.appendChild(row);
+  while (feed.children.length > 4) feed.removeChild(feed.firstChild);
+  setTimeout(() => { if (row.parentNode) row.parentNode.removeChild(row); }, 4500);
+}
+
+function showResults(res) {
+  const box = $('results');
+  box.innerHTML = '';
+  const t = document.createElement('div');
+  t.className = 'rt';
+  t.textContent = 'RESULTS';
+  box.appendChild(t);
+  const rows = res.slice(0, 5);
+  const meIdx = res.findIndex((r) => r.id === PID);
+  if (meIdx >= 5) rows.push(res[meIdx]);
+  rows.forEach((r) => {
+    const p = S.roster.get(r.id);
+    if (!p) return;
+    const d = document.createElement('div');
+    d.className = 'rr' + (r.id === PID ? ' me' : '');
+    const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = r.rank + '.'; d.appendChild(rk);
+    d.appendChild(flagIcon(p.country, 44));
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = p.bot ? CNAME[p.country] : p.name; d.appendChild(nm);
+    const kl = document.createElement('span'); kl.className = 'kl'; kl.textContent = r.kills + ' K'; d.appendChild(kl);
+    box.appendChild(d);
+  });
+  box.classList.remove('hidden');
 }
 
 function hitFx(e) {
@@ -720,6 +838,7 @@ function hitFx(e) {
 
 function showBanner(html) {
   const b = $('banner');
+  b.classList.remove('over');
   b.innerHTML = html;
   b.classList.remove('hidden');
 }
@@ -743,6 +862,7 @@ function onElim(e) {
   S.rings.push({ x: e.x, y: e.y, r: 20, max: 300, life: 0.6, max_life: 0.6, col: '#ff2d85' });
   S.shake = Math.max(S.shake, 12);
   addElim(e.id, e.rank, true);
+  feedRow(e.by, e.id);
   if (e.id === PID) {
     vibrate(80);
     P.b = null;
@@ -771,10 +891,22 @@ function onOver(e) {
     t.textContent = CNAME[w.country].toUpperCase() + ' WINS!';
     b.appendChild(t);
     const sm = document.createElement('small');
-    sm.textContent = youWin ? 'YOU WIN!' : w.name;
+    sm.textContent = youWin ? 'YOU WIN!' : (w.bot ? '' : w.name);
     b.appendChild(sm);
   }
+  b.classList.add('over');
   b.classList.remove('hidden');
+  if (e.res) {
+    showResults(e.res);
+    if (S.roster.has(PID)) {
+      const st = loadStats();
+      const mine = e.res.find((r) => r.id === PID);
+      st.games++;
+      if (youWin) st.wins++;
+      if (mine) st.kills += mine.kills;
+      saveStats(st);
+    }
+  }
 }
 
 /* ------------------------------ Efektler ------------------------------ */
@@ -844,6 +976,7 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   if (k === ' ') { if (!e.repeat) doDash(); return; }
+  if (k >= '1' && k <= '4') { if (!e.repeat) socket.emit('emote', Number(k) - 1); return; }
   if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) keys.add(k);
 });
 window.addEventListener('keyup', (e) => { keys.delete(e.key.toLowerCase()); });
@@ -865,7 +998,7 @@ $('dashBtn').addEventListener('mousedown', (e) => { e.preventDefault(); doDash()
 stage.addEventListener('touchstart', (e) => {
   if (!S.inGame) return;
   initAudio();
-  if (e.target.closest && e.target.closest('#exitBtn')) return;
+  if (e.target.closest && e.target.closest('#exitBtn, #emotes, #muteBtn')) return;
   const r = stage.getBoundingClientRect();
   for (const t of e.changedTouches) {
     if (joy.on) break;
@@ -1172,6 +1305,22 @@ function drawBall(b, time) {
   ctx.strokeText(CNAME[p.country], 0, R + 26);
   ctx.fillStyle = '#fff';
   ctx.fillText(CNAME[p.country], 0, R + 26);
+
+  // hızlı tepki balonu
+  const bub = S.bubbles.get(b.id);
+  if (bub && bub.until > performance.now()) {
+    const txt = EMOTES[bub.i];
+    ctx.font = '900 30px "Segoe UI", Arial, sans-serif';
+    const w = ctx.measureText(txt).width + 30;
+    const by = -R - (mine ? 64 : 46);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(-w / 2, by - 24, w, 40, 14) : ctx.rect(-w / 2, by - 24, w, 40);
+    ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-8, by + 15); ctx.lineTo(8, by + 15); ctx.lineTo(0, by + 27); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#111';
+    ctx.fillText(txt, 0, by + 6);
+  }
   ctx.restore();
 }
 
@@ -1196,7 +1345,7 @@ function drawHud(me, st, time) {
       ctx.fillStyle = gr;
       ctx.fillRect(0, 0, CW, CH);
     }
-    const bw = 520;
+    const bw = 440;
     const bx = CX - bw / 2;
     const by = 1470;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';

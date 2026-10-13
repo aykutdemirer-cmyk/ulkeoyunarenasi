@@ -37,6 +37,8 @@ const COUNTRIES = [
 const COUNTRY_CODES = new Set(COUNTRIES.map((c) => c.code));
 const COUNTRY_NAME = Object.fromEntries(COUNTRIES.map((c) => [c.code, c.name]));
 const MAP_CHOICES = new Set([...MAP_KEYS, 'random']);
+const DIFFS = { easy: [0.25, 0.5], normal: [0.5, 0.85], hard: [0.8, 1.0] };
+const KILL_WINDOW = 6; // sn: son vuruştan sonra bu süre içinde elenirsen vuran kişi sayılır
 
 /* ------------------------------ Yardımcılar ------------------------------ */
 const rooms = new Map();
@@ -73,6 +75,13 @@ function shuffle(a) {
   return a;
 }
 
+function newRoom(hostPid) {
+  return {
+    code: makeCode(), mode: 'FFA', map: 'classic', diff: 'normal', phase: 'lobby',
+    players: new Map(), host: hostPid, game: null, wins: new Map(), quick: false
+  };
+}
+
 function safe(fn) {
   return (...args) => {
     try { fn(...args); } catch (e) { console.error('handler error:', e); }
@@ -99,11 +108,12 @@ function roomState(room) {
     code: room.code,
     mode: room.mode,
     map: room.map,
+    diff: room.diff,
     phase: room.phase,
     host: room.host,
     max: MAX_PLAYERS,
     players: [...room.players.values()].map((p) => ({
-      id: p.id, name: p.name, country: p.country, team: p.team, off: p.dcAt > 0
+      id: p.id, name: p.name, country: p.country, team: p.team, off: p.dcAt > 0, wins: room.wins.get(p.id) || 0
     }))
   };
 }
@@ -182,6 +192,7 @@ function startGame(room, botCount) {
   const mapKey = room.map === 'random' ? MAP_KEYS[Math.floor(Math.random() * MAP_KEYS.length)] : room.map;
   const map = MAPS[mapKey];
   const n = entries.length;
+  const dr = DIFFS[room.diff] || DIFFS.normal;
   const balls = entries.map((e, i) => {
     const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
     return {
@@ -189,7 +200,8 @@ function startGame(room, botCount) {
       x: Math.cos(ang) * SPAWN_R, y: Math.sin(ang) * SPAWN_R, vx: 0, vy: 0, f: ang + Math.PI,
       cd: 0, dashT: 0, armorT: 0, ghostT: 0, superT: 0,
       ix: 0, iy: 0, dashQ: false, inQ: [], ack: 0,
-      alive: true, rank: 0, target: null, retarget: 0, noise: 0, skill: 0.6 + Math.random() * 0.4
+      alive: true, rank: 0, target: null, retarget: 0, noise: 0, kills: 0, lastHit: null, by: null,
+      skill: dr[0] + Math.random() * (dr[1] - dr[0])
     };
   });
 
@@ -232,7 +244,11 @@ function checkOver(room) {
   g.phase = 'over';
   g.overT = 0;
   alive.forEach((b) => { b.rank = 1; });
-  g.ev.push({ k: 'over', ids: alive.map((b) => b.id), team });
+  alive.forEach((b) => { if (!b.bot) room.wins.set(b.id, (room.wins.get(b.id) || 0) + 1); });
+  const res = g.balls.map((b) => ({ id: b.id, rank: b.rank, kills: b.kills }))
+    .sort((x, y) => x.rank - y.rank || y.kills - x.kills);
+  g.ev.push({ k: 'over', ids: alive.map((b) => b.id), team, res });
+  pushRoom(room);
 }
 
 function eliminate(room, b, quit) {
@@ -240,7 +256,12 @@ function eliminate(room, b, quit) {
   const aliveBefore = aliveBalls(g).length;
   b.alive = false;
   b.rank = aliveBefore;
-  g.ev.push({ k: 'elim', id: b.id, rank: b.rank, x: +b.x.toFixed(1), y: +b.y.toFixed(1), q: quit ? 1 : 0 });
+  let by = null;
+  if (!quit && b.lastHit && g.env.t - b.lastHit.t <= KILL_WINDOW) {
+    const k = g.byId.get(b.lastHit.id);
+    if (k && k.id !== b.id && (room.mode !== 'TEAM' || k.team !== b.team)) { by = k.id; k.kills++; b.by = by; }
+  }
+  g.ev.push({ k: 'elim', id: b.id, rank: b.rank, by, x: +b.x.toFixed(1), y: +b.y.toFixed(1), q: quit ? 1 : 0 });
   checkOver(room);
 }
 
@@ -400,6 +421,8 @@ function collide(room, g, a, b) {
   let e = 1;
   if (room.mode === 'TEAM') e = a.team === b.team ? 0.45 : 1.5;
   if (a.armorT > 0 || b.armorT > 0) e = Math.max(e, a.team === b.team && room.mode === 'TEAM' ? 0.9 : 1.7);
+  a.lastHit = { id: b.id, t: g.env.t };
+  b.lastHit = { id: a.id, t: g.env.t };
   const j = (-(1 + e) * vn) / (1 / ma + 1 / mb);
   a.vx -= (j * nx) / ma; a.vy -= (j * ny) / ma;
   b.vx += (j * nx) / mb; b.vy += (j * ny) / mb;
@@ -613,7 +636,7 @@ io.on('connection', (socket) => {
   socket.on('createRoom', safe((data, cb) => {
     if (typeof cb !== 'function') return;
     if (curRoom()) leave();
-    const room = { code: makeCode(), mode: 'FFA', map: 'classic', phase: 'lobby', players: new Map(), host: pid, game: null };
+    const room = newRoom(pid);
     rooms.set(room.code, room);
     enter(room, data || {});
     cb({ ok: true, id: pid, code: room.code });
@@ -658,17 +681,53 @@ io.on('connection', (socket) => {
     if (MAP_CHOICES.has(key)) { room.map = key; pushRoom(room); }
   }));
 
+  socket.on('setDiff', safe((key) => {
+    const room = curRoom();
+    if (!room || room.host !== pid || room.phase !== 'lobby') return;
+    if (DIFFS[key]) { room.diff = key; pushRoom(room); }
+  }));
+
+  // Hızlı oyun: en kalabalık açık lobiye gir; yoksa oda kur ve kısa süre sonra botlarla başlat
+  socket.on('quickPlay', safe((data, cb) => {
+    if (typeof cb !== 'function') return;
+    data = data || {};
+    if (curRoom()) leave();
+    const open = [...rooms.values()].filter((r) => r.phase === 'lobby' && r.players.size < MAX_PLAYERS)
+      .sort((a, b) => b.players.size - a.players.size)[0];
+    if (open) {
+      enter(open, data);
+      cb({ ok: true, id: pid, code: open.code });
+      pushRoom(open);
+      return;
+    }
+    const room = newRoom(pid);
+    room.quick = true;
+    rooms.set(room.code, room);
+    enter(room, data);
+    cb({ ok: true, id: pid, code: room.code, quick: true });
+    pushRoom(room);
+    setTimeout(() => {
+      if (rooms.get(room.code) !== room || room.phase !== 'lobby' || !room.quick) return;
+      const humans = [...room.players.values()].filter((p) => p.dcAt === 0).length;
+      startGame(room, Math.max(1, 8 - humans));
+    }, 8000);
+  }));
+
   socket.on('startGame', safe((data, cb) => {
     const reply = typeof cb === 'function' ? cb : () => {};
     const room = curRoom();
     if (!room || room.host !== pid) return reply({ ok: false, error: 'Sadece oda sahibi başlatabilir.' });
     if (room.phase !== 'lobby') return reply({ ok: false, error: 'Oyun zaten başladı.' });
+    room.quick = false;
     const err = startGame(room, Number(data && data.bots) || 0);
     reply(err ? { ok: false, error: err } : { ok: true });
   }));
 
   // İstemci tahmini için numaralı girdi: {s: seq, x, y, d: dash}
   socket.on('inp', safe((data) => {
+    const now = Date.now();
+    if (now - (socket.data.inpWin || 0) > 1000) { socket.data.inpWin = now; socket.data.inpN = 0; }
+    if (++socket.data.inpN > 120) return; // saniyede en fazla 120 girdi
     const room = curRoom();
     const g = room && room.game;
     const b = g && g.byId.get(pid);
@@ -684,6 +743,18 @@ io.on('connection', (socket) => {
     if (s <= b.ack) return;
     b.inQ.push({ s, x, y, d: !!data.d });
     if (b.inQ.length > 6) b.inQ.shift();
+  }));
+
+  // Hızlı tepkiler (0: GG, 1: LOL, 2: OOPS!, 3: !!!) - saniyede en fazla 1
+  socket.on('emote', safe((i) => {
+    const room = curRoom();
+    const g = room && room.game;
+    const now = Date.now();
+    if (!g || !g.byId.has(pid) || now - (socket.data.lastEmote || 0) < 900) return;
+    i = Math.floor(Number(i));
+    if (!(i >= 0 && i <= 3)) return;
+    socket.data.lastEmote = now;
+    g.ev.push({ k: 'emote', id: pid, i });
   }));
 
   socket.on('leaveRoom', safe(() => leave()));
