@@ -18,7 +18,8 @@ export const ARMOR_MASS = 6;
 export const BUMP_R = 64;
 export const ORB_R = 34;
 export const ORB_DIST = 190;
-export const MODES = ['FFA', 'TEAM', 'BOMB', 'HILL', 'SOCCER'];
+export const MODES = ['FFA', 'TEAM', 'BOMB', 'HILL', 'SOCCER', 'COINS'];
+export const COINS_TIME = 60;
 export const SOCCER_R = 20;
 export const SOCCER_TIME = 120;
 export const GOAL_TARGET = 5;
@@ -80,14 +81,14 @@ export const MAP_KEYS = Object.keys(MAPS);
 /* Oyun moduna göre harita kopyası: BOMB/HILL'de halka kapalıdır */
 export function mapFor(key, mode) {
   const m = Object.assign({}, MAPS[key] || MAPS.classic);
-  if (mode === 'BOMB' || mode === 'HILL') { m.gapHalf = 0; m.gapMax = 0; m.grow = 0; }
+  if (mode === 'BOMB' || mode === 'HILL' || mode === 'COINS') { m.gapHalf = 0; m.gapMax = 0; m.grow = 0; }
   if (mode === 'SOCCER') {
     Object.assign(m, {
       key: 'soccer', name: 'FOOTBALL ARENA', desc: 'Kaleler yarığın olduğu iki uç.', col: '#22c55e', closed: true, gaps: 2, gapHalf: 0.42, gapMax: 0.42,
       rot: 0, grow: 0, shrink: 0, Rmin: m.R0, pulseAmp: 0, hole: 0, gravity: 0, swirl: 0, bumpers: [], friction: 0.985, accMul: 1, accMulBase: 1
     });
   }
-  if (mode === 'HILL') { m.hole = 0; m.gravity = 0; m.shrink = 0; m.Rmin = m.R0; }
+  if (mode === 'HILL' || mode === 'COINS') { m.hole = 0; m.gravity = 0; m.shrink = 0; m.Rmin = m.R0; }
   return m;
 }
 
