@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#05050f">
+  <title>LAST ONE WINS! - Which country survives?</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ===================== LOBİ ===================== -->
+  <main id="lobby" class="screen">
+    <header class="lobby-head">
+      <h1>LAST ONE WINS!</h1>
+      <h2>Which country survives?</h2>
+    </header>
+
+    <section class="card">
+      <label class="lbl" for="nameInput">İSMİN</label>
+      <input id="nameInput" type="text" maxlength="14" placeholder="Oyuncu adı" autocomplete="off">
+
+      <span class="lbl">ÜLKENİ SEÇ</span>
+      <div id="countryGrid" class="country-grid"></div>
+    </section>
+
+    <section id="entryCard" class="card">
+      <button id="createBtn" class="btn primary">ODA KUR</button>
+      <div class="or">veya kodla katıl</div>
+      <div class="join-row">
+        <input id="codeInput" type="text" maxlength="11" placeholder="ARENA-XXXX" autocomplete="off">
+        <button id="joinBtn" class="btn">KATIL</button>
+      </div>
+      <p id="entryMsg" class="msg"></p>
+
+      <span class="lbl">AÇIK ODALAR</span>
+      <ul id="roomList" class="rooms"></ul>
+    </section>
+
+    <section id="roomCard" class="card hidden">
+      <div class="room-top">
+        <div>
+          <span class="lbl">ODA KODU</span>
+          <button id="roomCode" class="code" title="Kopyala">ARENA-0000</button>
+        </div>
+        <button id="leaveBtn" class="btn small">AYRIL</button>
+      </div>
+
+      <span class="lbl">MOD</span>
+      <div class="seg" id="modeSeg">
+        <button id="modeFFA" class="btn seg-btn">HERKES TEK</button>
+        <button id="modeTEAM" class="btn seg-btn">TAKIM A vs B</button>
+      </div>
+
+      <span class="lbl">HARİTA</span>
+      <div id="mapGrid" class="map-grid"></div>
+      <p id="mapDesc" class="mapdesc"></p>
+
+      <div id="teamPick" class="hidden">
+        <span class="lbl">TAKIMIN</span>
+        <div class="seg">
+          <button id="teamA" class="btn seg-btn team-a">TAKIM A</button>
+          <button id="teamB" class="btn seg-btn team-b">TAKIM B</button>
+        </div>
+      </div>
+
+      <span class="lbl">OYUNCULAR <span id="playerCount"></span></span>
+      <ul id="playerList" class="players"></ul>
+
+      <div id="hostControls" class="hidden">
+        <label class="lbl" for="botCount">BOT SAYISI: <b id="botVal">0</b></label>
+        <input id="botCount" type="range" min="0" max="15" value="5">
+        <button id="startBtn" class="btn primary">OYUNU BAŞLAT</button>
+      </div>
+      <p id="waitMsg" class="msg hidden">Oda sahibinin oyunu başlatması bekleniyor...</p>
+      <p id="roomMsg" class="msg"></p>
+    </section>
+
+    <p class="hint">WASD / Yön tuşları: hareket &nbsp;•&nbsp; SPACE: dash &nbsp;•&nbsp; Mobil: sol yarı joystick, sağ alt dash</p>
+  </main>
+
+  <!-- ===================== OYUN ===================== -->
+  <div id="game" class="screen hidden">
+    <div id="stage" class="stage">
+      <canvas id="cv" width="1080" height="1920"></canvas>
+
+      <div class="hud-top">
+        <div class="title">LAST ONE WINS!</div>
+        <div class="subtitle">Which country survives?</div>
+        <div class="left-badge">LEFT: <span id="leftNum">0</span></div>
+        <div id="specLine" class="spec-line">Spectating: 0</div>
+      </div>
+
+      <button id="exitBtn" class="exit-btn" aria-label="Odadan ayrıl">&#10005;</button>
+      <div id="netLine" class="net-line hidden">Bağlantı koptu - yeniden bağlanılıyor...</div>
+      <div id="banner" class="banner hidden"></div>
+
+      <div class="elim-panel">
+        <div class="elim-title">ELIMINATED</div>
+        <div id="elimList" class="elim-list"></div>
+      </div>
+
+      <div id="joyBase" class="joy-base hidden"><div id="joyKnob" class="joy-knob"></div></div>
+      <button id="dashBtn" class="dash-btn hidden">DASH</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
