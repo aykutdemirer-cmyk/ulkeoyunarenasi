@@ -53,10 +53,14 @@
       </div>
 
       <span class="lbl">MOD</span>
-      <div class="seg" id="modeSeg">
-        <button id="modeFFA" class="btn seg-btn">HERKES TEK</button>
-        <button id="modeTEAM" class="btn seg-btn">TAKIM A vs B</button>
+      <div class="map-grid" id="modeGrid">
+        <button class="btn map-btn" data-mode="FFA">HERKES TEK</button>
+        <button class="btn map-btn" data-mode="TEAM">TAKIM A vs B</button>
+        <button class="btn map-btn" data-mode="BOMB">BOMB TAG</button>
+        <button class="btn map-btn" data-mode="HILL">KING OF THE HILL</button>
+        <button class="btn map-btn" data-mode="SOCCER">FUTBOL</button>
       </div>
+      <p id="modeDesc" class="mapdesc"></p>
 
       <span class="lbl">HARİTA</span>
       <div id="mapGrid" class="map-grid"></div>
@@ -67,6 +71,13 @@
         <button class="btn seg-btn" data-diff="easy">KOLAY</button>
         <button class="btn seg-btn" data-diff="normal">NORMAL</button>
         <button class="btn seg-btn" data-diff="hard">ZOR</button>
+      </div>
+
+      <span class="lbl">SERİ</span>
+      <div class="seg" id="roundSeg">
+        <button class="btn seg-btn" data-r="1">TEK MAÇ</button>
+        <button class="btn seg-btn" data-r="3">İLK 2'YE</button>
+        <button class="btn seg-btn" data-r="5">İLK 3'E</button>
       </div>
 
       <div id="teamPick" class="hidden">
@@ -100,7 +111,7 @@
       <div class="hud-top">
         <div class="title">LAST ONE WINS!</div>
         <div class="subtitle">Which country survives?</div>
-        <div class="left-badge">LEFT: <span id="leftNum">0</span></div>
+        <div class="left-badge"><span id="leftLbl">LEFT</span>: <span id="leftNum">0</span></div>
         <div id="specLine" class="spec-line">Spectating: 0</div>
       </div>
 
@@ -116,7 +127,7 @@
       <div id="results" class="results hidden"></div>
 
       <div class="elim-panel">
-        <div class="elim-title">ELIMINATED</div>
+        <div id="elimTitle" class="elim-title">ELIMINATED</div>
         <div id="elimList" class="elim-list"></div>
       </div>
 

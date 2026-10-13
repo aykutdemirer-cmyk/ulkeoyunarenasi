@@ -1,8 +1,16 @@
 /* LAST ONE WINS! - istemci (ES module) */
 import {
   DT, SUB, BALL_R, ARMOR_R, DASH_CD, PU_R, MAPS, MAP_KEYS,
-  advanceEnv, applyControl, moveSub, gapInfo, bumpers
+  advanceEnv, applyControl, moveSub, gapInfo, bumpers, mapFor, HILL_R
 } from './shared.js';
+
+const MODE_INFO = {
+  FFA: ['HERKES TEK', 'Son kalan kazanır.'],
+  TEAM: ['TAKIM A vs B', 'Rakip takımı eleyin; takım arkadaşına yumuşak çarparsın.'],
+  BOMB: ['BOMB TAG', 'Halka kapalı! Bombayı taşıyan süre bitince patlar; çarparak başkasına devret.'],
+  SOCCER: ['FUTBOL', 'Takım A vs B: topu rakip kaleye sok! İlk 5 gol ya da 2 dk. Kaleler yarığın olduğu iki uç; dash = şut. Harita sabit.'],
+  HILL: ['KING OF THE HILL', '60 sn: tepede tek başına kalan puan kazanır. Halka kapalı, en çok puan kazanır.']
+};
 
 /* ------------------------------ Sabitler ------------------------------ */
 const CW = 1080;
@@ -14,6 +22,7 @@ const TEAM_COL = { A: '#22d3ee', B: '#f97316', F: '#ffffff' };
 const PU_COL = ['#94a3b8', '#facc15', '#22d3ee'];
 const PU_LABEL = ['ARMOR', 'SUPER DASH', 'GHOST'];
 const EMOTES = ['GG', 'LOL', 'OOPS!', '!!!'];
+const isTeam = (m) => m === 'TEAM' || m === 'SOCCER';
 
 const COUNTRIES = [
   ['TR', 'Turkey'], ['ZA', 'South Africa'], ['NO', 'Norway'], ['CN', 'China'],
@@ -347,7 +356,8 @@ const S = {
   rings: [],
   floaters: [],
   confetti: [],
-  bumpPulse: [0, 0, 0],
+  bumpPulse: [0, 0, 0, 0, 0, 0, 0, 0],
+  hillPos: null,
   lastPhase: '',
   lastCd: 0,
   shake: 0,
@@ -357,6 +367,9 @@ const S = {
   scale: 1,
   myCountry: 'TR',
   lastAlarm: 0,
+  lastBombSec: 0,
+  round: 1,
+  rounds: 1,
   danger: 0,
   puSeen: new Set(),
   bubbles: new Map()
@@ -440,6 +453,7 @@ $('quickBtn').addEventListener('click', () => {
   });
 });
 document.querySelectorAll('#diffSeg button').forEach((b) => b.addEventListener('click', () => socket.emit('setDiff', b.dataset.diff)));
+document.querySelectorAll('#roundSeg button').forEach((b) => b.addEventListener('click', () => socket.emit('setRounds', Number(b.dataset.r))));
 $('muteBtn').addEventListener('click', (e) => { e.stopPropagation(); toggleMute(); });
 $('muteBtn').addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
 $('muteBtn2').addEventListener('click', toggleMute);
@@ -474,8 +488,7 @@ $('roomCode').addEventListener('click', () => {
   if (navigator.clipboard) navigator.clipboard.writeText(code).catch(() => {});
   $('roomMsg').textContent = 'Kod kopyalandı: ' + code;
 });
-$('modeFFA').addEventListener('click', () => socket.emit('setMode', 'FFA'));
-$('modeTEAM').addEventListener('click', () => socket.emit('setMode', 'TEAM'));
+document.querySelectorAll('#modeGrid button').forEach((b) => b.addEventListener('click', () => socket.emit('setMode', b.dataset.mode)));
 $('teamA').addEventListener('click', () => socket.emit('setProfile', { team: 'A' }));
 $('teamB').addEventListener('click', () => socket.emit('setProfile', { team: 'B' }));
 $('botCount').addEventListener('input', () => { $('botVal').textContent = $('botCount').value; });
@@ -507,7 +520,7 @@ function renderRooms(list) {
     const b = document.createElement('b');
     b.textContent = r.code;
     const sm = document.createElement('small');
-    sm.textContent = `${r.host} · ${r.mode === 'TEAM' ? 'TAKIM' : 'FFA'} · ${mapTitle(r.map)} · ${r.count}/${r.max}`;
+    sm.textContent = `${r.host} · ${(MODE_INFO[r.mode] || [r.mode])[0]} · ${mapTitle(r.map)} · ${r.count}/${r.max}`;
     info.appendChild(b);
     info.appendChild(sm);
     const st = document.createElement('span');
@@ -534,16 +547,16 @@ function renderLobby() {
   const me = r.players.find((p) => p.id === S.id);
   if (me && me.country !== S.myCountry) { S.myCountry = me.country; refreshCountrySel(); }
   const isHost = r.host === S.id;
-  const team = r.mode === 'TEAM';
+  const team = isTeam(r.mode);
 
   $('roomCode').textContent = r.code;
-  $('modeFFA').classList.toggle('on', !team);
-  $('modeTEAM').classList.toggle('on', team);
-  $('modeFFA').disabled = !isHost;
-  $('modeTEAM').disabled = !isHost;
+  document.querySelectorAll('#modeGrid button').forEach((b) => { b.classList.toggle('on', b.dataset.mode === r.mode); b.disabled = !isHost; });
+  $('modeDesc').textContent = (MODE_INFO[r.mode] || ['', ''])[1];
   Object.entries(mapBtns).forEach(([k, b]) => { b.classList.toggle('on', r.map === k); b.disabled = !isHost; });
-  $('mapDesc').textContent = r.map === 'random' ? 'Her maçta rastgele bir harita seçilir.' : (MAPS[r.map] ? MAPS[r.map].desc : '');
+  $('mapGrid').style.opacity = r.mode === 'SOCCER' ? '0.35' : '1';
+  $('mapDesc').textContent = r.mode === 'SOCCER' ? 'Futbolda harita sabit (Football Arena).' : r.map === 'random' ? 'Her maçta rastgele bir harita seçilir.' : (MAPS[r.map] ? MAPS[r.map].desc : '');
   document.querySelectorAll('#diffSeg button').forEach((b) => { b.classList.toggle('on', b.dataset.diff === r.diff); b.disabled = !isHost; });
+  document.querySelectorAll('#roundSeg button').forEach((b) => { b.classList.toggle('on', Number(b.dataset.r) === r.rounds); b.disabled = !isHost; });
   $('teamPick').classList.toggle('hidden', !team);
   $('teamA').classList.toggle('on', !!me && me.team === 'A');
   $('teamB').classList.toggle('on', !!me && me.team === 'B');
@@ -615,7 +628,10 @@ socket.on('roomState', (r) => {
 });
 socket.on('gameStart', (g) => {
   S.mode = g.mode;
-  S.map = MAPS[g.map] || MAPS.classic;
+  S.map = mapFor(g.map, g.mode);
+  S.round = g.round || 1;
+  S.rounds = g.rounds || 1;
+  S.hillPos = null;
   S.roster = new Map(g.roster.map((p) => [p.id, p]));
   S.snaps = [];
   S.latest = null;
@@ -631,7 +647,9 @@ socket.on('gameStart', (g) => {
   S.alive = S.roster.has(PID);
   P.b = null; P.env = null; P.inputs = []; P.seq = 0; P.acc = 0; P.err = { x: 0, y: 0 }; P.dashPending = false;
   $('elimList').innerHTML = '';
+  $('elimTitle').textContent = g.mode === 'SOCCER' ? 'GOALS' : 'ELIMINATED';
   (g.elims || []).forEach((e) => addElim(e.id, e.rank, false));
+  (g.goals || []).forEach((go) => addGoal(go, false));
   $('leftNum').textContent = String(g.total - (g.elims || []).length);
   $('banner').classList.add('hidden');
   $('banner').classList.remove('over');
@@ -667,7 +685,7 @@ socket.on('snap', (s) => {
 /* Sunucu mutabakatı: son onaylanan girdiden sonrasını yeniden oynat */
 function stepPredict(b, env, ix, iy, dash) {
   advanceEnv(env);
-  applyControl(b, ix, iy, dash, null);
+  applyControl(b, ix, iy, dash, null, env);
   const sdt = DT / SUB;
   for (let i = 0; i < SUB; i++) moveSub(b, env, sdt, () => 0.5, null);
 }
@@ -693,7 +711,7 @@ function reconcile(s) {
 }
 
 function clientTick() {
-  if (!S.inGame || !P.b || !S.latest || S.latest.ph !== 'play') return;
+  if (!S.inGame || !P.b || !S.latest || S.latest.ph !== 'play' || S.latest.fz) return;
   const inp = currentInput();
   const d = P.dashPending;
   P.dashPending = false;
@@ -714,13 +732,37 @@ function clientTick() {
 function vibrate(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* yok */ } }
 
 function onSnap(s) {
-  $('leftNum').textContent = String(s.left);
-  $('specLine').textContent = 'Spectating: ' + s.sp + (!S.alive && S.roster.has(PID) ? ' · you are out' : '') + (!S.roster.has(PID) ? ' · you are watching' : '');
+  if (S.mode === 'SOCCER' && s.scr) {
+    $('leftLbl').textContent = 'A';
+    $('leftNum').textContent = `${s.scr[0]} : ${s.scr[1]} B`;
+    const mm = Math.floor(s.tl / 60);
+    const ss = String(s.tl % 60).padStart(2, '0');
+    $('specLine').textContent = s.ot ? 'GOLDEN GOAL!' : `${mm}:${ss}`;
+  } else if (S.mode === 'HILL') {
+    $('leftLbl').textContent = 'TIME';
+    $('leftNum').textContent = String(Math.ceil(s.ht));
+    const lead = s.sc && s.sc[0];
+    const lp = lead && S.roster.get(lead[0]);
+    const mine = s.sc && s.sc.find((x) => x[0] === PID);
+    $('specLine').textContent = (lp ? `Leader: ${CNAME[lp.country]} ${lead[1].toFixed(0)}` : 'Leader: -') + (mine ? ` · You: ${mine[1].toFixed(0)}` : '');
+  } else {
+    $('leftLbl').textContent = 'LEFT';
+    $('leftNum').textContent = String(s.left);
+    $('specLine').textContent = 'Spectating: ' + s.sp + (!S.alive && S.roster.has(PID) ? ' · you are out' : '') + (!S.roster.has(PID) ? ' · you are watching' : '');
+  }
+  if (s.bm && s.ph === 'play') {
+    const sec = Math.ceil(s.bm[1]);
+    if (sec !== S.lastBombSec) {
+      S.lastBombSec = sec;
+      if (s.bm[0] === PID || sec <= 3) sfx.beep(sec <= 2);
+      if (s.bm[0] === PID) vibrate(15);
+    }
+  }
 
   if (s.ph === 'countdown') {
     if (S.lastPhase === '') sfx.gong();
     if (s.cd !== S.lastCd) { S.lastCd = s.cd; sfx.beep(false); }
-    showBanner(`${s.cd}<small>${S.map.name}</small>`);
+    showBanner(`${s.cd}<small>${S.map.name}${S.rounds > 1 ? ' · ROUND ' + S.round + '/' + S.rounds : ''}</small>`);
     maybeHint();
   } else if (S.lastPhase === 'countdown' && s.ph === 'play') {
     showBanner('GO!');
@@ -756,6 +798,35 @@ function onSnap(s) {
       burst(e.x, e.y, 26, PU_COL[e.type], 380);
       S.rings.push({ x: e.x, y: e.y, r: 20, max: 200, life: 0.55, max_life: 0.55, col: PU_COL[e.type] });
       S.floaters.push({ x: e.x, y: e.y - 40, text: PU_LABEL[e.type] + '!', col: PU_COL[e.type], life: 1.2 });
+    } else if (e.k === 'goal') {
+      sfx.win(); sfx.confetti();
+      S.shake = Math.max(S.shake, 22);
+      spawnConfetti();
+      vibrate(60);
+      addGoal({ id: e.by, team: e.team, s: e.s }, true);
+      showBanner(`GOAL!<small>TEAM ${e.team} · ${e.score[0]} - ${e.score[1]}</small>`);
+      $('banner').style.color = TEAM_COL[e.team];
+      setTimeout(() => { if (!S.over) { $('banner').classList.add('hidden'); $('banner').style.color = ''; } }, 1900);
+    } else if (e.k === 'kick') {
+      sfx.hit(e.s, 0);
+      burst(e.x, e.y, 6, '#ffffff', 220);
+      if (e.s > 0.5) S.shake = Math.max(S.shake, 5 + 6 * e.s);
+    } else if (e.k === 'ot') {
+      showBanner('GOLDEN GOAL<small>next goal wins</small>');
+      setTimeout(() => { if (!S.over) $('banner').classList.add('hidden'); }, 1800);
+    } else if (e.k === 'boom') {
+      burst(e.x, e.y, 60, '#f97316', 650);
+      burst(e.x, e.y, 30, '#fde047', 500);
+      S.rings.push({ x: e.x, y: e.y, r: 30, max: 380, life: 0.7, max_life: 0.7, col: '#f97316' });
+      S.floaters.push({ x: e.x, y: e.y - 60, text: 'BOOM!', col: '#f97316', life: 1.4 });
+      S.shake = Math.max(S.shake, 24);
+    } else if (e.k === 'pass') {
+      sfx.spawn();
+      const bb = s.m.get(e.id);
+      if (bb) S.floaters.push({ x: bb[1], y: bb[2] - 70, text: 'BOMB!', col: '#ef4444', life: 1.1 });
+    } else if (e.k === 'hillMove') {
+      sfx.spawn();
+      S.rings.push({ x: e.x, y: e.y, r: 20, max: HILL_R + 60, life: 0.7, max_life: 0.7, col: '#4ade80' });
     } else if (e.k === 'emote') {
       S.bubbles.set(e.id, { i: e.i, until: performance.now() + 2200 });
       if (e.id !== PID) sfx.pickup();
@@ -769,6 +840,13 @@ function onSnap(s) {
 
 function maybeHint() {
   if (!S.roster.has(PID)) return;
+  if (S.mode === 'BOMB' || S.mode === 'HILL' || S.mode === 'SOCCER') {
+    const hb = $('hint');
+    hb.innerHTML = '<b>' + MODE_INFO[S.mode][0] + '</b><br>' + MODE_INFO[S.mode][1];
+    hb.classList.remove('hidden');
+    setTimeout(() => hb.classList.add('hidden'), 5000);
+    return;
+  }
   let seen = '0';
   try { seen = localStorage.getItem('low_seen') || '0'; } catch (e) { /* yok */ }
   if (seen === '1') return;
@@ -801,13 +879,27 @@ function feedRow(by, victim) {
   setTimeout(() => { if (row.parentNode) row.parentNode.removeChild(row); }, 4500);
 }
 
-function showResults(res) {
+function seriesName(key) {
+  if (!key) return '-';
+  if (/^T[AB]$/.test(key)) return 'Team ' + key[1];
+  const p = S.roster.get(key);
+  return p ? CNAME[p.country] : key;
+}
+
+function showResults(res, series) {
   const box = $('results');
   box.innerHTML = '';
   const t = document.createElement('div');
   t.className = 'rt';
-  t.textContent = 'RESULTS';
+  t.textContent = series && series.rounds > 1 ? `RESULTS · ROUND ${series.round}/${series.rounds}` : 'RESULTS';
   box.appendChild(t);
+  if (series && series.rounds > 1) {
+    const sl = document.createElement('div');
+    sl.className = 'rt';
+    sl.style.cssText = 'color:#fff;font-size:calc(var(--u)*2.8)';
+    sl.textContent = 'SERIES: ' + series.wins.sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, n]) => seriesName(k) + ' ' + n).join(' · ');
+    box.appendChild(sl);
+  }
   const rows = res.slice(0, 5);
   const meIdx = res.findIndex((r) => r.id === PID);
   if (meIdx >= 5) rows.push(res[meIdx]);
@@ -819,7 +911,7 @@ function showResults(res) {
     const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = r.rank + '.'; d.appendChild(rk);
     d.appendChild(flagIcon(p.country, 44));
     const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = p.bot ? CNAME[p.country] : p.name; d.appendChild(nm);
-    const kl = document.createElement('span'); kl.className = 'kl'; kl.textContent = r.kills + ' K'; d.appendChild(kl);
+    const kl = document.createElement('span'); kl.className = 'kl'; kl.textContent = S.mode === 'HILL' ? Math.round(r.score) + ' pts' : S.mode === 'BOMB' ? '' : S.mode === 'SOCCER' ? r.kills + ' G' : r.kills + ' K'; d.appendChild(kl);
     box.appendChild(d);
   });
   box.classList.remove('hidden');
@@ -841,6 +933,18 @@ function showBanner(html) {
   b.classList.remove('over');
   b.innerHTML = html;
   b.classList.remove('hidden');
+}
+
+function addGoal(go, pop) {
+  const d = document.createElement('div');
+  d.className = 'el' + (pop ? ' pop' : '');
+  const p = go.id ? S.roster.get(go.id) : null;
+  if (p) d.appendChild(flagIcon(p.country, 64));
+  const sp = document.createElement('span');
+  sp.style.color = TEAM_COL[go.team];
+  sp.textContent = (p ? '' : go.team + ' ') + Math.floor(go.s / 60) + "'" + String(go.s % 60).padStart(2, '0');
+  d.appendChild(sp);
+  $('elimList').appendChild(d);
 }
 
 function addElim(id, rank, pop) {
@@ -878,11 +982,12 @@ function onOver(e) {
   sfx.confetti();
   spawnConfetti();
   const b = $('banner');
+  b.style.color = '';
   b.innerHTML = '';
   if (!e.ids.length) { showBanner('DRAW!'); return; }
   const winners = e.ids.map((id) => S.roster.get(id)).filter(Boolean);
   const youWin = e.ids.includes(PID);
-  if (S.mode === 'TEAM' && e.team) {
+  if (isTeam(S.mode) && e.team) {
     b.innerHTML = `<span style="color:${TEAM_COL[e.team]}">TEAM ${e.team}</span><br>WINS!<small>${youWin ? 'YOU WIN!' : ''}</small>`;
   } else if (winners[0]) {
     const w = winners[0];
@@ -897,7 +1002,16 @@ function onOver(e) {
   b.classList.add('over');
   b.classList.remove('hidden');
   if (e.res) {
-    showResults(e.res);
+    showResults(e.res, e.series);
+    if (e.series && e.series.done && e.series.rounds > 1) {
+      const cs = document.createElement('small');
+      cs.textContent = 'SERIES CHAMPION: ' + seriesName(e.series.key);
+      b.appendChild(cs);
+    } else if (e.series && e.series.rounds > 1) {
+      const cs = document.createElement('small');
+      cs.textContent = 'next round starting...';
+      b.appendChild(cs);
+    }
     if (S.roster.has(PID)) {
       const st = loadStats();
       const mine = e.res.find((r) => r.id === PID);
@@ -1122,7 +1236,10 @@ function sampleState() {
     balls.push(cur);
   }
   const L = snaps[snaps.length - 1];
+  let sb = null;
+  if (b.sb) sb = (a.sb && a !== b) ? [lerp(a.sb[0], b.sb[0], t), lerp(a.sb[1], b.sb[1], t), b.sb[2], b.sb[3]] : b.sb;
   return {
+    sb,
     rot: lerp(a.rot, b.rot, t), gh: lerp(a.gh, b.gh, t), R: lerp(a.R, b.R, t),
     balls, pu: L.pu, ph: b.ph
   };
@@ -1152,7 +1269,7 @@ function drawRing(st, time) {
   ctx.lineCap = 'round';
   const segs = [];
   for (let k = 0; k < n; k++) segs.push([st.rot + k * step + st.gh, st.rot + (k + 1) * step - st.gh]);
-  const hot = S.map.key === 'shrinking' ? '#ff4d4d' : '#FF2D85';
+  const hot = S.map.col || '#FF2D85';
   ctx.shadowColor = hot;
   ctx.shadowBlur = 25;
   ctx.strokeStyle = hot;
@@ -1165,8 +1282,108 @@ function drawRing(st, time) {
   ctx.restore();
 }
 
+function drawDeco(st, time, dt) {
+  const key = S.map.key;
+  ctx.save();
+  ctx.translate(CX, CY);
+  if (key === 'ice') {
+    ctx.fillStyle = 'rgba(103,232,249,0.09)';
+    ctx.beginPath(); ctx.arc(0, 0, st.R, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(186,230,253,0.16)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 9; i++) {
+      const a = i * 0.7 + 0.3;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a) * 30, Math.sin(a) * 30);
+      ctx.lineTo(Math.cos(a + 0.15) * st.R * 0.55, Math.sin(a + 0.15) * st.R * 0.55);
+      ctx.lineTo(Math.cos(a - 0.1) * st.R * 0.95, Math.sin(a - 0.1) * st.R * 0.95); ctx.stroke();
+    }
+  } else if (key === 'whirlpool') {
+    ctx.strokeStyle = 'rgba(52,211,153,0.16)'; ctx.lineWidth = 14; ctx.lineCap = 'round';
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      for (let r = 25; r < st.R - 10; r += 12) {
+        const a = k * ((Math.PI * 2) / 3) + time * 0.9 + r * 0.011;
+        const x = Math.cos(a) * r; const y = Math.sin(a) * r;
+        if (r === 25) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  } else if (key === 'blackhole' && S.map.hole) {
+    const h = S.map.hole;
+    const gr = ctx.createRadialGradient(0, 0, h * 0.6, 0, 0, h * 3.2);
+    gr.addColorStop(0, 'rgba(192,132,252,0.55)'); gr.addColorStop(1, 'rgba(192,132,252,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, h * 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(233,213,255,0.7)'; ctx.lineWidth = 4; ctx.setLineDash([14, 12]);
+    ctx.save(); ctx.rotate(time * 2.2); ctx.beginPath(); ctx.arc(0, 0, h + 12, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(0, 0, h, 0, Math.PI * 2); ctx.fill();
+  }
+  if (S.mode === 'SOCCER') {
+    ctx.fillStyle = 'rgba(34,197,94,0.10)';
+    ctx.beginPath(); ctx.arc(0, 0, st.R, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(0, -st.R); ctx.lineTo(0, st.R); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 80, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fill();
+    [[-1, TEAM_COL.A], [1, TEAM_COL.B]].forEach(([sgn, col]) => {
+      ctx.strokeStyle = col; ctx.lineWidth = 12; ctx.shadowColor = col; ctx.shadowBlur = 22; ctx.lineCap = 'round';
+      const a0 = sgn < 0 ? Math.PI - st.gh : -st.gh;
+      ctx.beginPath(); ctx.arc(0, 0, st.R + 9, a0, a0 + st.gh * 2); ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = col; ctx.globalAlpha = 0.12;
+      ctx.beginPath(); ctx.arc(0, 0, st.R + 60, a0, a0 + st.gh * 2); ctx.arc(0, 0, st.R - 10, a0 + st.gh * 2, a0, true); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+  }
+  // King of the Hill bölgesi
+  if (S.mode === 'HILL' && S.latest && S.latest.hill) {
+    const t = S.latest.hill;
+    if (!S.hillPos) S.hillPos = { x: t[0], y: t[1] };
+    const k = Math.min(1, dt * 6);
+    S.hillPos.x += (t[0] - S.hillPos.x) * k;
+    S.hillPos.y += (t[1] - S.hillPos.y) * k;
+    const inside = st.balls.filter((b) => Math.hypot(b.x - S.hillPos.x, b.y - S.hillPos.y) < HILL_R);
+    const col = inside.length === 1 ? (inside[0].id === PID ? '#4ade80' : '#ff2d85') : inside.length > 1 ? '#facc15' : '#e5e7eb';
+    ctx.fillStyle = col; ctx.globalAlpha = 0.12 + 0.05 * Math.sin(time * 4);
+    ctx.beginPath(); ctx.arc(S.hillPos.x, S.hillPos.y, HILL_R, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = col; ctx.lineWidth = 6; ctx.shadowColor = col; ctx.shadowBlur = 20;
+    ctx.setLineDash([22, 14]);
+    ctx.save(); ctx.translate(S.hillPos.x, S.hillPos.y); ctx.rotate(time * 0.8);
+    ctx.beginPath(); ctx.arc(0, 0, HILL_R, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    ctx.setLineDash([]); ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+}
+
+function drawSoccerBall(st, time, dt) {
+  const [x, y, vx, vy] = st.sb;
+  S.ballRot = (S.ballRot || 0) + (vx / 20) * dt;
+  const sp = Math.hypot(vx, vy);
+  ctx.save();
+  ctx.translate(CX + x, CY + y);
+  if (sp > 450) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 14; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo((-vx / sp) * Math.min(70, sp / 14), (-vy / sp) * Math.min(70, sp / 14)); ctx.stroke();
+  }
+  ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 16;
+  ctx.fillStyle = '#fafafa';
+  ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.rotate(S.ballRot);
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) { const a = (i * Math.PI * 2) / 5 - Math.PI / 2; ctx.lineTo(Math.cos(a) * 7, Math.sin(a) * 7); }
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i++) { const a = (i * Math.PI * 2) / 5 - Math.PI / 2; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 7, Math.sin(a) * 7); ctx.lineTo(Math.cos(a) * 15, Math.sin(a) * 15); ctx.stroke(); }
+  ctx.rotate(-S.ballRot);
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
 function drawBumpers(st, dt) {
-  if (!S.map.bump) return;
+  if (!S.map.bumpers.length) return;
   const list = bumpers({ map: S.map, rot: st.rot });
   list.forEach((bm, i) => {
     S.bumpPulse[i] = Math.max(0, S.bumpPulse[i] - dt * 3);
@@ -1254,7 +1471,7 @@ function drawBall(b, time) {
     ctx.shadowBlur = 0;
   }
 
-  const col = b.arm > 0 ? '#cbd5e1' : S.mode === 'TEAM' ? TEAM_COL[p.team] : '#ffffff';
+  const col = b.arm > 0 ? '#cbd5e1' : isTeam(S.mode) ? TEAM_COL[p.team] : '#ffffff';
   ctx.shadowColor = b.arm > 0 ? '#94a3b8' : col;
   ctx.shadowBlur = b.sp > 500 || b.dsh > 0 ? 22 : 10;
   ctx.fillStyle = col;
@@ -1306,6 +1523,22 @@ function drawBall(b, time) {
   ctx.fillStyle = '#fff';
   ctx.fillText(CNAME[p.country], 0, R + 26);
 
+  const bmk = S.latest && S.latest.bm;
+  if (bmk && bmk[0] === b.id) {
+    const pulse = 0.5 + 0.5 * Math.sin(time * (6 + 14 / Math.max(0.6, bmk[1])));
+    ctx.strokeStyle = `rgba(239,68,68,${0.5 + 0.5 * pulse})`;
+    ctx.lineWidth = 6;
+    ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 24;
+    ctx.beginPath(); ctx.arc(0, 0, R + 12 + pulse * 4, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#111';
+    ctx.beginPath(); ctx.arc(0, -R - 38, 17, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fca5a5'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = '900 22px "Segoe UI", Arial, sans-serif';
+    ctx.fillText(String(Math.ceil(bmk[1])), 0, -R - 30);
+  }
+
   // hızlı tepki balonu
   const bub = S.bubbles.get(b.id);
   if (bub && bub.until > performance.now()) {
@@ -1327,10 +1560,13 @@ function drawBall(b, time) {
 function computeDanger(me, st) {
   if (!me || me.gh > 0) return 0;
   const d = Math.hypot(me.x, me.y);
+  let hole = 0;
+  if (S.map.hole) hole = Math.max(0, Math.min(1, 1 - (d - S.map.hole) / 150));
+  if (st.gh <= 0) return hole;
   const gi = gapInfo({ map: S.map, rot: st.rot }, Math.atan2(me.y, me.x));
   const radial = Math.max(0, Math.min(1, (d - (st.R - 170)) / 150));
   const ang = Math.max(0, Math.min(1, 1 - Math.max(0, gi.dist - st.gh) / 0.7));
-  return radial * ang;
+  return Math.max(hole, radial * ang);
 }
 
 function drawHud(me, st, time) {
@@ -1345,9 +1581,11 @@ function drawHud(me, st, time) {
       ctx.fillStyle = gr;
       ctx.fillRect(0, 0, CW, CH);
     }
+    const useBar = S.mode === 'FFA' || S.mode === 'TEAM' || S.map.hole > 0;
     const bw = 440;
     const bx = CX - bw / 2;
     const by = 1470;
+    if (useBar) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(bx, by, bw, 20);
     const bc = dg > 0.6 ? '#ef4444' : dg > 0.3 ? '#facc15' : '#4ade80';
@@ -1361,12 +1599,19 @@ function drawHud(me, st, time) {
     ctx.textAlign = 'center';
     ctx.fillStyle = dg > 0.6 ? '#fecaca' : '#e5e7eb';
     ctx.fillText(dg > 0.6 ? '! DANGER ZONE !' : 'EDGE DANGER', CX, by - 8);
+    }
 
-    // aktif güçlendirmeler
+    // aktif güçlendirmeler (bar yalnızca ilgili modlarda)
     const chips = [];
     if (me.arm > 0) chips.push(['ARMOR ' + me.arm.toFixed(1), PU_COL[0]]);
     if (me.sup > 0) chips.push(['SUPER DASH', PU_COL[1]]);
     if (me.gh > 0) chips.push(['GHOST ' + me.gh.toFixed(1), PU_COL[2]]);
+    const bmk = S.latest && S.latest.bm;
+    if (bmk && bmk[0] === PID) chips.push(['BOMB! ' + bmk[1].toFixed(1), '#ef4444']);
+    if (S.mode === 'HILL' && S.latest && S.latest.sc) {
+      const mine = S.latest.sc.find((x) => x[0] === PID);
+      if (mine) chips.push(['SCORE ' + mine[1].toFixed(1), '#4ade80']);
+    }
     chips.forEach(([t, c], i) => {
       ctx.font = '900 26px "Segoe UI", Arial, sans-serif';
       ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
@@ -1402,6 +1647,7 @@ function frame(now) {
   const st = sampleState();
   let me = null;
   if (st) {
+    drawDeco(st, time, dt);
     drawRing(st, time);
     drawBumpers(st, dt);
 
@@ -1419,11 +1665,12 @@ function frame(now) {
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 
     drawPowerups(st.pu, time);
+    if (st.sb) drawSoccerBall(st, time, dt);
     st.balls.sort((a, b) => a.y - b.y);
     st.balls.forEach((b) => drawBall(b, time));
     me = st.balls.find((b) => b.id === PID) || null;
 
-    S.danger = me && st.ph === 'play' ? computeDanger(me, st) : 0;
+    S.danger = me && st.ph === 'play' && S.mode !== 'SOCCER' ? computeDanger(me, st) : 0;
     if (S.danger > 0.4 && now - S.lastAlarm > 480 - 280 * S.danger) { S.lastAlarm = now; sfx.alarm(); }
   }
 
