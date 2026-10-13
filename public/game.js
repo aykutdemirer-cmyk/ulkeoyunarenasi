@@ -3,15 +3,9 @@ import {
   DT, SUB, BALL_R, ARMOR_R, DASH_CD, PU_R, MAPS, MAP_KEYS,
   advanceEnv, applyControl, moveSub, gapInfo, bumpers, mapFor, HILL_R, lavaCycle, lavaAt, LAVA_SECTORS
 } from './shared.js';
+import { t as T, tl as TL, countryName, setLang, applyStatic, onLang, getLang } from './i18n.js';
 
-const MODE_INFO = {
-  FFA: ['HERKES TEK', 'Son kalan kazanır.'],
-  TEAM: ['TAKIM A vs B', 'Rakip takımı eleyin; takım arkadaşına yumuşak çarparsın.'],
-  BOMB: ['BOMB TAG', 'Halka kapalı! Bombayı taşıyan süre bitince patlar; çarparak başkasına devret.'],
-  COINS: ['COIN RUSH', '60 sn: altınları topla! Güçlü çarpışmada az hızlı olan bir coin kaybeder. Halka kapalı.'],
-  SOCCER: ['FUTBOL', 'Takım A vs B: topu rakip kaleye sok! İlk 5 gol ya da 2 dk. Kaleler yarığın olduğu iki uç; dash = şut. Harita sabit.'],
-  HILL: ['KING OF THE HILL', '60 sn: tepede tek başına kalan puan kazanır. Halka kapalı, en çok puan kazanır.']
-};
+const MODE_INFO = new Proxy({}, { get: (_, m) => [T('mode.' + String(m)), T('modedesc.' + String(m))] });
 
 /* ------------------------------ Sabitler ------------------------------ */
 const CW = 1080;
@@ -21,29 +15,11 @@ const CY = 960;
 const INTERP_MS = 100;
 const TEAM_COL = { A: '#22d3ee', B: '#f97316', F: '#ffffff' };
 const PU_COL = ['#94a3b8', '#facc15', '#22d3ee'];
-const PU_LABEL = ['ARMOR', 'SUPER DASH', 'GHOST'];
+const puLabel = (i) => T(['armor', 'superdash', 'ghost'][i]);
 const EMOTES = ['GG', 'LOL', 'OOPS!', '!!!'];
-const MAP_DETAIL = {
-  classic: { stars: 1, tips: ['2 kapı (35°), yavaş dönen neon halka', 'Ani ölüm: 35. sn sonra kapılar genişler', 'Yeni başlayanlar için ideal'] },
-  collider: { stars: 3, tips: ['Ortada devasa bumper + 2 dönen tampon', 'Bumper seni rastgele yöne fırlatır', 'Kaotik: kimse güvende değil'] },
-  shrinking: { stars: 3, tips: ['Halka 360 → 170 px daralır', 'Alan daraldıkça çarpışma artar', 'Erken saldırgan ol, sonra hayatta kal'] },
-  gauntlet: { stars: 4, tips: ['4 dar kapı, çılgın dönüş hızı', 'Ani ölümde kapılar patlayarak genişler', 'Kapılara yaklaşmak çok riskli'] },
-  ice: { stars: 2, tips: ['Zemin buz gibi kaygan: durmak zor', 'İvme yarıya iner ama hız korunur', 'Dash ile uzun süzülürsün'] },
-  whirlpool: { stars: 2, tips: ['Girdap seni sürekli döndürür', '3 kapı (30°), yavaş dönüş', 'Akıntıya karşı koymak enerji ister'] },
-  pinball: { stars: 3, tips: ['4 sabit tampon seni fırlatır', 'Tamponların arkasına saklanmak zor', 'Rakibi tampona doğru it'] },
-  pulse: { stars: 3, tips: ['Halka nefes alır: genişler ve daralır', 'Daralırken duvara sıkışma', 'Zamanlamayı iyi tut'] },
-  lava: { stars: 4, tips: ['Dilimler turuncu yanıp söner, sonra yakar', 'Uyarıda güvenli dilime geç!', 'Zamanla daha fazla dilim yanar', 'Ghost Shield lavdan korur'] },
-  blackhole: { stars: 4, tips: ['Merkez seni çeker, içine düşen elenir', 'Kara delikten uzak dur, rakibi içine it', 'Çekim yaklaştıkça güçlü hissedilir'] },
-  random: { stars: 0, tips: ['Her maçta rastgele bir harita seçilir', 'Sürprizlere hazır ol!'] }
-};
-const MODE_DETAIL = {
-  FFA: { win: 'Son kalan kazanır', rules: ['2-16 oyuncu, herkes tek', 'Yarıktan çıkan top elenir', 'Power-up\'lar 15-20 sn\'de bir çıkar'], tip: 'Rakibi kapıya it, kendin kapıya yaklaşma.' },
-  TEAM: { win: 'Rakip takımın hepsini ele', rules: ['Takım A (turkuaz) vs Takım B (turuncu)', 'Dosta yumuşak, rakibe sert çarpma', 'Takım seçimi lobide'], tip: 'Birlikte hareket et, rakibi sıkıştır.' },
-  BOMB: { win: 'Son hayatta kalan', rules: ['Halka kapalı: dışarı çıkış yok', 'Bomba taşıyan ~9 sn sonra patlar', 'Çarparak bombayı devret', 'Her patlamadan sonra süre kısalır'], tip: 'Bombayı alınca kalabalığa dal!' },
-  HILL: { win: 'En çok puan (60 sn)', rules: ['Tepede tek başına kalan saniyede 1 puan', 'Tepe 15 sn\'de bir yer değiştirir', 'Halka kapalı, kimse elenmez'], tip: 'Tepedekini dash ile it, yerini al.' },
-  SOCCER: { win: 'İlk 5 gol ya da 2 dk', rules: ['A solda, B sağda; kaleler halkanın yarıkları', 'Dash = şut, ağır zırh = güçlü vuruş', 'Beraberlikte altın gol', 'Harita sabit (Football Arena)'], tip: 'Topun arkasına geç, kaleye sür.' },
-  COINS: { win: 'En çok coin (60 sn)', rules: ['Sarı coin 1, büyük altın 3 puan', 'Sert çarpışmada yavaş olan 1 coin kaybeder', 'Zırh coin kaybettirmez', 'Halka kapalı'], tip: 'Altın coin\'leri kovala, kalabalıktan kaç.' }
-};
+const MAP_STARS = { classic: 1, collider: 3, shrinking: 3, gauntlet: 4, ice: 2, whirlpool: 2, pinball: 3, pulse: 3, lava: 4, blackhole: 4, random: 0 };
+const MAP_DETAIL = new Proxy({}, { get: (_, k) => ({ stars: MAP_STARS[k] || 0, tips: TL('maptips.' + String(k)) }) });
+const MODE_DETAIL = new Proxy({}, { get: (_, m) => ({ win: T('modewin.' + String(m)), rules: TL('moderules.' + String(m)), tip: T('modetip.' + String(m)) }) });
 const isTeam = (m) => m === 'TEAM' || m === 'SOCCER';
 
 const COUNTRIES = [
@@ -52,7 +28,9 @@ const COUNTRIES = [
   ['FR', 'France'], ['JP', 'Japan'], ['BR', 'Brazil'], ['AR', 'Argentina'],
   ['IT', 'Italy'], ['ES', 'Spain'], ['KR', 'S. Korea'], ['NL', 'Netherlands']
 ].map(([code, name]) => ({ code, name }));
-const CNAME = Object.fromEntries(COUNTRIES.map((c) => [c.code, c.name]));
+const CNAME = {};
+function refreshNames() { COUNTRIES.forEach((c) => { CNAME[c.code] = countryName(c.code); }); }
+refreshNames();
 
 /* ------------------------------ DOM ------------------------------ */
 const $ = (id) => document.getElementById(id);
@@ -354,13 +332,13 @@ function saveStats(st) { try { localStorage.setItem('low_stats', JSON.stringify(
 function renderStats() {
   const st = loadStats();
   const el = document.getElementById('statsLine');
-  if (el) el.textContent = st.games ? `Oyun: ${st.games} · Galibiyet: ${st.wins} · Eleme: ${st.kills}` : 'İlk maçını oyna, istatistiklerin burada görünsün!';
+  if (el) el.textContent = st.games ? T('stats_line', st) : T('stats_first');
 }
 function renderMute() {
   const m1 = document.getElementById('muteBtn');
   const m2 = document.getElementById('muteBtn2');
   if (m1) m1.classList.toggle('off', muted);
-  if (m2) m2.textContent = muted ? 'SES: KAPALI' : 'SES: AÇIK';
+  if (m2) m2.textContent = muted ? T('sound_off') : T('sound_on');
 }
 function toggleMute() {
   muted = !muted;
@@ -425,7 +403,8 @@ COUNTRIES.forEach((c) => {
   b.className = 'country';
   b.appendChild(flagIcon(c.code, 88));
   const s = document.createElement('span');
-  s.textContent = c.name;
+  s.textContent = CNAME[c.code];
+  s.dataset.cc = c.code;
   b.appendChild(s);
   b.addEventListener('click', () => {
     initAudio();
@@ -455,7 +434,8 @@ const mapBtns = {};
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'btn map-btn';
-  b.textContent = k === 'random' ? 'RASTGELE' : MAPS[k].name;
+  b.textContent = k === 'random' ? T('random') : MAPS[k].name;
+  if (k === 'random') b.dataset.i18n = 'random';
   b.addEventListener('click', () => socket.emit('setMap', k));
   mapGrid.appendChild(b);
   mapBtns[k] = b;
@@ -476,7 +456,7 @@ $('quickBtn').addEventListener('click', () => {
   $('entryMsg').textContent = '';
   socket.emit('quickPlay', { name: myName(), country: S.myCountry }, (res) => {
     onEnter(res);
-    if (res && res.ok && res.quick) $('roomMsg').textContent = 'Rakip aranıyor... 8 sn içinde botlarla başlayacak.';
+    if (res && res.ok && res.quick) $('roomMsg').textContent = T('quick_search');
   });
 });
 document.querySelectorAll('#diffSeg button').forEach((b) => b.addEventListener('click', () => socket.emit('setDiff', b.dataset.diff)));
@@ -492,12 +472,12 @@ $('codeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinC
 function joinCode(raw) {
   initAudio();
   const code = String(raw || '').trim();
-  if (!code) { $('entryMsg').textContent = 'Oda kodunu gir.'; return; }
+  if (!code) { $('entryMsg').textContent = T('enter_code'); return; }
   $('entryMsg').textContent = '';
   socket.emit('joinRoom', { code, name: myName(), country: S.myCountry }, onEnter);
 }
 function onEnter(res) {
-  if (!res || !res.ok) { $('entryMsg').textContent = (res && res.error) || 'Bağlanılamadı.'; return; }
+  if (!res || !res.ok) { $('entryMsg').textContent = errText(res && res.error, 'err_connect'); return; }
   S.id = PID;
 }
 
@@ -513,7 +493,7 @@ $('exitBtn').addEventListener('click', leaveNow);
 $('roomCode').addEventListener('click', () => {
   const code = $('roomCode').textContent;
   if (navigator.clipboard) navigator.clipboard.writeText(code).catch(() => {});
-  $('roomMsg').textContent = 'Kod kopyalandı: ' + code;
+  $('roomMsg').textContent = T('copied', { code });
 });
 document.querySelectorAll('#modeGrid button').forEach((b) => b.addEventListener('click', () => socket.emit('setMode', b.dataset.mode)));
 $('teamA').addEventListener('click', () => socket.emit('setProfile', { team: 'A' }));
@@ -523,11 +503,13 @@ $('startBtn').addEventListener('click', () => {
   initAudio();
   $('roomMsg').textContent = '';
   socket.emit('startGame', { bots: Number($('botCount').value) }, (res) => {
-    if (!res || !res.ok) $('roomMsg').textContent = (res && res.error) || 'Başlatılamadı.';
+    if (!res || !res.ok) $('roomMsg').textContent = errText(res && res.error, 'err_start');
   });
 });
 
-function mapTitle(k) { return k === 'random' ? 'RASTGELE' : (MAPS[k] ? MAPS[k].name : k); }
+function errText(code, fallbackKey) { return code ? T('err_' + code) : T(fallbackKey); }
+
+function mapTitle(k) { return k === 'random' ? T('random') : (MAPS[k] ? MAPS[k].name : k); }
 
 function renderRooms(list) {
   const ul = $('roomList');
@@ -535,7 +517,7 @@ function renderRooms(list) {
   if (!list || !list.length) {
     const li = document.createElement('li');
     li.className = 'empty';
-    li.textContent = 'Şu an açık oda yok. Bir tane kur!';
+    li.textContent = T('no_rooms');
     ul.appendChild(li);
     return;
   }
@@ -552,10 +534,10 @@ function renderRooms(list) {
     info.appendChild(sm);
     const st = document.createElement('span');
     st.className = 'st ' + r.status;
-    st.textContent = r.status === 'lobby' ? 'LOBİ' : r.status === 'full' ? 'DOLU' : 'OYNANIYOR';
+    st.textContent = r.status === 'lobby' ? T('st_lobby') : r.status === 'full' ? T('st_full') : T('st_playing');
     const btn = document.createElement('button');
     btn.className = 'btn small';
-    btn.textContent = r.status === 'playing' ? 'İZLE' : 'KATIL';
+    btn.textContent = r.status === 'playing' ? T('watch') : T('join_btn');
     btn.disabled = r.status === 'full';
     btn.addEventListener('click', () => joinCode(r.code));
     li.appendChild(info);
@@ -582,7 +564,7 @@ function renderLobby() {
   $('modeDesc').textContent = (MODE_INFO[r.mode] || ['', ''])[1];
   Object.entries(mapBtns).forEach(([k, b]) => { b.classList.toggle('on', r.map === k); b.disabled = !isHost; });
   $('mapGrid').style.opacity = r.mode === 'SOCCER' ? '0.35' : '1';
-  $('mapDesc').textContent = r.mode === 'SOCCER' ? 'Futbolda harita sabit (Football Arena).' : r.map === 'random' ? 'Her maçta rastgele bir harita seçilir.' : (MAPS[r.map] ? MAPS[r.map].desc : '');
+  $('mapDesc').textContent = r.mode === 'SOCCER' ? T('map_fixed_soccer') : r.map === 'random' ? T('map_random_desc') : (MAPS[r.map] ? T('mapdesc.' + r.map) : '');
   document.querySelectorAll('#diffSeg button').forEach((b) => { b.classList.toggle('on', b.dataset.diff === r.diff); b.disabled = !isHost; });
   document.querySelectorAll('#roundSeg button').forEach((b) => { b.classList.toggle('on', Number(b.dataset.r) === r.rounds); b.disabled = !isHost; });
   $('teamPick').classList.toggle('hidden', !team);
@@ -604,11 +586,11 @@ function renderLobby() {
     li.appendChild(flagIcon(p.country, 60));
     const nm = document.createElement('span');
     nm.className = 'nm';
-    nm.textContent = p.name + ' · ' + CNAME[p.country] + (p.off ? ' (bağlantı yok)' : '');
+    nm.textContent = p.name + ' · ' + CNAME[p.country] + (p.off ? T('offline') : '');
     li.appendChild(nm);
     if (p.wins) { const t = document.createElement('span'); t.className = 'tag w'; t.textContent = '\u{1F3C6} ' + p.wins; li.appendChild(t); }
     if (p.id === r.host) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'HOST'; li.appendChild(t); }
-    if (team) { const t = document.createElement('span'); t.className = 'tag ' + p.team.toLowerCase(); t.textContent = 'TAKIM ' + p.team; li.appendChild(t); }
+    if (team) { const t = document.createElement('span'); t.className = 'tag ' + p.team.toLowerCase(); t.textContent = T('team_x', { t: p.team }); li.appendChild(t); }
     ul.appendChild(li);
   });
 }
@@ -648,14 +630,14 @@ function updateSides() {
     side.shownMap = mk;
     const d = MAP_DETAIL[mk] || { stars: 0, tips: [] };
     const m = MAPS[mk];
-    fillSide(sideMapEl, mk === 'random' ? 'RASTGELE HARİTA' : m.name, mk === 'random' ? 'Sürpriz harita.' : m.desc, d.tips);
-    sideMapEl.querySelector('.side-stars').textContent = d.stars ? 'Zorluk: ' + '★'.repeat(d.stars) + '☆'.repeat(4 - d.stars) : '';
+    fillSide(sideMapEl, mk === 'random' ? T('random_title') : m.name, mk === 'random' ? T('random_sub') : T('mapdesc.' + mk), d.tips);
+    sideMapEl.querySelector('.side-stars').textContent = d.stars ? T('difficulty') + '★'.repeat(d.stars) + '☆'.repeat(4 - d.stars) : '';
   }
   if (side.shownMode !== md) {
     side.shownMode = md;
     const d = MODE_DETAIL[md];
     fillSide(sideModeEl, MODE_INFO[md][0], MODE_INFO[md][1], d.rules);
-    sideModeEl.querySelector('.side-win').textContent = '\u{1F3C6} ' + d.win + ' · İpucu: ' + d.tip;
+    sideModeEl.querySelector('.side-win').textContent = '\u{1F3C6} ' + d.win + ' · ' + T('tip_lbl') + d.tip;
   }
 }
 
@@ -844,7 +826,7 @@ socket.on('connect', () => {
 socket.on('disconnect', () => {
   S.needResume = !!S.room;
   if (S.inGame) $('netLine').classList.remove('hidden');
-  else if (S.room) $('roomMsg').textContent = 'Bağlantı koptu, yeniden bağlanılıyor...';
+  else if (S.room) $('roomMsg').textContent = T('reconnecting');
   keys.clear();
   P.inputs.length = 0;
 });
@@ -859,9 +841,10 @@ socket.on('rooms', (list) => {
     S.needResume = false;
     S.room = null;
     showScreen(false);
-    $('entryMsg').textContent = 'Odadan düşüldün (bağlantı çok uzun süre koptu).';
+    $('entryMsg').textContent = T('dropped');
     renderLobby();
   }
+  S.roomsList = list;
   renderRooms(list);
 });
 socket.on('roomState', (r) => {
@@ -890,7 +873,7 @@ socket.on('gameStart', (g) => {
   S.alive = S.roster.has(PID);
   P.b = null; P.env = null; P.inputs = []; P.seq = 0; P.acc = 0; P.err = { x: 0, y: 0 }; P.dashPending = false;
   $('elimList').innerHTML = '';
-  $('elimTitle').textContent = g.mode === 'SOCCER' ? 'GOALS' : 'ELIMINATED';
+  $('elimTitle').textContent = g.mode === 'SOCCER' ? T('goals') : T('eliminated');
   (g.elims || []).forEach((e) => addElim(e.id, e.rank, false));
   (g.goals || []).forEach((go) => addGoal(go, false));
   $('leftNum').textContent = String(g.total - (g.elims || []).length);
@@ -980,18 +963,18 @@ function onSnap(s) {
     $('leftNum').textContent = `${s.scr[0]} : ${s.scr[1]} B`;
     const mm = Math.floor(s.tl / 60);
     const ss = String(s.tl % 60).padStart(2, '0');
-    $('specLine').textContent = s.ot ? 'GOLDEN GOAL!' : `${mm}:${ss}`;
+    $('specLine').textContent = s.ot ? T('golden') : `${mm}:${ss}`;
   } else if (S.mode === 'HILL' || S.mode === 'COINS') {
-    $('leftLbl').textContent = 'TIME';
+    $('leftLbl').textContent = T('time');
     $('leftNum').textContent = String(Math.ceil(s.ht));
     const lead = s.sc && s.sc[0];
     const lp = lead && S.roster.get(lead[0]);
     const mine = s.sc && s.sc.find((x) => x[0] === PID);
-    $('specLine').textContent = (lp ? `Leader: ${CNAME[lp.country]} ${lead[1].toFixed(0)}` : 'Leader: -') + (mine ? ` · You: ${mine[1].toFixed(0)}` : '');
+    $('specLine').textContent = (lp ? T('leader', { name: CNAME[lp.country], pts: lead[1].toFixed(0) }) : T('leader_none')) + (mine ? T('you_pts', { pts: mine[1].toFixed(0) }) : '');
   } else {
-    $('leftLbl').textContent = 'LEFT';
+    $('leftLbl').textContent = T('left');
     $('leftNum').textContent = String(s.left);
-    $('specLine').textContent = 'Spectating: ' + s.sp + (!S.alive && S.roster.has(PID) ? ' · you are out' : '') + (!S.roster.has(PID) ? ' · you are watching' : '');
+    $('specLine').textContent = T('spectating', { n: s.sp }) + (!S.alive && S.roster.has(PID) ? T('you_out') : '') + (!S.roster.has(PID) ? T('you_watching') : '');
   }
   if (s.bm && s.ph === 'play') {
     const sec = Math.ceil(s.bm[1]);
@@ -1005,7 +988,7 @@ function onSnap(s) {
   if (s.ph === 'countdown') {
     if (S.lastPhase === '') sfx.gong();
     if (s.cd !== S.lastCd) { S.lastCd = s.cd; sfx.beep(false); }
-    showBanner(`${s.cd}<small>${S.map.name}${S.rounds > 1 ? ' · ROUND ' + S.round + '/' + S.rounds : ''}</small>`);
+    showBanner(`${s.cd}<small>${S.map.name}${S.rounds > 1 ? ' · ' + T('round_lbl') + ' ' + S.round + '/' + S.rounds : ''}</small>`);
     maybeHint();
   } else if (S.lastPhase === 'countdown' && s.ph === 'play') {
     showBanner('GO!');
@@ -1040,7 +1023,7 @@ function onSnap(s) {
       if (e.id === PID) { sfx.pickup(); vibrate(25); }
       burst(e.x, e.y, 26, PU_COL[e.type], 380);
       S.rings.push({ x: e.x, y: e.y, r: 20, max: 200, life: 0.55, max_life: 0.55, col: PU_COL[e.type] });
-      S.floaters.push({ x: e.x, y: e.y - 40, text: PU_LABEL[e.type] + '!', col: PU_COL[e.type], life: 1.2 });
+      S.floaters.push({ x: e.x, y: e.y - 40, text: puLabel(e.type) + '!', col: PU_COL[e.type], life: 1.2 });
     } else if (e.k === 'coin') {
       sfx.coin(e.v);
       burst(e.x, e.y, e.v > 1 ? 14 : 6, '#facc15', 260);
@@ -1054,7 +1037,7 @@ function onSnap(s) {
       spawnConfetti();
       vibrate(60);
       addGoal({ id: e.by, team: e.team, s: e.s }, true);
-      showBanner(`GOAL!<small>TEAM ${e.team} · ${e.score[0]} - ${e.score[1]}</small>`);
+      showBanner(`${T('goal')}<small>${T('team_x', { t: e.team })} · ${e.score[0]} - ${e.score[1]}</small>`);
       $('banner').style.color = TEAM_COL[e.team];
       setTimeout(() => { if (!S.over) { $('banner').classList.add('hidden'); $('banner').style.color = ''; } }, 1900);
     } else if (e.k === 'kick') {
@@ -1062,18 +1045,18 @@ function onSnap(s) {
       burst(e.x, e.y, 6, '#ffffff', 220);
       if (e.s > 0.5) S.shake = Math.max(S.shake, 5 + 6 * e.s);
     } else if (e.k === 'ot') {
-      showBanner('GOLDEN GOAL<small>next goal wins</small>');
+      showBanner(`${T('golden_banner')}<small>${T('next_goal')}</small>`);
       setTimeout(() => { if (!S.over) $('banner').classList.add('hidden'); }, 1800);
     } else if (e.k === 'boom') {
       burst(e.x, e.y, 60, '#f97316', 650);
       burst(e.x, e.y, 30, '#fde047', 500);
       S.rings.push({ x: e.x, y: e.y, r: 30, max: 380, life: 0.7, max_life: 0.7, col: '#f97316' });
-      S.floaters.push({ x: e.x, y: e.y - 60, text: 'BOOM!', col: '#f97316', life: 1.4 });
+      S.floaters.push({ x: e.x, y: e.y - 60, text: T('boom'), col: '#f97316', life: 1.4 });
       S.shake = Math.max(S.shake, 24);
     } else if (e.k === 'pass') {
       sfx.spawn();
       const bb = s.m.get(e.id);
-      if (bb) S.floaters.push({ x: bb[1], y: bb[2] - 70, text: 'BOMB!', col: '#ef4444', life: 1.1 });
+      if (bb) S.floaters.push({ x: bb[1], y: bb[2] - 70, text: T('bomb'), col: '#ef4444', life: 1.1 });
     } else if (e.k === 'hillMove') {
       sfx.spawn();
       S.rings.push({ x: e.x, y: e.y, r: 20, max: HILL_R + 60, life: 0.7, max_life: 0.7, col: '#4ade80' });
@@ -1101,9 +1084,7 @@ function maybeHint() {
   try { seen = localStorage.getItem('low_seen') || '0'; } catch (e) { /* yok */ }
   if (seen === '1') return;
   const h = $('hint');
-  h.innerHTML = (isTouch()
-    ? '<b>Sürükle</b>: hareket · <b>DASH</b>: sağ alt düğme'
-    : '<b>WASD / OK</b>: hareket · <b>SPACE</b>: dash') + '<br>Rakipleri <b>yarıktan</b> dışarı it, kendin yaklaşma!';
+  h.innerHTML = (isTouch() ? T('hint_touch') : T('hint_kb')) + '<br>' + T('hint_goal');
   h.classList.remove('hidden');
   try { localStorage.setItem('low_seen', '1'); } catch (e) { /* yok */ }
   setTimeout(() => h.classList.add('hidden'), 7000);
@@ -1122,7 +1103,7 @@ function feedRow(by, victim) {
   }
   row.appendChild(flagIcon(v.country, 40));
   const t = document.createElement('span');
-  t.textContent = k ? CNAME[v.country] : CNAME[v.country] + ' is out';
+  t.textContent = k ? CNAME[v.country] : CNAME[v.country] + ' ' + T('feed_out');
   row.appendChild(t);
   feed.appendChild(row);
   while (feed.children.length > 4) feed.removeChild(feed.firstChild);
@@ -1131,7 +1112,7 @@ function feedRow(by, victim) {
 
 function seriesName(key) {
   if (!key) return '-';
-  if (/^T[AB]$/.test(key)) return 'Team ' + key[1];
+  if (/^T[AB]$/.test(key)) return T('team_x', { t: key[1] });
   const p = S.roster.get(key);
   return p ? CNAME[p.country] : key;
 }
@@ -1141,13 +1122,13 @@ function showResults(res, series) {
   box.innerHTML = '';
   const t = document.createElement('div');
   t.className = 'rt';
-  t.textContent = series && series.rounds > 1 ? `RESULTS · ROUND ${series.round}/${series.rounds}` : 'RESULTS';
+  t.textContent = series && series.rounds > 1 ? T('results_round', { r: series.round, n: series.rounds }) : T('results');
   box.appendChild(t);
   if (series && series.rounds > 1) {
     const sl = document.createElement('div');
     sl.className = 'rt';
     sl.style.cssText = 'color:#fff;font-size:calc(var(--u)*2.8)';
-    sl.textContent = 'SERIES: ' + series.wins.sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, n]) => seriesName(k) + ' ' + n).join(' · ');
+    sl.textContent = T('series_lbl', { list: series.wins.sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, n]) => seriesName(k) + ' ' + n).join(' · ') });
     box.appendChild(sl);
   }
   const rows = res.slice(0, 5);
@@ -1161,7 +1142,7 @@ function showResults(res, series) {
     const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = r.rank + '.'; d.appendChild(rk);
     d.appendChild(flagIcon(p.country, 44));
     const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = p.bot ? CNAME[p.country] : p.name; d.appendChild(nm);
-    const kl = document.createElement('span'); kl.className = 'kl'; kl.textContent = (S.mode === 'HILL' || S.mode === 'COINS') ? Math.round(r.score) + ' pts' : S.mode === 'BOMB' ? '' : S.mode === 'SOCCER' ? r.kills + ' G' : r.kills + ' K'; d.appendChild(kl);
+    const kl = document.createElement('span'); kl.className = 'kl'; kl.textContent = (S.mode === 'HILL' || S.mode === 'COINS') ? Math.round(r.score) + ' ' + T('pts') : S.mode === 'BOMB' ? '' : S.mode === 'SOCCER' ? r.kills + ' ' + T('g_unit') : r.kills + ' ' + T('k_unit'); d.appendChild(kl);
     box.appendChild(d);
   });
   box.classList.remove('hidden');
@@ -1221,7 +1202,7 @@ function onElim(e) {
     vibrate(80);
     P.b = null;
     P.inputs.length = 0;
-    showBanner(`OUT!<small>#${e.rank} · spectating</small>`);
+    showBanner(`${T('out')}<small>${T('out_sub', { rank: e.rank })}</small>`);
     setTimeout(() => { if (!S.over) $('banner').classList.add('hidden'); }, 1800);
   }
 }
@@ -1234,19 +1215,19 @@ function onOver(e) {
   const b = $('banner');
   b.style.color = '';
   b.innerHTML = '';
-  if (!e.ids.length) { showBanner('DRAW!'); return; }
+  if (!e.ids.length) { showBanner(T('draw')); return; }
   const winners = e.ids.map((id) => S.roster.get(id)).filter(Boolean);
   const youWin = e.ids.includes(PID);
   if (isTeam(S.mode) && e.team) {
-    b.innerHTML = `<span style="color:${TEAM_COL[e.team]}">TEAM ${e.team}</span><br>WINS!<small>${youWin ? 'YOU WIN!' : ''}</small>`;
+    b.innerHTML = `<span style="color:${TEAM_COL[e.team]}">${T('team_wins', { t: e.team })}</span><small>${youWin ? T('you_win') : ''}</small>`;
   } else if (winners[0]) {
     const w = winners[0];
     b.appendChild(flagIcon(w.country, 160));
     const t = document.createElement('div');
-    t.textContent = CNAME[w.country].toUpperCase() + ' WINS!';
+    t.textContent = T('wins_x', { name: CNAME[w.country].toUpperCase() });
     b.appendChild(t);
     const sm = document.createElement('small');
-    sm.textContent = youWin ? 'YOU WIN!' : (w.bot ? '' : w.name);
+    sm.textContent = youWin ? T('you_win') : (w.bot ? '' : w.name);
     b.appendChild(sm);
   }
   b.classList.add('over');
@@ -1255,11 +1236,11 @@ function onOver(e) {
     showResults(e.res, e.series);
     if (e.series && e.series.done && e.series.rounds > 1) {
       const cs = document.createElement('small');
-      cs.textContent = 'SERIES CHAMPION: ' + seriesName(e.series.key);
+      cs.textContent = T('champion', { name: seriesName(e.series.key) });
       b.appendChild(cs);
     } else if (e.series && e.series.rounds > 1) {
       const cs = document.createElement('small');
-      cs.textContent = 'next round starting...';
+      cs.textContent = T('next_round');
       b.appendChild(cs);
     }
     if (S.roster.has(PID)) {
@@ -1894,19 +1875,19 @@ function drawHud(me, st, time) {
     ctx.font = '800 22px "Segoe UI", Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = dg > 0.6 ? '#fecaca' : '#e5e7eb';
-    ctx.fillText(dg > 0.6 ? '! DANGER ZONE !' : 'EDGE DANGER', CX, by - 8);
+    ctx.fillText(dg > 0.6 ? T('danger_zone') : T('edge_danger'), CX, by - 8);
     }
 
     // aktif güçlendirmeler (bar yalnızca ilgili modlarda)
     const chips = [];
-    if (me.arm > 0) chips.push(['ARMOR ' + me.arm.toFixed(1), PU_COL[0]]);
-    if (me.sup > 0) chips.push(['SUPER DASH', PU_COL[1]]);
-    if (me.gh > 0) chips.push(['GHOST ' + me.gh.toFixed(1), PU_COL[2]]);
+    if (me.arm > 0) chips.push([T('armor') + ' ' + me.arm.toFixed(1), PU_COL[0]]);
+    if (me.sup > 0) chips.push([T('superdash'), PU_COL[1]]);
+    if (me.gh > 0) chips.push([T('ghost') + ' ' + me.gh.toFixed(1), PU_COL[2]]);
     const bmk = S.latest && S.latest.bm;
-    if (bmk && bmk[0] === PID) chips.push(['BOMB! ' + bmk[1].toFixed(1), '#ef4444']);
+    if (bmk && bmk[0] === PID) chips.push([T('bomb') + ' ' + bmk[1].toFixed(1), '#ef4444']);
     if ((S.mode === 'HILL' || S.mode === 'COINS') && S.latest && S.latest.sc) {
       const mine = S.latest.sc.find((x) => x[0] === PID);
-      if (mine) chips.push(['SCORE ' + mine[1].toFixed(1), '#4ade80']);
+      if (mine) chips.push([T('score') + ' ' + mine[1].toFixed(1), '#4ade80']);
     }
     chips.forEach(([t, c], i) => {
       ctx.font = '900 26px "Segoe UI", Arial, sans-serif';
@@ -2023,3 +2004,22 @@ requestAnimationFrame(frame);
 
 // Sunucudan oda listesi iste
 socket.emit('listRooms');
+
+/* ------------------------------ Dil seçici ------------------------------ */
+document.querySelectorAll('.lang-sw button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
+onLang(() => {
+  $('entryMsg').textContent = '';
+  $('roomMsg').textContent = '';
+  refreshNames();
+  document.querySelectorAll('#countryGrid span[data-cc]').forEach((sp) => { sp.textContent = CNAME[sp.dataset.cc]; });
+  renderMute();
+  renderStats();
+  renderRooms(S.roomsList);
+  side.shownMap = null;
+  side.shownMode = null;
+  if (S.room && !S.inGame) renderLobby(); else updateSides();
+  if (S.inGame) $('elimTitle').textContent = S.mode === 'SOCCER' ? T('goals') : T('eliminated');
+});
+applyStatic();
+renderMute();
+renderStats();

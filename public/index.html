@@ -15,98 +15,99 @@
   <!-- ===================== LOBİ ===================== -->
   <main id="lobby" class="screen">
     <header class="lobby-head">
+      <div class="lang-sw"><button data-lang="tr">TR</button><button data-lang="en">EN</button></div>
       <h1>LAST ONE WINS!</h1>
       <h2>Which country survives?</h2>
     </header>
 
     <section class="card">
-      <label class="lbl" for="nameInput">İSMİN</label>
-      <input id="nameInput" type="text" maxlength="14" placeholder="Oyuncu adı" autocomplete="off">
+      <label class="lbl" for="nameInput" data-i18n="name_lbl">İSMİN</label>
+      <input id="nameInput" type="text" maxlength="14" placeholder="Oyuncu adı" data-i18n-ph="name_ph" autocomplete="off">
 
       <p id="statsLine" class="stats-line"></p>
 
-      <span class="lbl">ÜLKENİ SEÇ</span>
+      <span class="lbl" data-i18n="pick_country">ÜLKENİ SEÇ</span>
       <div id="countryGrid" class="country-grid"></div>
     </section>
 
     <section id="entryCard" class="card">
-      <button id="quickBtn" class="btn primary">HIZLI OYNA</button>
-      <button id="createBtn" class="btn wide">ODA KUR</button>
-      <div class="or">veya kodla katıl</div>
+      <button id="quickBtn" class="btn primary" data-i18n="quick">HIZLI OYNA</button>
+      <button id="createBtn" class="btn wide" data-i18n="create">ODA KUR</button>
+      <div class="or" data-i18n="or_join">veya kodla katıl</div>
       <div class="join-row">
         <input id="codeInput" type="text" maxlength="11" placeholder="ARENA-XXXX" autocomplete="off">
-        <button id="joinBtn" class="btn">KATIL</button>
+        <button id="joinBtn" class="btn" data-i18n="join">KATIL</button>
       </div>
       <p id="entryMsg" class="msg"></p>
 
-      <span class="lbl">AÇIK ODALAR</span>
+      <span class="lbl" data-i18n="open_rooms">AÇIK ODALAR</span>
       <ul id="roomList" class="rooms"></ul>
     </section>
 
     <section id="roomCard" class="card hidden">
       <div class="room-top">
         <div>
-          <span class="lbl">ODA KODU</span>
-          <button id="roomCode" class="code" title="Kopyala">ARENA-0000</button>
+          <span class="lbl" data-i18n="room_code">ODA KODU</span>
+          <button id="roomCode" class="code" title="Kopyala" data-i18n-title="copy_title">ARENA-0000</button>
         </div>
-        <div class="room-btns"><button id="muteBtn2" class="btn small">SES: AÇIK</button><button id="leaveBtn" class="btn small">AYRIL</button></div>
+        <div class="room-btns"><button id="muteBtn2" class="btn small">SES: AÇIK</button><button id="leaveBtn" class="btn small" data-i18n="leave">AYRIL</button></div>
       </div>
 
-      <span class="lbl">MOD</span>
+      <span class="lbl" data-i18n="mode">MOD</span>
       <div class="map-grid" id="modeGrid">
-        <button class="btn map-btn" data-mode="FFA">HERKES TEK</button>
-        <button class="btn map-btn" data-mode="TEAM">TAKIM A vs B</button>
-        <button class="btn map-btn" data-mode="BOMB">BOMB TAG</button>
-        <button class="btn map-btn" data-mode="HILL">KING OF THE HILL</button>
-        <button class="btn map-btn" data-mode="SOCCER">FUTBOL</button>
-        <button class="btn map-btn" data-mode="COINS">COIN RUSH</button>
+        <button class="btn map-btn" data-mode="FFA" data-i18n="mode.FFA">HERKES TEK</button>
+        <button class="btn map-btn" data-mode="TEAM" data-i18n="mode.TEAM">TAKIM A vs B</button>
+        <button class="btn map-btn" data-mode="BOMB" data-i18n="mode.BOMB">BOMB TAG</button>
+        <button class="btn map-btn" data-mode="HILL" data-i18n="mode.HILL">KING OF THE HILL</button>
+        <button class="btn map-btn" data-mode="SOCCER" data-i18n="mode.SOCCER">FUTBOL</button>
+        <button class="btn map-btn" data-mode="COINS" data-i18n="mode.COINS">COIN RUSH</button>
       </div>
       <p id="modeDesc" class="mapdesc"></p>
 
-      <span class="lbl">HARİTA</span>
+      <span class="lbl" data-i18n="map">HARİTA</span>
       <div id="mapGrid" class="map-grid"></div>
       <p id="mapDesc" class="mapdesc"></p>
 
-      <span class="lbl">BOT ZORLUĞU</span>
+      <span class="lbl" data-i18n="bot_diff">BOT ZORLUĞU</span>
       <div class="seg" id="diffSeg">
-        <button class="btn seg-btn" data-diff="easy">KOLAY</button>
-        <button class="btn seg-btn" data-diff="normal">NORMAL</button>
-        <button class="btn seg-btn" data-diff="hard">ZOR</button>
+        <button class="btn seg-btn" data-diff="easy" data-i18n="easy">KOLAY</button>
+        <button class="btn seg-btn" data-diff="normal" data-i18n="normal">NORMAL</button>
+        <button class="btn seg-btn" data-diff="hard" data-i18n="hard">ZOR</button>
       </div>
 
-      <span class="lbl">SERİ</span>
+      <span class="lbl" data-i18n="series">SERİ</span>
       <div class="seg" id="roundSeg">
-        <button class="btn seg-btn" data-r="1">TEK MAÇ</button>
-        <button class="btn seg-btn" data-r="3">İLK 2'YE</button>
-        <button class="btn seg-btn" data-r="5">İLK 3'E</button>
+        <button class="btn seg-btn" data-r="1" data-i18n="series1">TEK MAÇ</button>
+        <button class="btn seg-btn" data-r="3" data-i18n="series3">İLK 2'YE</button>
+        <button class="btn seg-btn" data-r="5" data-i18n="series5">İLK 3'E</button>
       </div>
 
       <div id="teamPick" class="hidden">
-        <span class="lbl">TAKIMIN</span>
+        <span class="lbl" data-i18n="your_team">TAKIMIN</span>
         <div class="seg">
-          <button id="teamA" class="btn seg-btn team-a">TAKIM A</button>
-          <button id="teamB" class="btn seg-btn team-b">TAKIM B</button>
+          <button id="teamA" class="btn seg-btn team-a" data-i18n="team_a">TAKIM A</button>
+          <button id="teamB" class="btn seg-btn team-b" data-i18n="team_b">TAKIM B</button>
         </div>
       </div>
 
-      <span class="lbl">OYUNCULAR <span id="playerCount"></span></span>
+      <span class="lbl"><span data-i18n="players">OYUNCULAR</span> <span id="playerCount"></span></span>
       <ul id="playerList" class="players"></ul>
 
       <div id="hostControls" class="hidden">
-        <label class="lbl" for="botCount">BOT SAYISI: <b id="botVal">0</b></label>
+        <label class="lbl" for="botCount"><span data-i18n="bots">BOT SAYISI</span>: <b id="botVal">0</b></label>
         <input id="botCount" type="range" min="0" max="15" value="5">
-        <button id="startBtn" class="btn primary">OYUNU BAŞLAT</button>
+        <button id="startBtn" class="btn primary" data-i18n="start">OYUNU BAŞLAT</button>
       </div>
-      <p id="waitMsg" class="msg hidden">Oda sahibinin oyunu başlatması bekleniyor...</p>
+      <p id="waitMsg" class="msg hidden" data-i18n="wait_host">Oda sahibinin oyunu başlatması bekleniyor...</p>
       <p id="roomMsg" class="msg"></p>
     </section>
 
-    <p class="hint">WASD / Yön tuşları: hareket &nbsp;•&nbsp; SPACE: dash &nbsp;•&nbsp; Mobil: sol yarı joystick, sağ alt dash</p>
+    <p class="hint" data-i18n="controls_hint">WASD / Yön tuşları: hareket</p>
   </main>
 
   <!-- Yan bilgi panelleri (geniş ekranda, mod/harita üzerine gelince) -->
   <aside id="sideMap" class="side left">
-    <div class="side-tag">HARİTA</div>
+    <div class="side-tag" data-i18n="side_map">HARİTA</div>
     <canvas id="sideMapCv" width="560" height="560"></canvas>
     <h3 class="side-title"></h3>
     <p class="side-desc"></p>
@@ -114,7 +115,7 @@
     <div class="side-stars"></div>
   </aside>
   <aside id="sideMode" class="side right">
-    <div class="side-tag">MOD</div>
+    <div class="side-tag" data-i18n="side_mode">MOD</div>
     <canvas id="sideModeCv" width="560" height="560"></canvas>
     <h3 class="side-title"></h3>
     <p class="side-desc"></p>
@@ -134,14 +135,14 @@
         <div id="specLine" class="spec-line">Spectating: 0</div>
       </div>
 
-      <button id="exitBtn" class="exit-btn" aria-label="Odadan ayrıl">&#10005;</button>
+      <button id="exitBtn" class="exit-btn" aria-label="Odadan ayrıl" data-i18n-aria="exit_aria">&#10005;</button>
       <button id="muteBtn" class="mute-btn" aria-label="Ses">&#9835;</button>
       <div id="feed" class="feed"></div>
       <div id="emotes" class="emotes">
         <button data-i="0">GG</button><button data-i="1">LOL</button><button data-i="2">OOPS</button><button data-i="3">!!!</button>
       </div>
       <div id="hint" class="hint-box hidden"></div>
-      <div id="netLine" class="net-line hidden">Bağlantı koptu - yeniden bağlanılıyor...</div>
+      <div id="netLine" class="net-line hidden" data-i18n="net_lost">Bağlantı koptu - yeniden bağlanılıyor...</div>
       <div id="banner" class="banner hidden"></div>
       <div id="results" class="results hidden"></div>
 

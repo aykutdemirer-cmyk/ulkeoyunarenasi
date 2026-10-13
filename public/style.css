@@ -477,3 +477,12 @@ html.ingame, html.ingame body { overflow: hidden; height: 100%; overscroll-behav
 .results .rr canvas { width: calc(var(--u) * 4.4); height: calc(var(--u) * 4.4); border-radius: 50%; }
 .results .rr .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .results .rr .kl { color: #fca5a5; }
+
+/* ---- dil seçici ---- */
+.lobby-head { position: relative; }
+.lang-sw { position: fixed; top: 12px; right: 12px; z-index: 6; display: flex; gap: 4px; }
+.lang-sw button {
+  font: inherit; font-size: 12px; font-weight: 900; letter-spacing: 1px; color: var(--muted);
+  background: #090916; border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; cursor: pointer;
+}
+.lang-sw button.on { color: #fff; border-color: var(--pink); background: rgba(255, 45, 133, 0.2); }
