@@ -28,7 +28,7 @@ export const PU_TYPES = ['armor', 'super', 'ghost'];
 const deg = (d) => (d * Math.PI) / 180;
 
 const base = { R0: 360, Rmin: 360, shrink: 0, gaps: 2, gapHalf: deg(17.5), rot: 0.7, sudden: 35, grow: 0.012, gapMax: 1.0,
-  bumpers: [], friction: FRICTION, accMul: 1, gravity: 0, swirl: 0, hole: 0, col: '#FF2D85' };
+  pulseAmp: 0, pulsePeriod: 8, bumpers: [], friction: FRICTION, accMul: 1, gravity: 0, swirl: 0, hole: 0, col: '#FF2D85' };
 const mk = (o) => Object.assign({}, base, o);
 
 export const MAPS = {
@@ -63,6 +63,10 @@ export const MAPS = {
       { t: 'fixed', x: 140, y: -140, r: 40 }, { t: 'fixed', x: -140, y: -140, r: 40 }
     ]
   }),
+  pulse: mk({
+    key: 'pulse', name: 'PULSE ARENA', desc: 'Halka nefes alır: sürekli genişler ve daralır.',
+    pulseAmp: 95, pulsePeriod: 8, rot: 0.65, sudden: 45, col: '#f472b6'
+  }),
   blackhole: mk({
     key: 'blackhole', name: 'BLACK HOLE', desc: 'Merkez seni çeker; içine düşersen elenirsin.',
     gravity: 140, hole: 46, gapHalf: deg(20), rot: 0.7, sudden: 40, col: '#c084fc'
@@ -93,6 +97,7 @@ export function advanceEnv(env) {
   env.t += DT;
   env.rot += m.rot * DT;
   env.R = Math.max(m.Rmin, m.R0 - m.shrink * env.t);
+  if (m.pulseAmp) env.R -= m.pulseAmp * (0.5 - 0.5 * Math.cos((Math.PI * 2 * env.t) / m.pulsePeriod));
   env.gh = Math.min(m.gapMax, m.gapHalf + Math.max(0, env.t - m.sudden) * m.grow);
 }
 

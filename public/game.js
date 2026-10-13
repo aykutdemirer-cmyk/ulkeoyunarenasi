@@ -366,6 +366,8 @@ const S = {
   myCountry: 'TR',
   lastAlarm: 0,
   lastBombSec: 0,
+  round: 1,
+  rounds: 1,
   danger: 0,
   puSeen: new Set(),
   bubbles: new Map()
@@ -449,6 +451,7 @@ $('quickBtn').addEventListener('click', () => {
   });
 });
 document.querySelectorAll('#diffSeg button').forEach((b) => b.addEventListener('click', () => socket.emit('setDiff', b.dataset.diff)));
+document.querySelectorAll('#roundSeg button').forEach((b) => b.addEventListener('click', () => socket.emit('setRounds', Number(b.dataset.r))));
 $('muteBtn').addEventListener('click', (e) => { e.stopPropagation(); toggleMute(); });
 $('muteBtn').addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
 $('muteBtn2').addEventListener('click', toggleMute);
@@ -550,6 +553,7 @@ function renderLobby() {
   Object.entries(mapBtns).forEach(([k, b]) => { b.classList.toggle('on', r.map === k); b.disabled = !isHost; });
   $('mapDesc').textContent = r.map === 'random' ? 'Her maçta rastgele bir harita seçilir.' : (MAPS[r.map] ? MAPS[r.map].desc : '');
   document.querySelectorAll('#diffSeg button').forEach((b) => { b.classList.toggle('on', b.dataset.diff === r.diff); b.disabled = !isHost; });
+  document.querySelectorAll('#roundSeg button').forEach((b) => { b.classList.toggle('on', Number(b.dataset.r) === r.rounds); b.disabled = !isHost; });
   $('teamPick').classList.toggle('hidden', !team);
   $('teamA').classList.toggle('on', !!me && me.team === 'A');
   $('teamB').classList.toggle('on', !!me && me.team === 'B');
@@ -622,6 +626,8 @@ socket.on('roomState', (r) => {
 socket.on('gameStart', (g) => {
   S.mode = g.mode;
   S.map = mapFor(g.map, g.mode);
+  S.round = g.round || 1;
+  S.rounds = g.rounds || 1;
   S.hillPos = null;
   S.roster = new Map(g.roster.map((p) => [p.id, p]));
   S.snaps = [];
@@ -745,7 +751,7 @@ function onSnap(s) {
   if (s.ph === 'countdown') {
     if (S.lastPhase === '') sfx.gong();
     if (s.cd !== S.lastCd) { S.lastCd = s.cd; sfx.beep(false); }
-    showBanner(`${s.cd}<small>${S.map.name}</small>`);
+    showBanner(`${s.cd}<small>${S.map.name}${S.rounds > 1 ? ' · ROUND ' + S.round + '/' + S.rounds : ''}</small>`);
     maybeHint();
   } else if (S.lastPhase === 'countdown' && s.ph === 'play') {
     showBanner('GO!');
@@ -846,13 +852,27 @@ function feedRow(by, victim) {
   setTimeout(() => { if (row.parentNode) row.parentNode.removeChild(row); }, 4500);
 }
 
-function showResults(res) {
+function seriesName(key) {
+  if (!key) return '-';
+  if (/^T[AB]$/.test(key)) return 'Team ' + key[1];
+  const p = S.roster.get(key);
+  return p ? CNAME[p.country] : key;
+}
+
+function showResults(res, series) {
   const box = $('results');
   box.innerHTML = '';
   const t = document.createElement('div');
   t.className = 'rt';
-  t.textContent = 'RESULTS';
+  t.textContent = series && series.rounds > 1 ? `RESULTS · ROUND ${series.round}/${series.rounds}` : 'RESULTS';
   box.appendChild(t);
+  if (series && series.rounds > 1) {
+    const sl = document.createElement('div');
+    sl.className = 'rt';
+    sl.style.cssText = 'color:#fff;font-size:calc(var(--u)*2.8)';
+    sl.textContent = 'SERIES: ' + series.wins.sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, n]) => seriesName(k) + ' ' + n).join(' · ');
+    box.appendChild(sl);
+  }
   const rows = res.slice(0, 5);
   const meIdx = res.findIndex((r) => r.id === PID);
   if (meIdx >= 5) rows.push(res[meIdx]);
@@ -942,7 +962,16 @@ function onOver(e) {
   b.classList.add('over');
   b.classList.remove('hidden');
   if (e.res) {
-    showResults(e.res);
+    showResults(e.res, e.series);
+    if (e.series && e.series.done && e.series.rounds > 1) {
+      const cs = document.createElement('small');
+      cs.textContent = 'SERIES CHAMPION: ' + seriesName(e.series.key);
+      b.appendChild(cs);
+    } else if (e.series && e.series.rounds > 1) {
+      const cs = document.createElement('small');
+      cs.textContent = 'next round starting...';
+      b.appendChild(cs);
+    }
     if (S.roster.has(PID)) {
       const st = loadStats();
       const mine = e.res.find((r) => r.id === PID);

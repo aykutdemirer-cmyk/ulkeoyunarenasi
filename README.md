@@ -24,7 +24,8 @@ Aynı ağdaki telefonlardan `http://<bilgisayarın-yerel-IP-si>:3000` ile bağla
 
 - Oda kodu (`ARENA-XXXX`), açık oda listesi, hızlı oyna, seyirci modu, 5 sn yeniden bağlanma toleransı
 - Modlar: Herkes Tek, Takım A vs B, **Bomb Tag** (halka kapalı, bomba süre bitince patlar), **King of the Hill** (60 sn, tepede tek başına kalan puan alır)
-- 8 harita: Classic Ring, Hyper Collider, Shrinking Death, The Gauntlet, **Ice Rink** (kaygan zemin), **Whirlpool** (girdap), **Pinball Pit** (4 tampon), **Black Hole** (merkez çeker, içine düşen elenir)
+- Seri maçlar (tek maç, ilk 2'ye, ilk 3'e) ve oda içi galibiyet sayacı
+- 9 harita: Pulse Arena (nefes alan halka), Classic Ring, Hyper Collider, Shrinking Death, The Gauntlet, **Ice Rink** (kaygan zemin), **Whirlpool** (girdap), **Pinball Pit** (4 tampon), **Black Hole** (merkez çeker, içine düşen elenir)
 - Power-up'lar: Heavy Armor, Super Dash, Ghost Shield
 - Botlar (Kolay / Normal / Zor), kill feed, sonuç ekranı, istatistikler
 - Client-side prediction + server reconciliation (fizik çekirdeği: `public/shared.js`)

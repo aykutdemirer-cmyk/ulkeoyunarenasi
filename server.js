@@ -78,7 +78,8 @@ function shuffle(a) {
 function newRoom(hostPid) {
   return {
     code: makeCode(), mode: 'FFA', map: 'classic', diff: 'normal', phase: 'lobby',
-    players: new Map(), host: hostPid, game: null, wins: new Map(), quick: false
+    players: new Map(), host: hostPid, game: null, wins: new Map(), quick: false,
+    rounds: 1, series: { round: 0, wins: new Map() }, lastBots: 0, botEntries: null
   };
 }
 
@@ -109,6 +110,7 @@ function roomState(room) {
     mode: room.mode,
     map: room.map,
     diff: room.diff,
+    rounds: room.rounds,
     phase: room.phase,
     host: room.host,
     max: MAX_PLAYERS,
@@ -155,12 +157,14 @@ function gameInfo(room) {
     map: g.mapKey,
     mapName: MAPS[g.mapKey].name,
     total: g.total,
+    round: g.round,
+    rounds: room.rounds,
     roster: g.roster,
     elims: g.balls.filter((b) => !b.alive).sort((a, b) => b.rank - a.rank).map((b) => ({ id: b.id, rank: b.rank }))
   };
 }
 
-function startGame(room, botCount) {
+function startGame(room, botCount, continuing = false) {
   const humans = [...room.players.values()].filter((p) => p.dcAt === 0);
   const bots = Math.max(0, Math.min(MAX_PLAYERS - humans.length, Math.floor(botCount) || 0));
   const used = new Set(humans.map((h) => h.country));
@@ -169,7 +173,9 @@ function startGame(room, botCount) {
   let aCount = humans.filter((h) => h.team === 'A').length;
   let bCount = humans.length - aCount;
   const entries = humans.map((h) => ({ id: h.id, name: h.name, country: h.country, team: h.team, bot: false }));
-  for (let i = 0; i < bots; i++) {
+  const reuse = continuing && room.botEntries;
+  if (reuse) room.botEntries.forEach((e) => { if (!used.has(e.country)) entries.push({ ...e }); });
+  for (let i = 0; !reuse && i < bots; i++) {
     const c = freeCountries[i];
     let team = 'A';
     if (room.mode === 'TEAM') {
@@ -179,6 +185,8 @@ function startGame(room, botCount) {
     entries.push({ id: 'bot' + i, name: c.name, country: c.code, team, bot: true });
   }
 
+  if (!reuse) room.botEntries = entries.filter((e) => e.bot).map((e) => ({ ...e }));
+  if (!continuing) { room.lastBots = bots; room.series = { round: 0, wins: new Map() }; }
   if (entries.length < 2) return 'En az 2 oyuncu gerekli (bot ekleyebilirsin).';
   if (room.mode === 'TEAM') {
     if (new Set(entries.map((e) => e.team)).size < 2) return 'Takım modunda iki takımda da oyuncu olmalı.';
@@ -219,6 +227,8 @@ function startGame(room, botCount) {
     nextPU: PU_FIRST,
     countdown: COUNTDOWN,
     phase: 'countdown',
+    round: room.series.round + 1,
+    seriesDone: true,
     overT: 0,
     ev: [],
     total: n
@@ -237,7 +247,16 @@ function endMatch(room, winners, res) {
   g.overT = 0;
   winners.forEach((b) => { b.rank = 1; if (!b.bot) room.wins.set(b.id, (room.wins.get(b.id) || 0) + 1); });
   const team = room.mode === 'TEAM' && winners.length ? winners[0].team : null;
-  g.ev.push({ k: 'over', ids: winners.map((b) => b.id), team, res });
+  const sr = room.series;
+  sr.round++;
+  const keys = room.mode === 'TEAM' ? (team ? ['T' + team] : []) : winners.map((b) => b.id);
+  keys.forEach((k) => sr.wins.set(k, (sr.wins.get(k) || 0) + 1));
+  const need = Math.ceil(room.rounds / 2);
+  const best = [...sr.wins.entries()].sort((x, y) => y[1] - x[1])[0];
+  const done = room.rounds <= 1 || sr.round >= room.rounds || (best && best[1] >= need);
+  g.seriesDone = done;
+  const series = { round: sr.round, rounds: room.rounds, wins: [...sr.wins.entries()], done, key: best ? best[0] : null };
+  g.ev.push({ k: 'over', ids: winners.map((b) => b.id), team, res, series });
   pushRoom(room);
 }
 
@@ -637,12 +656,15 @@ function sendSnapshot(room) {
 }
 
 function endGame(room) {
+  const again = room.game && !room.game.seriesDone && room.rounds > 1;
   room.game = null;
   room.phase = 'lobby';
   for (const p of [...room.players.values()]) {
     if (p.gone) removePlayer(room, p.id);
   }
   if (!rooms.has(room.code)) return;
+  if (again && !startGame(room, room.lastBots, true)) return; // seri: sıradaki raunt
+  room.series = { round: 0, wins: new Map() };
   io.to(room.code).emit('toLobby');
   pushRoom(room);
 }
@@ -828,6 +850,13 @@ io.on('connection', (socket) => {
       const humans = [...room.players.values()].filter((p) => p.dcAt === 0).length;
       startGame(room, Math.max(1, 8 - humans));
     }, 8000);
+  }));
+
+  socket.on('setRounds', safe((n) => {
+    const room = curRoom();
+    if (!room || room.host !== pid || room.phase !== 'lobby') return;
+    n = Number(n);
+    if (n === 1 || n === 3 || n === 5) { room.rounds = n; pushRoom(room); }
   }));
 
   socket.on('startGame', safe((data, cb) => {

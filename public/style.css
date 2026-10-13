@@ -445,7 +445,7 @@ html.ingame, html.ingame body { overflow: hidden; height: 100%; overscroll-behav
 
 .banner.over { top: 38%; }
 .results {
-  position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 8); top: calc(var(--u) * 106);
+  position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 8); top: calc(var(--u) * 99);
   padding: calc(var(--u) * 1.5) calc(var(--u) * 2.5); border-radius: calc(var(--u) * 3);
   background: rgba(8, 8, 24, 0.88); border: calc(var(--u) * 0.4) solid var(--pink);
   pointer-events: none; z-index: 4;
