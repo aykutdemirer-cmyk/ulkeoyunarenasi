@@ -2,8 +2,12 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#05050f">
   <title>LAST ONE WINS! - Which country survives?</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,12 +29,15 @@
 
     <section id="entryCard" class="card">
       <button id="createBtn" class="btn primary">ODA KUR</button>
-      <div class="or">veya</div>
+      <div class="or">veya kodla katıl</div>
       <div class="join-row">
         <input id="codeInput" type="text" maxlength="11" placeholder="ARENA-XXXX" autocomplete="off">
         <button id="joinBtn" class="btn">KATIL</button>
       </div>
       <p id="entryMsg" class="msg"></p>
+
+      <span class="lbl">AÇIK ODALAR</span>
+      <ul id="roomList" class="rooms"></ul>
     </section>
 
     <section id="roomCard" class="card hidden">
@@ -47,6 +54,10 @@
         <button id="modeFFA" class="btn seg-btn">HERKES TEK</button>
         <button id="modeTEAM" class="btn seg-btn">TAKIM A vs B</button>
       </div>
+
+      <span class="lbl">HARİTA</span>
+      <div id="mapGrid" class="map-grid"></div>
+      <p id="mapDesc" class="mapdesc"></p>
 
       <div id="teamPick" class="hidden">
         <span class="lbl">TAKIMIN</span>
@@ -80,8 +91,11 @@
         <div class="title">LAST ONE WINS!</div>
         <div class="subtitle">Which country survives?</div>
         <div class="left-badge">LEFT: <span id="leftNum">0</span></div>
+        <div id="specLine" class="spec-line">Spectating: 0</div>
       </div>
 
+      <button id="exitBtn" class="exit-btn" aria-label="Odadan ayrıl">&#10005;</button>
+      <div id="netLine" class="net-line hidden">Bağlantı koptu - yeniden bağlanılıyor...</div>
       <div id="banner" class="banner hidden"></div>
 
       <div class="elim-panel">
@@ -95,6 +109,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="game.js"></script>
+  <script type="module" src="game.js"></script>
 </body>
 </html>
