@@ -1,11 +1,12 @@
 import express from 'express';
 import http from 'http';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import {
   DT, SUB, ARMOR_T, GHOST_T, SUPER_T, PU_R, PU_TYPES, MODES, BOMB_TIME, HILL_R, HILL_TIME,
-  SOCCER_R, SOCCER_TIME, GOAL_TARGET, COINS_TIME, gapInfo as gapInfoSoccer,
+  SOCCER_R, SOCCER_TIME, GOAL_TARGET, COINS_TIME, gapInfo as gapInfoSoccer, lavaCycle, lavaAt, LAVA_SECTORS,
   MAPS, MAP_KEYS, mapFor, bumpers, newEnv, advanceEnv, gapInfo, ballR, ballMass,
   applyControl, moveSub
 } from './public/shared.js';
@@ -651,6 +652,47 @@ function botThink(room, g, b) {
     return;
   }
 
+  // 0b) Lav: uyarı/aktif dilimdeysem en yakın güvenli noktaya kaç
+  if (env.map.lava) {
+    const lc = lavaCycle(env);
+    if (lc && lc.state > 0 && lavaAt(env, Math.atan2(b.y, b.x)) > 0) {
+      const step = (Math.PI * 2) / LAVA_SECTORS;
+      let best = null;
+      let bd = Infinity;
+      for (let k = 0; k < LAVA_SECTORS; k++) {
+        if (lc.sectors.includes(k)) continue;
+        for (const [a, inward] of [[k * step, 1], [(k + 1) * step, -1]]) {
+          const ux = Math.cos(a);
+          const uy = Math.sin(a);
+          const t = Math.min(env.R - 50, Math.max(70, b.x * ux + b.y * uy));
+          const px = ux * t + -uy * inward * 45;
+          const py = uy * t + ux * inward * 45;
+          const dd = Math.hypot(px - b.x, py - b.y);
+          if (dd < bd) { bd = dd; best = [px, py]; }
+        }
+      }
+      if (best) {
+        const l = Math.hypot(best[0] - b.x, best[1] - b.y) || 1;
+        b.ix = (best[0] - b.x) / l; b.iy = (best[1] - b.y) / l;
+        if ((lc.state === 2 || lc.left < 1.2) && b.cd <= 0 && l > 90) b.dashQ = true;
+        return;
+      }
+    }
+    // güvenli dilimdeyim: uyarı/aktif sürerken dilimin ortasında kal (tehlikeli sınıra yaklaşma)
+    if (lc && lc.state > 0) {
+      const step = (Math.PI * 2) / LAVA_SECTORS;
+      const my = Math.atan2(b.y, b.x);
+      const k = Math.floor((((my % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) / step);
+      const c = (k + 0.5) * step;
+      const rr = Math.min(env.R - 70, Math.max(d, 150));
+      const tx = Math.cos(c) * rr;
+      const ty = Math.sin(c) * rr;
+      const dd = Math.hypot(tx - b.x, ty - b.y);
+      if (dd > 25) { b.ix = ((tx - b.x) / dd) * Math.min(1, dd / 70); b.iy = ((ty - b.y) / dd) * Math.min(1, dd / 70); }
+      return;
+    }
+  }
+
   // Mod davranışları
   if (room.mode === 'BOMB' && g.bomb) return botBomb(g, b, d, R);
   if (room.mode === 'HILL' && g.hill) return botHill(g, b, d, R);
@@ -1191,6 +1233,14 @@ io.on('connection', (socket) => {
   }));
 });
 
+process.on('uncaughtException', (e) => console.error('uncaughtException:', e));
+process.on('unhandledRejection', (e) => console.error('unhandledRejection:', e));
+
 server.listen(PORT, () => {
   console.log(`LAST ONE WINS! http://localhost:${PORT}`);
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const ni of list || []) {
+      if (ni.family === 'IPv4' && !ni.internal) console.log(`  Ağdaki cihazlar için: http://${ni.address}:${PORT}`);
+    }
+  }
 });

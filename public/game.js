@@ -1,7 +1,7 @@
 /* LAST ONE WINS! - istemci (ES module) */
 import {
   DT, SUB, BALL_R, ARMOR_R, DASH_CD, PU_R, MAPS, MAP_KEYS,
-  advanceEnv, applyControl, moveSub, gapInfo, bumpers, mapFor, HILL_R
+  advanceEnv, applyControl, moveSub, gapInfo, bumpers, mapFor, HILL_R, lavaCycle, lavaAt, LAVA_SECTORS
 } from './shared.js';
 
 const MODE_INFO = {
@@ -1253,7 +1253,7 @@ function sampleState() {
   if (b.sb) sb = (a.sb && a !== b) ? [lerp(a.sb[0], b.sb[0], t), lerp(a.sb[1], b.sb[1], t), b.sb[2], b.sb[3]] : b.sb;
   return {
     sb,
-    rot: lerp(a.rot, b.rot, t), gh: lerp(a.gh, b.gh, t), R: lerp(a.R, b.R, t),
+    t: lerp(a.t, b.t, t), rot: lerp(a.rot, b.rot, t), gh: lerp(a.gh, b.gh, t), R: lerp(a.R, b.R, t),
     balls, pu: L.pu, ph: b.ph
   };
 }
@@ -1346,6 +1346,24 @@ function drawDeco(st, time, dt) {
       ctx.beginPath(); ctx.arc(0, 0, st.R + 60, a0, a0 + st.gh * 2); ctx.arc(0, 0, st.R - 10, a0 + st.gh * 2, a0, true); ctx.closePath(); ctx.fill();
       ctx.globalAlpha = 1;
     });
+  }
+  if (S.map.lava) {
+    const lc = lavaCycle({ map: S.map, t: st.t });
+    if (lc && lc.state > 0) {
+      const step = (Math.PI * 2) / LAVA_SECTORS;
+      const blink = 0.5 + 0.5 * Math.sin(time * 14);
+      lc.sectors.forEach((k) => {
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, st.R, k * step, (k + 1) * step); ctx.closePath();
+        if (lc.state === 1) {
+          ctx.fillStyle = `rgba(251,146,60,${0.10 + 0.14 * blink})`; ctx.fill();
+          ctx.strokeStyle = 'rgba(251,146,60,0.7)'; ctx.lineWidth = 3; ctx.setLineDash([16, 12]); ctx.stroke(); ctx.setLineDash([]);
+        } else {
+          ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 30;
+          ctx.fillStyle = `rgba(239,68,68,${0.45 + 0.2 * blink})`; ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+      });
+    }
   }
   // King of the Hill bölgesi
   if (S.mode === 'HILL' && S.latest && S.latest.hill) {
@@ -1597,6 +1615,12 @@ function computeDanger(me, st) {
   const d = Math.hypot(me.x, me.y);
   let hole = 0;
   if (S.map.hole) hole = Math.max(0, Math.min(1, 1 - (d - S.map.hole) / 150));
+  let lava = 0;
+  if (S.map.lava) {
+    const lv = lavaAt({ map: S.map, t: st.t }, Math.atan2(me.y, me.x));
+    lava = lv === 2 ? 1 : lv === 1 ? 0.75 : 0;
+  }
+  hole = Math.max(hole, lava);
   if (st.gh <= 0) return hole;
   const gi = gapInfo({ map: S.map, rot: st.rot }, Math.atan2(me.y, me.x));
   const radial = Math.max(0, Math.min(1, (d - (st.R - 170)) / 150));
@@ -1616,7 +1640,7 @@ function drawHud(me, st, time) {
       ctx.fillStyle = gr;
       ctx.fillRect(0, 0, CW, CH);
     }
-    const useBar = S.mode === 'FFA' || S.mode === 'TEAM' || S.map.hole > 0;
+    const useBar = S.mode === 'FFA' || S.mode === 'TEAM' || S.map.hole > 0 || !!S.map.lava;
     const bw = 440;
     const bx = CX - bw / 2;
     const by = 1470;

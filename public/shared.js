@@ -32,7 +32,7 @@ export const PU_TYPES = ['armor', 'super', 'ghost'];
 const deg = (d) => (d * Math.PI) / 180;
 
 const base = { R0: 360, Rmin: 360, shrink: 0, gaps: 2, gapHalf: deg(17.5), rot: 0.7, sudden: 35, grow: 0.012, gapMax: 1.0,
-  pulseAmp: 0, pulsePeriod: 8, bumpers: [], friction: FRICTION, accMul: 1, gravity: 0, swirl: 0, hole: 0, col: '#FF2D85' };
+  lava: null, pulseAmp: 0, pulsePeriod: 8, bumpers: [], friction: FRICTION, accMul: 1, gravity: 0, swirl: 0, hole: 0, col: '#FF2D85' };
 const mk = (o) => Object.assign({}, base, o);
 
 export const MAPS = {
@@ -71,6 +71,10 @@ export const MAPS = {
     key: 'pulse', name: 'PULSE ARENA', desc: 'Halka nefes alır: sürekli genişler ve daralır.',
     pulseAmp: 95, pulsePeriod: 8, rot: 0.65, sudden: 45, col: '#f472b6'
   }),
+  lava: mk({
+    key: 'lava', name: 'LAVA FLOOR', desc: 'Zeminin dilimleri kızarır, sonra yakar! Kırmızıdan kaç.',
+    gapHalf: deg(11), rot: 0.5, sudden: 60, col: '#ef4444', lava: { period: 5, warn: 2.4, active: 1.6, grace: 3 }
+  }),
   blackhole: mk({
     key: 'blackhole', name: 'BLACK HOLE', desc: 'Merkez seni çeker; içine düşersen elenirsin.',
     gravity: 140, hole: 46, gapHalf: deg(20), rot: 0.7, sudden: 40, col: '#c084fc'
@@ -88,6 +92,7 @@ export function mapFor(key, mode) {
       rot: 0, grow: 0, shrink: 0, Rmin: m.R0, pulseAmp: 0, hole: 0, gravity: 0, swirl: 0, bumpers: [], friction: 0.985, accMul: 1, accMulBase: 1
     });
   }
+  if (mode === 'HILL' || mode === 'COINS' || mode === 'SOCCER') m.lava = null;
   if (mode === 'HILL' || mode === 'COINS') { m.hole = 0; m.gravity = 0; m.shrink = 0; m.Rmin = m.R0; }
   return m;
 }
@@ -122,6 +127,40 @@ export function gapInfo(env, ang) {
     if (d < best) { best = d; center = c; }
   }
   return { dist: best, center };
+}
+
+/* Lav dilimleri: env.t'den deterministik üretilir (sunucu, istemci ve tahmin aynı sonucu bulur) */
+export const LAVA_SECTORS = 8;
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+export function lavaCycle(env) {
+  const L = env.map.lava;
+  if (!L) return null;
+  const tt = env.t - L.grace;
+  if (tt < 0) return { state: 0, sectors: [], left: -tt };
+  const cyc = Math.floor(tt / L.period);
+  const ph = tt - cyc * L.period;
+  const state = ph < L.warn ? 1 : ph < L.warn + L.active ? 2 : 0;
+  const r = rng(cyc * 7919 + 13);
+  const all = Array.from({ length: LAVA_SECTORS }, (_, i) => i);
+  for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+  const count = Math.min(6, 3 + Math.floor(cyc / 4));
+  return { state, sectors: all.slice(0, count), left: state === 1 ? L.warn - ph : state === 2 ? L.warn + L.active - ph : L.period - ph };
+}
+export function lavaAt(env, ang) {
+  const lc = lavaCycle(env);
+  if (!lc || lc.state === 0) return 0;
+  const step = (Math.PI * 2) / LAVA_SECTORS;
+  const sec = Math.floor((((ang % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) / step);
+  return lc.sectors.includes(sec) ? lc.state : 0;
 }
 
 export function inGap(env, ang) {
@@ -215,6 +254,7 @@ export function moveSub(b, env, sdt, rnd, ev) {
 
   const d = Math.hypot(b.x, b.y);
   if (env.map.hole && d < env.map.hole && !(b.ghostT > 0)) return true; // kara delik
+  if (env.map.lava && !(b.ghostT > 0) && lavaAt(env, Math.atan2(b.y, b.x)) === 2) return true; // lav
   if (d + r >= env.R || d > env.R) {
     const ang = Math.atan2(b.y, b.x);
     const open = !env.map.closed && !(b.ghostT > 0) && inGap(env, ang);
