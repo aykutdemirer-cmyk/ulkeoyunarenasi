@@ -391,6 +391,18 @@ html.ingame, html.ingame body { overflow: hidden; height: 100%; overscroll-behav
   background: rgba(220, 38, 38, 0.8); padding: calc(var(--u) * 1) 0; z-index: 4;
 }
 
+/* ---- v4: emote ---- */
+.emotes {
+  position: absolute; left: calc(var(--u) * 4); bottom: calc(var(--u) * 33);
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(var(--u) * 1.2); z-index: 4;
+}
+.emotes button {
+  font: inherit; font-weight: 900; font-size: calc(var(--u) * 3); color: #fff;
+  width: calc(var(--u) * 11); height: calc(var(--u) * 8); border-radius: calc(var(--u) * 2.5);
+  background: rgba(0, 0, 0, 0.55); border: calc(var(--u) * 0.4) solid rgba(255, 255, 255, 0.45); cursor: pointer;
+}
+.emotes button:active { background: rgba(255, 45, 133, 0.5); }
+
 /* ---- v3: hızlı oyna, zorluk, kill feed, sonuç ekranı, ses ---- */
 .btn.wide { width: 100%; margin-top: 8px; }
 #quickBtn { font-size: 19px; }

@@ -13,6 +13,7 @@ const INTERP_MS = 100;
 const TEAM_COL = { A: '#22d3ee', B: '#f97316', F: '#ffffff' };
 const PU_COL = ['#94a3b8', '#facc15', '#22d3ee'];
 const PU_LABEL = ['ARMOR', 'SUPER DASH', 'GHOST'];
+const EMOTES = ['GG', 'LOL', 'OOPS!', '!!!'];
 
 const COUNTRIES = [
   ['TR', 'Turkey'], ['ZA', 'South Africa'], ['NO', 'Norway'], ['CN', 'China'],
@@ -357,7 +358,8 @@ const S = {
   myCountry: 'TR',
   lastAlarm: 0,
   danger: 0,
-  puSeen: new Set()
+  puSeen: new Set(),
+  bubbles: new Map()
 };
 try { S.myCountry = localStorage.getItem('low_country') || 'TR'; } catch (e) { /* yok */ }
 if (!CNAME[S.myCountry]) S.myCountry = 'TR';
@@ -441,6 +443,7 @@ document.querySelectorAll('#diffSeg button').forEach((b) => b.addEventListener('
 $('muteBtn').addEventListener('click', (e) => { e.stopPropagation(); toggleMute(); });
 $('muteBtn').addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
 $('muteBtn2').addEventListener('click', toggleMute);
+document.querySelectorAll('#emotes button').forEach((b) => b.addEventListener('click', () => socket.emit('emote', Number(b.dataset.i))));
 renderMute();
 renderStats();
 $('joinBtn').addEventListener('click', () => joinCode($('codeInput').value));
@@ -624,6 +627,7 @@ socket.on('gameStart', (g) => {
   S.lastPhase = '';
   S.lastCd = 0;
   S.over = false;
+  S.bubbles = new Map();
   S.alive = S.roster.has(PID);
   P.b = null; P.env = null; P.inputs = []; P.seq = 0; P.acc = 0; P.err = { x: 0, y: 0 }; P.dashPending = false;
   $('elimList').innerHTML = '';
@@ -752,6 +756,9 @@ function onSnap(s) {
       burst(e.x, e.y, 26, PU_COL[e.type], 380);
       S.rings.push({ x: e.x, y: e.y, r: 20, max: 200, life: 0.55, max_life: 0.55, col: PU_COL[e.type] });
       S.floaters.push({ x: e.x, y: e.y - 40, text: PU_LABEL[e.type] + '!', col: PU_COL[e.type], life: 1.2 });
+    } else if (e.k === 'emote') {
+      S.bubbles.set(e.id, { i: e.i, until: performance.now() + 2200 });
+      if (e.id !== PID) sfx.pickup();
     } else if (e.k === 'elim') {
       onElim(e);
     } else if (e.k === 'over') {
@@ -969,6 +976,7 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   if (k === ' ') { if (!e.repeat) doDash(); return; }
+  if (k >= '1' && k <= '4') { if (!e.repeat) socket.emit('emote', Number(k) - 1); return; }
   if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) keys.add(k);
 });
 window.addEventListener('keyup', (e) => { keys.delete(e.key.toLowerCase()); });
@@ -990,7 +998,7 @@ $('dashBtn').addEventListener('mousedown', (e) => { e.preventDefault(); doDash()
 stage.addEventListener('touchstart', (e) => {
   if (!S.inGame) return;
   initAudio();
-  if (e.target.closest && e.target.closest('#exitBtn')) return;
+  if (e.target.closest && e.target.closest('#exitBtn, #emotes, #muteBtn')) return;
   const r = stage.getBoundingClientRect();
   for (const t of e.changedTouches) {
     if (joy.on) break;
@@ -1297,6 +1305,22 @@ function drawBall(b, time) {
   ctx.strokeText(CNAME[p.country], 0, R + 26);
   ctx.fillStyle = '#fff';
   ctx.fillText(CNAME[p.country], 0, R + 26);
+
+  // hızlı tepki balonu
+  const bub = S.bubbles.get(b.id);
+  if (bub && bub.until > performance.now()) {
+    const txt = EMOTES[bub.i];
+    ctx.font = '900 30px "Segoe UI", Arial, sans-serif';
+    const w = ctx.measureText(txt).width + 30;
+    const by = -R - (mine ? 64 : 46);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(-w / 2, by - 24, w, 40, 14) : ctx.rect(-w / 2, by - 24, w, 40);
+    ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-8, by + 15); ctx.lineTo(8, by + 15); ctx.lineTo(0, by + 27); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#111';
+    ctx.fillText(txt, 0, by + 6);
+  }
   ctx.restore();
 }
 
@@ -1321,7 +1345,7 @@ function drawHud(me, st, time) {
       ctx.fillStyle = gr;
       ctx.fillRect(0, 0, CW, CH);
     }
-    const bw = 520;
+    const bw = 440;
     const bx = CX - bw / 2;
     const by = 1470;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';

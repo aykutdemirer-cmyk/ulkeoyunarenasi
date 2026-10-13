@@ -725,6 +725,9 @@ io.on('connection', (socket) => {
 
   // İstemci tahmini için numaralı girdi: {s: seq, x, y, d: dash}
   socket.on('inp', safe((data) => {
+    const now = Date.now();
+    if (now - (socket.data.inpWin || 0) > 1000) { socket.data.inpWin = now; socket.data.inpN = 0; }
+    if (++socket.data.inpN > 120) return; // saniyede en fazla 120 girdi
     const room = curRoom();
     const g = room && room.game;
     const b = g && g.byId.get(pid);
@@ -740,6 +743,18 @@ io.on('connection', (socket) => {
     if (s <= b.ack) return;
     b.inQ.push({ s, x, y, d: !!data.d });
     if (b.inQ.length > 6) b.inQ.shift();
+  }));
+
+  // Hızlı tepkiler (0: GG, 1: LOL, 2: OOPS!, 3: !!!) - saniyede en fazla 1
+  socket.on('emote', safe((i) => {
+    const room = curRoom();
+    const g = room && room.game;
+    const now = Date.now();
+    if (!g || !g.byId.has(pid) || now - (socket.data.lastEmote || 0) < 900) return;
+    i = Math.floor(Number(i));
+    if (!(i >= 0 && i <= 3)) return;
+    socket.data.lastEmote = now;
+    g.ev.push({ k: 'emote', id: pid, i });
   }));
 
   socket.on('leaveRoom', safe(() => leave()));
