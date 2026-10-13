@@ -104,6 +104,24 @@
     <p class="hint">WASD / Yön tuşları: hareket &nbsp;•&nbsp; SPACE: dash &nbsp;•&nbsp; Mobil: sol yarı joystick, sağ alt dash</p>
   </main>
 
+  <!-- Yan bilgi panelleri (geniş ekranda, mod/harita üzerine gelince) -->
+  <aside id="sideMap" class="side left">
+    <div class="side-tag">HARİTA</div>
+    <canvas id="sideMapCv" width="560" height="560"></canvas>
+    <h3 class="side-title"></h3>
+    <p class="side-desc"></p>
+    <ul class="side-list"></ul>
+    <div class="side-stars"></div>
+  </aside>
+  <aside id="sideMode" class="side right">
+    <div class="side-tag">MOD</div>
+    <canvas id="sideModeCv" width="560" height="560"></canvas>
+    <h3 class="side-title"></h3>
+    <p class="side-desc"></p>
+    <ul class="side-list"></ul>
+    <div class="side-win"></div>
+  </aside>
+
   <!-- ===================== OYUN ===================== -->
   <div id="game" class="screen hidden">
     <div id="stage" class="stage">
