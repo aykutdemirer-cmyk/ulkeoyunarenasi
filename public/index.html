@@ -23,12 +23,15 @@
       <label class="lbl" for="nameInput">İSMİN</label>
       <input id="nameInput" type="text" maxlength="14" placeholder="Oyuncu adı" autocomplete="off">
 
+      <p id="statsLine" class="stats-line"></p>
+
       <span class="lbl">ÜLKENİ SEÇ</span>
       <div id="countryGrid" class="country-grid"></div>
     </section>
 
     <section id="entryCard" class="card">
-      <button id="createBtn" class="btn primary">ODA KUR</button>
+      <button id="quickBtn" class="btn primary">HIZLI OYNA</button>
+      <button id="createBtn" class="btn wide">ODA KUR</button>
       <div class="or">veya kodla katıl</div>
       <div class="join-row">
         <input id="codeInput" type="text" maxlength="11" placeholder="ARENA-XXXX" autocomplete="off">
@@ -46,7 +49,7 @@
           <span class="lbl">ODA KODU</span>
           <button id="roomCode" class="code" title="Kopyala">ARENA-0000</button>
         </div>
-        <button id="leaveBtn" class="btn small">AYRIL</button>
+        <div class="room-btns"><button id="muteBtn2" class="btn small">SES: AÇIK</button><button id="leaveBtn" class="btn small">AYRIL</button></div>
       </div>
 
       <span class="lbl">MOD</span>
@@ -58,6 +61,13 @@
       <span class="lbl">HARİTA</span>
       <div id="mapGrid" class="map-grid"></div>
       <p id="mapDesc" class="mapdesc"></p>
+
+      <span class="lbl">BOT ZORLUĞU</span>
+      <div class="seg" id="diffSeg">
+        <button class="btn seg-btn" data-diff="easy">KOLAY</button>
+        <button class="btn seg-btn" data-diff="normal">NORMAL</button>
+        <button class="btn seg-btn" data-diff="hard">ZOR</button>
+      </div>
 
       <div id="teamPick" class="hidden">
         <span class="lbl">TAKIMIN</span>
@@ -95,8 +105,12 @@
       </div>
 
       <button id="exitBtn" class="exit-btn" aria-label="Odadan ayrıl">&#10005;</button>
+      <button id="muteBtn" class="mute-btn" aria-label="Ses">&#9835;</button>
+      <div id="feed" class="feed"></div>
+      <div id="hint" class="hint-box hidden"></div>
       <div id="netLine" class="net-line hidden">Bağlantı koptu - yeniden bağlanılıyor...</div>
       <div id="banner" class="banner hidden"></div>
+      <div id="results" class="results hidden"></div>
 
       <div class="elim-panel">
         <div class="elim-title">ELIMINATED</div>

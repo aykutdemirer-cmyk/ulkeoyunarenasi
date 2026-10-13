@@ -390,3 +390,61 @@ html.ingame, html.ingame body { overflow: hidden; height: 100%; overscroll-behav
   text-align: center; font-size: calc(var(--u) * 3.6); font-weight: 900; color: #fff;
   background: rgba(220, 38, 38, 0.8); padding: calc(var(--u) * 1) 0; z-index: 4;
 }
+
+/* ---- v3: hızlı oyna, zorluk, kill feed, sonuç ekranı, ses ---- */
+.btn.wide { width: 100%; margin-top: 8px; }
+#quickBtn { font-size: 19px; }
+.stats-line { margin: 0 0 4px; font-size: 12px; font-weight: 700; color: var(--yellow); text-align: center; min-height: 15px; }
+.room-btns { display: flex; gap: 6px; }
+.players li .tag.w { color: #001; background: var(--yellow); }
+
+.mute-btn {
+  position: absolute; top: calc(var(--u) * 2); right: calc(var(--u) * 2);
+  width: calc(var(--u) * 8); height: calc(var(--u) * 8); border-radius: 50%;
+  font: inherit; font-size: calc(var(--u) * 4); font-weight: 900; color: #fff;
+  background: rgba(0, 0, 0, 0.5); border: calc(var(--u) * 0.4) solid rgba(255, 255, 255, 0.5);
+  z-index: 5; cursor: pointer;
+}
+.mute-btn.off { color: #888; text-decoration: line-through; }
+
+.feed {
+  position: absolute; left: calc(var(--u) * 3); top: calc(var(--u) * 43);
+  display: flex; flex-direction: column; gap: calc(var(--u) * 0.8);
+  pointer-events: none; z-index: 3;
+}
+.feed .row {
+  display: flex; align-items: center; gap: calc(var(--u) * 1);
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 1.6); border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6); color: #fff; font-weight: 800; font-size: calc(var(--u) * 2.8);
+  animation: feedin 0.25s ease-out;
+}
+.feed .row.me { border: calc(var(--u) * 0.3) solid var(--yellow); }
+.feed canvas { width: calc(var(--u) * 4); height: calc(var(--u) * 4); border-radius: 50%; }
+.feed .arrow { color: var(--pink); }
+@keyframes feedin { from { transform: translateX(-30%); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.hint-box {
+  position: absolute; left: calc(var(--u) * 4); right: calc(var(--u) * 4); top: calc(var(--u) * 43);
+  text-align: center; padding: calc(var(--u) * 1.2); border-radius: calc(var(--u) * 3);
+  background: rgba(0, 0, 0, 0.7); border: calc(var(--u) * 0.4) solid var(--cyan);
+  font-size: calc(var(--u) * 3); font-weight: 800; line-height: 1.5; z-index: 4; pointer-events: none;
+}
+.hint-box b { color: var(--yellow); }
+
+.banner.over { top: 38%; }
+.results {
+  position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 8); top: calc(var(--u) * 106);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2.5); border-radius: calc(var(--u) * 3);
+  background: rgba(8, 8, 24, 0.88); border: calc(var(--u) * 0.4) solid var(--pink);
+  pointer-events: none; z-index: 4;
+}
+.results .rt { text-align: center; font-size: calc(var(--u) * 3.4); font-weight: 900; letter-spacing: calc(var(--u) * 0.4); color: var(--yellow); }
+.results .rr {
+  display: flex; align-items: center; gap: calc(var(--u) * 1.6); height: calc(var(--u) * 5.4);
+  font-size: calc(var(--u) * 3.4); font-weight: 800; color: #fff;
+}
+.results .rr.me { color: var(--yellow); }
+.results .rr .rk { width: calc(var(--u) * 6); text-align: right; color: var(--pink); font-weight: 900; }
+.results .rr canvas { width: calc(var(--u) * 4.4); height: calc(var(--u) * 4.4); border-radius: 50%; }
+.results .rr .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.results .rr .kl { color: #fca5a5; }
