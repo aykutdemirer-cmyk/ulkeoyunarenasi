@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import {
   DT, SUB, ARMOR_T, GHOST_T, SUPER_T, PU_R, PU_TYPES, MODES, BOMB_TIME, HILL_R, HILL_TIME,
+  SOCCER_R, SOCCER_TIME, GOAL_TARGET, gapInfo as gapInfoSoccer,
   MAPS, MAP_KEYS, mapFor, bumpers, newEnv, advanceEnv, gapInfo, ballR, ballMass,
   applyControl, moveSub
 } from './public/shared.js';
@@ -38,6 +39,7 @@ const COUNTRY_CODES = new Set(COUNTRIES.map((c) => c.code));
 const COUNTRY_NAME = Object.fromEntries(COUNTRIES.map((c) => [c.code, c.name]));
 const MAP_CHOICES = new Set([...MAP_KEYS, 'random']);
 const DIFFS = { easy: [0.25, 0.5], normal: [0.5, 0.85], hard: [0.8, 1.0] };
+const FREEZE_T = 2.2; // gol sonrası bekleme
 const KILL_WINDOW = 6; // sn: son vuruştan sonra bu süre içinde elenirsen vuran kişi sayılır
 
 /* ------------------------------ Yardımcılar ------------------------------ */
@@ -82,6 +84,8 @@ function newRoom(hostPid) {
     rounds: 1, series: { round: 0, wins: new Map() }, lastBots: 0, botEntries: null
   };
 }
+
+const teamMode = (room) => room.mode === 'TEAM' || room.mode === 'SOCCER';
 
 function safe(fn) {
   return (...args) => {
@@ -159,6 +163,7 @@ function gameInfo(room) {
     total: g.total,
     round: g.round,
     rounds: room.rounds,
+    goals: g.goals || [],
     roster: g.roster,
     elims: g.balls.filter((b) => !b.alive).sort((a, b) => b.rank - a.rank).map((b) => ({ id: b.id, rank: b.rank }))
   };
@@ -178,7 +183,7 @@ function startGame(room, botCount, continuing = false) {
   for (let i = 0; !reuse && i < bots; i++) {
     const c = freeCountries[i];
     let team = 'A';
-    if (room.mode === 'TEAM') {
+    if (teamMode(room)) {
       team = aCount <= bCount ? 'A' : 'B';
       if (team === 'A') aCount++; else bCount++;
     }
@@ -188,13 +193,13 @@ function startGame(room, botCount, continuing = false) {
   if (!reuse) room.botEntries = entries.filter((e) => e.bot).map((e) => ({ ...e }));
   if (!continuing) { room.lastBots = bots; room.series = { round: 0, wins: new Map() }; }
   if (entries.length < 2) return 'En az 2 oyuncu gerekli (bot ekleyebilirsin).';
-  if (room.mode === 'TEAM') {
+  if (teamMode(room)) {
     if (new Set(entries.map((e) => e.team)).size < 2) return 'Takım modunda iki takımda da oyuncu olmalı.';
   } else {
     entries.forEach((e) => { e.team = 'F'; });
   }
 
-  if (room.mode === 'TEAM') entries.sort((x, y) => (x.team < y.team ? -1 : x.team > y.team ? 1 : 0));
+  if (teamMode(room)) entries.sort((x, y) => (x.team < y.team ? -1 : x.team > y.team ? 1 : 0));
   else shuffle(entries);
 
   const mapKey = room.map === 'random' ? MAP_KEYS[Math.floor(Math.random() * MAP_KEYS.length)] : room.map;
@@ -215,7 +220,7 @@ function startGame(room, botCount, continuing = false) {
 
   room.game = {
     mapKey,
-    env: newEnv(map, Math.random() * Math.PI * 2),
+    env: newEnv(map, room.mode === 'SOCCER' ? 0 : Math.random() * Math.PI * 2),
     balls,
     byId: new Map(balls.map((b) => [b.id, b])),
     roster: entries.map((e) => ({ id: e.id, name: e.name, country: e.country, countryName: COUNTRY_NAME[e.country], team: e.team, bot: e.bot })),
@@ -233,6 +238,7 @@ function startGame(room, botCount, continuing = false) {
     ev: [],
     total: n
   };
+  if (room.mode === 'SOCCER') initSoccer(room.game);
   room.phase = 'playing';
   io.to(room.code).emit('gameStart', gameInfo(room));
   pushRoom(room);
@@ -246,10 +252,10 @@ function endMatch(room, winners, res) {
   g.phase = 'over';
   g.overT = 0;
   winners.forEach((b) => { b.rank = 1; if (!b.bot) room.wins.set(b.id, (room.wins.get(b.id) || 0) + 1); });
-  const team = room.mode === 'TEAM' && winners.length ? winners[0].team : null;
+  const team = teamMode(room) && winners.length ? winners[0].team : null;
   const sr = room.series;
   sr.round++;
-  const keys = room.mode === 'TEAM' ? (team ? ['T' + team] : []) : winners.map((b) => b.id);
+  const keys = teamMode(room) ? (team ? ['T' + team] : []) : winners.map((b) => b.id);
   keys.forEach((k) => sr.wins.set(k, (sr.wins.get(k) || 0) + 1));
   const need = Math.ceil(room.rounds / 2);
   const best = [...sr.wins.entries()].sort((x, y) => y[1] - x[1])[0];
@@ -270,7 +276,7 @@ function checkOver(room) {
   if (!g || g.phase === 'over') return;
   const alive = aliveBalls(g);
   let over = false;
-  if (room.mode === 'TEAM') over = new Set(alive.map((b) => b.team)).size <= 1;
+  if (teamMode(room)) over = new Set(alive.map((b) => b.team)).size <= 1;
   else over = alive.length <= 1;
   if (!over) return;
   alive.forEach((b) => { b.rank = 1; });
@@ -336,7 +342,7 @@ function eliminate(room, b, quit) {
   let by = null;
   if (!quit && b.lastHit && g.env.t - b.lastHit.t <= KILL_WINDOW) {
     const k = g.byId.get(b.lastHit.id);
-    if (k && k.id !== b.id && (room.mode !== 'TEAM' || k.team !== b.team)) { by = k.id; k.kills++; b.by = by; }
+    if (k && k.id !== b.id && (!teamMode(room) || k.team !== b.team)) { by = k.id; k.kills++; b.by = by; }
   }
   g.ev.push({ k: 'elim', id: b.id, rank: b.rank, by, x: +b.x.toFixed(1), y: +b.y.toFixed(1), q: quit ? 1 : 0 });
   checkOver(room);
@@ -383,6 +389,181 @@ function updatePowerups(g, alive) {
   }
 }
 
+/* ------------------------------ Futbol ------------------------------ */
+function placeSoccer(balls) {
+  const per = { A: [], B: [] };
+  balls.forEach((b) => { if (per[b.team]) per[b.team].push(b); });
+  for (const t of ['A', 'B']) {
+    const arr = per[t];
+    const n = arr.length;
+    const cols = n > 6 ? 2 : 1;
+    const rows = Math.ceil(n / cols);
+    arr.forEach((b, k) => {
+      const col = k % cols;
+      const row = Math.floor(k / cols);
+      b.x = (t === 'A' ? -1 : 1) * (150 + col * 80);
+      b.y = (row - (rows - 1) / 2) * 75;
+      b.vx = 0; b.vy = 0;
+      b.f = t === 'A' ? 0 : Math.PI;
+      b.inQ.length = 0;
+    });
+  }
+}
+
+function initSoccer(g) {
+  placeSoccer(g.balls);
+  g.ball = { x: 0, y: 0, vx: 0, vy: 0 };
+  g.score = { A: 0, B: 0 };
+  g.timeLeft = SOCCER_TIME;
+  g.freeze = 0;
+  g.ot = false;
+  g.goals = [];
+  g.lastTouch = null;
+  g.touch = {};
+}
+
+function resetKickoff(g) {
+  placeSoccer(g.balls);
+  g.ball.x = 0; g.ball.y = 0; g.ball.vx = 0; g.ball.vy = 0;
+  g.lastTouch = null;
+  g.touch = {};
+}
+
+function finishSoccer(room, g, team) {
+  const winners = g.balls.filter((b) => b.team === team);
+  g.balls.forEach((b) => { b.rank = b.team === team ? 1 : 2; });
+  endMatch(room, winners, results(g));
+}
+
+function goalScored(room, g, team) {
+  g.score[team]++;
+  const tt = g.touch[team];
+  const t = tt && g.env.t - tt.t < 6 ? g.byId.get(tt.id) : null;
+  let by = null;
+  if (t) { by = t.id; t.kills++; }
+  g.goals.push({ id: by, team, s: Math.floor(g.env.t) });
+  g.ev.push({ k: 'goal', team, by, score: [g.score.A, g.score.B], s: Math.floor(g.env.t) });
+  if (g.score[team] >= GOAL_TARGET || g.ot) { finishSoccer(room, g, team); return; }
+  g.freeze = FREEZE_T;
+}
+
+function stepBall(room, g, sdt, live) {
+  const ball = g.ball;
+  const env = g.env;
+  const mb = 0.6;
+  ball.x += ball.vx * sdt;
+  ball.y += ball.vy * sdt;
+  for (const b of live) {
+    if (!b.alive) continue;
+    const rp = ballR(b);
+    let dx = ball.x - b.x;
+    let dy = ball.y - b.y;
+    let d = Math.hypot(dx, dy);
+    if (d >= rp + SOCCER_R) continue;
+    if (d < 0.001) { dx = 1; dy = 0; d = 1; }
+    const nx = dx / d;
+    const ny = dy / d;
+    const mp = ballMass(b);
+    const ov = rp + SOCCER_R - d;
+    ball.x += nx * ov * (mp / (mp + mb));
+    ball.y += ny * ov * (mp / (mp + mb));
+    b.x -= nx * ov * (mb / (mp + mb));
+    b.y -= ny * ov * (mb / (mp + mb));
+    const vn = (ball.vx - b.vx) * nx + (ball.vy - b.vy) * ny;
+    g.lastTouch = b.id;
+    g.touch[b.team] = { id: b.id, t: g.env.t };
+    if (vn < 0) {
+      const j = (-(1 + 0.85) * vn) / (1 / mp + 1 / mb);
+      ball.vx += (j * nx) / mb; ball.vy += (j * ny) / mb;
+      b.vx -= (j * nx) / mp; b.vy -= (j * ny) / mp;
+      if (b.dashT > 0) { ball.vx += nx * 230; ball.vy += ny * 230; } // dash = şut
+      if (-vn > 50) g.ev.push({ k: 'kick', x: +ball.x.toFixed(1), y: +ball.y.toFixed(1), s: +Math.min(1, -vn / 700).toFixed(2) });
+    }
+  }
+  const sp = Math.hypot(ball.vx, ball.vy);
+  if (sp > 1100) { ball.vx = (ball.vx / sp) * 1100; ball.vy = (ball.vy / sp) * 1100; }
+  const d = Math.hypot(ball.x, ball.y);
+  if (d + SOCCER_R >= env.R) {
+    const ang = Math.atan2(ball.y, ball.x);
+    if (gapInfoSoccer(env, ang).dist <= env.gh) {
+      if (d > env.R + SOCCER_R) goalScored(room, g, ball.x > 0 ? 'A' : 'B');
+    } else {
+      const nx = ball.x / d;
+      const ny = ball.y / d;
+      ball.x = nx * (env.R - SOCCER_R);
+      ball.y = ny * (env.R - SOCCER_R);
+      const vn = ball.vx * nx + ball.vy * ny;
+      if (vn > 0) {
+        ball.vx -= 1.7 * vn * nx;
+        ball.vy -= 1.7 * vn * ny;
+        if (vn > 150) g.ev.push({ k: 'wall', x: +ball.x.toFixed(1), y: +ball.y.toFixed(1), s: +Math.min(1, vn / 700).toFixed(2) });
+      }
+    }
+  }
+}
+
+function stepSoccerTick(room, g) {
+  if (g.freeze > 0 || g.phase !== 'play') return;
+  g.ball.vx *= 0.992;
+  g.ball.vy *= 0.992;
+  if (g.ot) return;
+  g.timeLeft -= DT;
+  if (g.timeLeft > 0) return;
+  g.timeLeft = 0;
+  if (g.score.A !== g.score.B) finishSoccer(room, g, g.score.A > g.score.B ? 'A' : 'B');
+  else { g.ot = true; g.ev.push({ k: 'ot' }); }
+}
+
+function botSoccer(g, b, R) {
+  const ball = g.ball;
+  const sign = b.team === 'A' ? 1 : -1; // hücum yönü
+  const goalX = sign * R;
+  const ownX = -sign * R;
+  const mates = aliveBalls(g).filter((o) => o.team === b.team);
+  let chaser = b;
+  let cd = Infinity;
+  for (const m of mates) { const dd = Math.hypot(m.x - ball.x, m.y - ball.y); if (dd < cd) { cd = dd; chaser = m; } }
+  const toBall = Math.hypot(ball.x - b.x, ball.y - b.y) || 1;
+  const goto = (tx, ty, p = 1) => {
+    const dx = tx - b.x;
+    const dy = ty - b.y;
+    const l = Math.hypot(dx, dy) || 1;
+    b.ix = (dx / l) * p; b.iy = (dy / l) * p;
+  };
+  if (chaser === b) {
+    let ux = goalX - ball.x;
+    let uy = -ball.y;
+    const ul = Math.hypot(ux, uy) || 1;
+    ux /= ul; uy /= ul;
+    const px = ball.x - ux * (SOCCER_R + 26 + 12);
+    const py = ball.y - uy * (SOCCER_R + 26 + 12);
+    const aligned = ((ball.x - b.x) * ux + (ball.y - b.y) * uy) / toBall;
+    if (aligned > 0.5 && toBall < 280) {
+      goto(ball.x, ball.y);
+      if (aligned > 0.8 && toBall < 120 && b.cd <= 0 && Math.random() < 0.25 + 0.4 * b.skill) b.dashQ = true;
+    } else {
+      // topun içinden geçmemek için arkaya dolanarak git
+      const sx = px - b.x;
+      const sy = py - b.y;
+      const sl = Math.hypot(sx, sy) || 1;
+      const proj = ((ball.x - b.x) * sx + (ball.y - b.y) * sy) / sl;
+      const perp = ((ball.x - b.x) * -sy + (ball.y - b.y) * sx) / sl;
+      if (proj > 0 && proj < sl && Math.abs(perp) < 75) {
+        const side = perp > 0 ? -1 : 1;
+        goto(b.x + (sx / sl) * 90 + (-sy / sl) * side * 110, b.y + (sy / sl) * 90 + (sx / sl) * side * 110);
+      } else goto(px, py);
+    }
+    return;
+  }
+  // savunma: top ile kendi kale arasında konumlan
+  let tx = ownX * 0.62 + ball.x * 0.38;
+  let ty = ball.y * 0.45;
+  const tl = Math.hypot(tx, ty);
+  if (tl > R - 70) { tx = (tx / tl) * (R - 70); ty = (ty / tl) * (R - 70); }
+  const dd = Math.hypot(tx - b.x, ty - b.y);
+  goto(tx, ty, Math.min(1, dd / 60));
+}
+
 /* ------------------------------ Bot yapay zekası (davranış ağacı) ------------------------------ */
 function botThink(room, g, b) {
   const env = g.env;
@@ -401,6 +582,7 @@ function botThink(room, g, b) {
   // Mod davranışları
   if (room.mode === 'BOMB' && g.bomb) return botBomb(g, b, d, R);
   if (room.mode === 'HILL' && g.hill) return botHill(g, b, d, R);
+  if (room.mode === 'SOCCER' && g.ball) return botSoccer(g, b, R);
 
   // 1) PANİK: kapıya yakınım -> merkeze kaç / dash at
   if (env.gh > 0 && d > R - 140 && gi.dist <= env.gh + 0.55 && !(b.ghostT > 0) && Math.random() < 0.55 + 0.45 * b.skill) {
@@ -410,7 +592,7 @@ function botThink(room, g, b) {
     return;
   }
 
-  const isEnemy = (o) => o.alive && o.id !== b.id && (room.mode !== 'TEAM' || o.team !== b.team);
+  const isEnemy = (o) => o.alive && o.id !== b.id && (!teamMode(room) || o.team !== b.team);
   const goto = (tx, ty, power = 1) => {
     const dx = tx - b.x;
     const dy = ty - b.y;
@@ -549,8 +731,8 @@ function collide(room, g, a, b) {
   const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
   if (vn >= 0) return;
   let e = 1;
-  if (room.mode === 'TEAM') e = a.team === b.team ? 0.45 : 1.5;
-  if (a.armorT > 0 || b.armorT > 0) e = Math.max(e, a.team === b.team && room.mode === 'TEAM' ? 0.9 : 1.7);
+  if (teamMode(room)) e = a.team === b.team ? 0.45 : 1.5;
+  if (a.armorT > 0 || b.armorT > 0) e = Math.max(e, a.team === b.team && teamMode(room) ? 0.9 : 1.7);
   a.lastHit = { id: b.id, t: g.env.t };
   b.lastHit = { id: a.id, t: g.env.t };
   const j = (-(1 + e) * vn) / (1 / ma + 1 / mb);
@@ -583,6 +765,11 @@ function stepGame(room) {
     return;
   }
 
+  if (g.freeze > 0) {
+    g.freeze -= DT;
+    if (g.freeze <= 0) resetKickoff(g);
+    return;
+  }
   advanceEnv(env);
   const alive = aliveBalls(g);
 
@@ -611,8 +798,10 @@ function stepGame(room) {
     for (let i = 0; i < live.length; i++) {
       for (let j = i + 1; j < live.length; j++) collide(room, g, live[i], live[j]);
     }
+    if (g.ball && g.phase === 'play' && !(g.freeze > 0)) stepBall(room, g, sdt, live);
   }
   if (g.phase === 'play') updatePowerups(g, alive);
+  if (g.phase === 'play' && g.ball) stepSoccerTick(room, g);
   if (g.phase === 'play' && room.mode === 'BOMB') stepBomb(room, g);
   if (g.phase === 'play' && room.mode === 'HILL') stepHill(room, g);
 }
@@ -644,6 +833,11 @@ function sendSnapshot(room) {
       b.id, r1(b.x), r1(b.y), Math.round(b.vx), Math.round(b.vy), r2(b.f),
       r2(b.cd), r2(b.armorT), r2(b.ghostT), r2(b.superT), r2(b.dashT)
     ]),
+    sb: g.ball ? [Math.round(g.ball.x * 10) / 10, Math.round(g.ball.y * 10) / 10, Math.round(g.ball.vx), Math.round(g.ball.vy)] : null,
+    scr: g.ball ? [g.score.A, g.score.B] : null,
+    tl: g.ball ? Math.ceil(g.timeLeft) : 0,
+    ot: g.ball ? (g.ot ? 1 : 0) : 0,
+    fz: g.freeze > 0 ? 1 : 0,
     bm: g.bomb ? [g.bomb.id, r1(g.bomb.t)] : null,
     hill: g.hill ? [g.hill.x, g.hill.y] : null,
     ht: room.mode === 'HILL' ? r1(Math.max(0, HILL_TIME - g.env.t)) : 0,

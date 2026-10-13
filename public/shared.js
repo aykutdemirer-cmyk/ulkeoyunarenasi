@@ -18,7 +18,10 @@ export const ARMOR_MASS = 6;
 export const BUMP_R = 64;
 export const ORB_R = 34;
 export const ORB_DIST = 190;
-export const MODES = ['FFA', 'TEAM', 'BOMB', 'HILL'];
+export const MODES = ['FFA', 'TEAM', 'BOMB', 'HILL', 'SOCCER'];
+export const SOCCER_R = 20;
+export const SOCCER_TIME = 120;
+export const GOAL_TARGET = 5;
 export const BOMB_TIME = 9;
 export const HILL_R = 110;
 export const HILL_TIME = 60;
@@ -78,6 +81,12 @@ export const MAP_KEYS = Object.keys(MAPS);
 export function mapFor(key, mode) {
   const m = Object.assign({}, MAPS[key] || MAPS.classic);
   if (mode === 'BOMB' || mode === 'HILL') { m.gapHalf = 0; m.gapMax = 0; m.grow = 0; }
+  if (mode === 'SOCCER') {
+    Object.assign(m, {
+      key: 'soccer', name: 'FOOTBALL ARENA', desc: 'Kaleler yarığın olduğu iki uç.', col: '#22c55e', closed: true, gaps: 2, gapHalf: 0.42, gapMax: 0.42,
+      rot: 0, grow: 0, shrink: 0, Rmin: m.R0, pulseAmp: 0, hole: 0, gravity: 0, swirl: 0, bumpers: [], friction: 0.985, accMul: 1, accMulBase: 1
+    });
+  }
   if (mode === 'HILL') { m.hole = 0; m.gravity = 0; m.shrink = 0; m.Rmin = m.R0; }
   return m;
 }
@@ -207,7 +216,7 @@ export function moveSub(b, env, sdt, rnd, ev) {
   if (env.map.hole && d < env.map.hole && !(b.ghostT > 0)) return true; // kara delik
   if (d + r >= env.R || d > env.R) {
     const ang = Math.atan2(b.y, b.x);
-    const open = !(b.ghostT > 0) && inGap(env, ang);
+    const open = !env.map.closed && !(b.ghostT > 0) && inGap(env, ang);
     if (d > env.R && open) return true;
     if (!open) {
       const nx = b.x / d;
