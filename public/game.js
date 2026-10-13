@@ -1,8 +1,15 @@
 /* LAST ONE WINS! - istemci (ES module) */
 import {
   DT, SUB, BALL_R, ARMOR_R, DASH_CD, PU_R, MAPS, MAP_KEYS,
-  advanceEnv, applyControl, moveSub, gapInfo, bumpers
+  advanceEnv, applyControl, moveSub, gapInfo, bumpers, mapFor, HILL_R
 } from './shared.js';
+
+const MODE_INFO = {
+  FFA: ['HERKES TEK', 'Son kalan kazanır.'],
+  TEAM: ['TAKIM A vs B', 'Rakip takımı eleyin; takım arkadaşına yumuşak çarparsın.'],
+  BOMB: ['BOMB TAG', 'Halka kapalı! Bombayı taşıyan süre bitince patlar; çarparak başkasına devret.'],
+  HILL: ['KING OF THE HILL', '60 sn: tepede tek başına kalan puan kazanır. Halka kapalı, en çok puan kazanır.']
+};
 
 /* ------------------------------ Sabitler ------------------------------ */
 const CW = 1080;
@@ -347,7 +354,8 @@ const S = {
   rings: [],
   floaters: [],
   confetti: [],
-  bumpPulse: [0, 0, 0],
+  bumpPulse: [0, 0, 0, 0, 0, 0, 0, 0],
+  hillPos: null,
   lastPhase: '',
   lastCd: 0,
   shake: 0,
@@ -357,6 +365,7 @@ const S = {
   scale: 1,
   myCountry: 'TR',
   lastAlarm: 0,
+  lastBombSec: 0,
   danger: 0,
   puSeen: new Set(),
   bubbles: new Map()
@@ -474,8 +483,7 @@ $('roomCode').addEventListener('click', () => {
   if (navigator.clipboard) navigator.clipboard.writeText(code).catch(() => {});
   $('roomMsg').textContent = 'Kod kopyalandı: ' + code;
 });
-$('modeFFA').addEventListener('click', () => socket.emit('setMode', 'FFA'));
-$('modeTEAM').addEventListener('click', () => socket.emit('setMode', 'TEAM'));
+document.querySelectorAll('#modeGrid button').forEach((b) => b.addEventListener('click', () => socket.emit('setMode', b.dataset.mode)));
 $('teamA').addEventListener('click', () => socket.emit('setProfile', { team: 'A' }));
 $('teamB').addEventListener('click', () => socket.emit('setProfile', { team: 'B' }));
 $('botCount').addEventListener('input', () => { $('botVal').textContent = $('botCount').value; });
@@ -507,7 +515,7 @@ function renderRooms(list) {
     const b = document.createElement('b');
     b.textContent = r.code;
     const sm = document.createElement('small');
-    sm.textContent = `${r.host} · ${r.mode === 'TEAM' ? 'TAKIM' : 'FFA'} · ${mapTitle(r.map)} · ${r.count}/${r.max}`;
+    sm.textContent = `${r.host} · ${(MODE_INFO[r.mode] || [r.mode])[0]} · ${mapTitle(r.map)} · ${r.count}/${r.max}`;
     info.appendChild(b);
     info.appendChild(sm);
     const st = document.createElement('span');
@@ -537,10 +545,8 @@ function renderLobby() {
   const team = r.mode === 'TEAM';
 
   $('roomCode').textContent = r.code;
-  $('modeFFA').classList.toggle('on', !team);
-  $('modeTEAM').classList.toggle('on', team);
-  $('modeFFA').disabled = !isHost;
-  $('modeTEAM').disabled = !isHost;
+  document.querySelectorAll('#modeGrid button').forEach((b) => { b.classList.toggle('on', b.dataset.mode === r.mode); b.disabled = !isHost; });
+  $('modeDesc').textContent = (MODE_INFO[r.mode] || ['', ''])[1];
   Object.entries(mapBtns).forEach(([k, b]) => { b.classList.toggle('on', r.map === k); b.disabled = !isHost; });
   $('mapDesc').textContent = r.map === 'random' ? 'Her maçta rastgele bir harita seçilir.' : (MAPS[r.map] ? MAPS[r.map].desc : '');
   document.querySelectorAll('#diffSeg button').forEach((b) => { b.classList.toggle('on', b.dataset.diff === r.diff); b.disabled = !isHost; });
@@ -615,7 +621,8 @@ socket.on('roomState', (r) => {
 });
 socket.on('gameStart', (g) => {
   S.mode = g.mode;
-  S.map = MAPS[g.map] || MAPS.classic;
+  S.map = mapFor(g.map, g.mode);
+  S.hillPos = null;
   S.roster = new Map(g.roster.map((p) => [p.id, p]));
   S.snaps = [];
   S.latest = null;
@@ -667,7 +674,7 @@ socket.on('snap', (s) => {
 /* Sunucu mutabakatı: son onaylanan girdiden sonrasını yeniden oynat */
 function stepPredict(b, env, ix, iy, dash) {
   advanceEnv(env);
-  applyControl(b, ix, iy, dash, null);
+  applyControl(b, ix, iy, dash, null, env);
   const sdt = DT / SUB;
   for (let i = 0; i < SUB; i++) moveSub(b, env, sdt, () => 0.5, null);
 }
@@ -714,8 +721,26 @@ function clientTick() {
 function vibrate(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* yok */ } }
 
 function onSnap(s) {
-  $('leftNum').textContent = String(s.left);
-  $('specLine').textContent = 'Spectating: ' + s.sp + (!S.alive && S.roster.has(PID) ? ' · you are out' : '') + (!S.roster.has(PID) ? ' · you are watching' : '');
+  if (S.mode === 'HILL') {
+    $('leftLbl').textContent = 'TIME';
+    $('leftNum').textContent = String(Math.ceil(s.ht));
+    const lead = s.sc && s.sc[0];
+    const lp = lead && S.roster.get(lead[0]);
+    const mine = s.sc && s.sc.find((x) => x[0] === PID);
+    $('specLine').textContent = (lp ? `Leader: ${CNAME[lp.country]} ${lead[1].toFixed(0)}` : 'Leader: -') + (mine ? ` · You: ${mine[1].toFixed(0)}` : '');
+  } else {
+    $('leftLbl').textContent = 'LEFT';
+    $('leftNum').textContent = String(s.left);
+    $('specLine').textContent = 'Spectating: ' + s.sp + (!S.alive && S.roster.has(PID) ? ' · you are out' : '') + (!S.roster.has(PID) ? ' · you are watching' : '');
+  }
+  if (s.bm && s.ph === 'play') {
+    const sec = Math.ceil(s.bm[1]);
+    if (sec !== S.lastBombSec) {
+      S.lastBombSec = sec;
+      if (s.bm[0] === PID || sec <= 3) sfx.beep(sec <= 2);
+      if (s.bm[0] === PID) vibrate(15);
+    }
+  }
 
   if (s.ph === 'countdown') {
     if (S.lastPhase === '') sfx.gong();
@@ -756,6 +781,19 @@ function onSnap(s) {
       burst(e.x, e.y, 26, PU_COL[e.type], 380);
       S.rings.push({ x: e.x, y: e.y, r: 20, max: 200, life: 0.55, max_life: 0.55, col: PU_COL[e.type] });
       S.floaters.push({ x: e.x, y: e.y - 40, text: PU_LABEL[e.type] + '!', col: PU_COL[e.type], life: 1.2 });
+    } else if (e.k === 'boom') {
+      burst(e.x, e.y, 60, '#f97316', 650);
+      burst(e.x, e.y, 30, '#fde047', 500);
+      S.rings.push({ x: e.x, y: e.y, r: 30, max: 380, life: 0.7, max_life: 0.7, col: '#f97316' });
+      S.floaters.push({ x: e.x, y: e.y - 60, text: 'BOOM!', col: '#f97316', life: 1.4 });
+      S.shake = Math.max(S.shake, 24);
+    } else if (e.k === 'pass') {
+      sfx.spawn();
+      const bb = s.m.get(e.id);
+      if (bb) S.floaters.push({ x: bb[1], y: bb[2] - 70, text: 'BOMB!', col: '#ef4444', life: 1.1 });
+    } else if (e.k === 'hillMove') {
+      sfx.spawn();
+      S.rings.push({ x: e.x, y: e.y, r: 20, max: HILL_R + 60, life: 0.7, max_life: 0.7, col: '#4ade80' });
     } else if (e.k === 'emote') {
       S.bubbles.set(e.id, { i: e.i, until: performance.now() + 2200 });
       if (e.id !== PID) sfx.pickup();
@@ -769,6 +807,13 @@ function onSnap(s) {
 
 function maybeHint() {
   if (!S.roster.has(PID)) return;
+  if (S.mode === 'BOMB' || S.mode === 'HILL') {
+    const hb = $('hint');
+    hb.innerHTML = '<b>' + MODE_INFO[S.mode][0] + '</b><br>' + MODE_INFO[S.mode][1];
+    hb.classList.remove('hidden');
+    setTimeout(() => hb.classList.add('hidden'), 5000);
+    return;
+  }
   let seen = '0';
   try { seen = localStorage.getItem('low_seen') || '0'; } catch (e) { /* yok */ }
   if (seen === '1') return;
@@ -819,7 +864,7 @@ function showResults(res) {
     const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = r.rank + '.'; d.appendChild(rk);
     d.appendChild(flagIcon(p.country, 44));
     const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = p.bot ? CNAME[p.country] : p.name; d.appendChild(nm);
-    const kl = document.createElement('span'); kl.className = 'kl'; kl.textContent = r.kills + ' K'; d.appendChild(kl);
+    const kl = document.createElement('span'); kl.className = 'kl'; kl.textContent = S.mode === 'HILL' ? Math.round(r.score) + ' pts' : S.mode === 'BOMB' ? '' : r.kills + ' K'; d.appendChild(kl);
     box.appendChild(d);
   });
   box.classList.remove('hidden');
@@ -1152,7 +1197,7 @@ function drawRing(st, time) {
   ctx.lineCap = 'round';
   const segs = [];
   for (let k = 0; k < n; k++) segs.push([st.rot + k * step + st.gh, st.rot + (k + 1) * step - st.gh]);
-  const hot = S.map.key === 'shrinking' ? '#ff4d4d' : '#FF2D85';
+  const hot = S.map.col || '#FF2D85';
   ctx.shadowColor = hot;
   ctx.shadowBlur = 25;
   ctx.strokeStyle = hot;
@@ -1165,8 +1210,64 @@ function drawRing(st, time) {
   ctx.restore();
 }
 
+function drawDeco(st, time, dt) {
+  const key = S.map.key;
+  ctx.save();
+  ctx.translate(CX, CY);
+  if (key === 'ice') {
+    ctx.fillStyle = 'rgba(103,232,249,0.09)';
+    ctx.beginPath(); ctx.arc(0, 0, st.R, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(186,230,253,0.16)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 9; i++) {
+      const a = i * 0.7 + 0.3;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a) * 30, Math.sin(a) * 30);
+      ctx.lineTo(Math.cos(a + 0.15) * st.R * 0.55, Math.sin(a + 0.15) * st.R * 0.55);
+      ctx.lineTo(Math.cos(a - 0.1) * st.R * 0.95, Math.sin(a - 0.1) * st.R * 0.95); ctx.stroke();
+    }
+  } else if (key === 'whirlpool') {
+    ctx.strokeStyle = 'rgba(52,211,153,0.16)'; ctx.lineWidth = 14; ctx.lineCap = 'round';
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      for (let r = 25; r < st.R - 10; r += 12) {
+        const a = k * ((Math.PI * 2) / 3) + time * 0.9 + r * 0.011;
+        const x = Math.cos(a) * r; const y = Math.sin(a) * r;
+        if (r === 25) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  } else if (key === 'blackhole' && S.map.hole) {
+    const h = S.map.hole;
+    const gr = ctx.createRadialGradient(0, 0, h * 0.6, 0, 0, h * 3.2);
+    gr.addColorStop(0, 'rgba(192,132,252,0.55)'); gr.addColorStop(1, 'rgba(192,132,252,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, h * 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(233,213,255,0.7)'; ctx.lineWidth = 4; ctx.setLineDash([14, 12]);
+    ctx.save(); ctx.rotate(time * 2.2); ctx.beginPath(); ctx.arc(0, 0, h + 12, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(0, 0, h, 0, Math.PI * 2); ctx.fill();
+  }
+  // King of the Hill bölgesi
+  if (S.mode === 'HILL' && S.latest && S.latest.hill) {
+    const t = S.latest.hill;
+    if (!S.hillPos) S.hillPos = { x: t[0], y: t[1] };
+    const k = Math.min(1, dt * 6);
+    S.hillPos.x += (t[0] - S.hillPos.x) * k;
+    S.hillPos.y += (t[1] - S.hillPos.y) * k;
+    const inside = st.balls.filter((b) => Math.hypot(b.x - S.hillPos.x, b.y - S.hillPos.y) < HILL_R);
+    const col = inside.length === 1 ? (inside[0].id === PID ? '#4ade80' : '#ff2d85') : inside.length > 1 ? '#facc15' : '#e5e7eb';
+    ctx.fillStyle = col; ctx.globalAlpha = 0.12 + 0.05 * Math.sin(time * 4);
+    ctx.beginPath(); ctx.arc(S.hillPos.x, S.hillPos.y, HILL_R, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = col; ctx.lineWidth = 6; ctx.shadowColor = col; ctx.shadowBlur = 20;
+    ctx.setLineDash([22, 14]);
+    ctx.save(); ctx.translate(S.hillPos.x, S.hillPos.y); ctx.rotate(time * 0.8);
+    ctx.beginPath(); ctx.arc(0, 0, HILL_R, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    ctx.setLineDash([]); ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+}
+
 function drawBumpers(st, dt) {
-  if (!S.map.bump) return;
+  if (!S.map.bumpers.length) return;
   const list = bumpers({ map: S.map, rot: st.rot });
   list.forEach((bm, i) => {
     S.bumpPulse[i] = Math.max(0, S.bumpPulse[i] - dt * 3);
@@ -1306,6 +1407,22 @@ function drawBall(b, time) {
   ctx.fillStyle = '#fff';
   ctx.fillText(CNAME[p.country], 0, R + 26);
 
+  const bmk = S.latest && S.latest.bm;
+  if (bmk && bmk[0] === b.id) {
+    const pulse = 0.5 + 0.5 * Math.sin(time * (6 + 14 / Math.max(0.6, bmk[1])));
+    ctx.strokeStyle = `rgba(239,68,68,${0.5 + 0.5 * pulse})`;
+    ctx.lineWidth = 6;
+    ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 24;
+    ctx.beginPath(); ctx.arc(0, 0, R + 12 + pulse * 4, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#111';
+    ctx.beginPath(); ctx.arc(0, -R - 38, 17, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fca5a5'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = '900 22px "Segoe UI", Arial, sans-serif';
+    ctx.fillText(String(Math.ceil(bmk[1])), 0, -R - 30);
+  }
+
   // hızlı tepki balonu
   const bub = S.bubbles.get(b.id);
   if (bub && bub.until > performance.now()) {
@@ -1327,10 +1444,13 @@ function drawBall(b, time) {
 function computeDanger(me, st) {
   if (!me || me.gh > 0) return 0;
   const d = Math.hypot(me.x, me.y);
+  let hole = 0;
+  if (S.map.hole) hole = Math.max(0, Math.min(1, 1 - (d - S.map.hole) / 150));
+  if (st.gh <= 0) return hole;
   const gi = gapInfo({ map: S.map, rot: st.rot }, Math.atan2(me.y, me.x));
   const radial = Math.max(0, Math.min(1, (d - (st.R - 170)) / 150));
   const ang = Math.max(0, Math.min(1, 1 - Math.max(0, gi.dist - st.gh) / 0.7));
-  return radial * ang;
+  return Math.max(hole, radial * ang);
 }
 
 function drawHud(me, st, time) {
@@ -1345,9 +1465,11 @@ function drawHud(me, st, time) {
       ctx.fillStyle = gr;
       ctx.fillRect(0, 0, CW, CH);
     }
+    const useBar = S.mode === 'FFA' || S.mode === 'TEAM' || S.map.hole > 0;
     const bw = 440;
     const bx = CX - bw / 2;
     const by = 1470;
+    if (useBar) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(bx, by, bw, 20);
     const bc = dg > 0.6 ? '#ef4444' : dg > 0.3 ? '#facc15' : '#4ade80';
@@ -1361,12 +1483,19 @@ function drawHud(me, st, time) {
     ctx.textAlign = 'center';
     ctx.fillStyle = dg > 0.6 ? '#fecaca' : '#e5e7eb';
     ctx.fillText(dg > 0.6 ? '! DANGER ZONE !' : 'EDGE DANGER', CX, by - 8);
+    }
 
-    // aktif güçlendirmeler
+    // aktif güçlendirmeler (bar yalnızca ilgili modlarda)
     const chips = [];
     if (me.arm > 0) chips.push(['ARMOR ' + me.arm.toFixed(1), PU_COL[0]]);
     if (me.sup > 0) chips.push(['SUPER DASH', PU_COL[1]]);
     if (me.gh > 0) chips.push(['GHOST ' + me.gh.toFixed(1), PU_COL[2]]);
+    const bmk = S.latest && S.latest.bm;
+    if (bmk && bmk[0] === PID) chips.push(['BOMB! ' + bmk[1].toFixed(1), '#ef4444']);
+    if (S.mode === 'HILL' && S.latest && S.latest.sc) {
+      const mine = S.latest.sc.find((x) => x[0] === PID);
+      if (mine) chips.push(['SCORE ' + mine[1].toFixed(1), '#4ade80']);
+    }
     chips.forEach(([t, c], i) => {
       ctx.font = '900 26px "Segoe UI", Arial, sans-serif';
       ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
@@ -1402,6 +1531,7 @@ function frame(now) {
   const st = sampleState();
   let me = null;
   if (st) {
+    drawDeco(st, time, dt);
     drawRing(st, time);
     drawBumpers(st, dt);
 

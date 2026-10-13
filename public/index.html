@@ -53,10 +53,13 @@
       </div>
 
       <span class="lbl">MOD</span>
-      <div class="seg" id="modeSeg">
-        <button id="modeFFA" class="btn seg-btn">HERKES TEK</button>
-        <button id="modeTEAM" class="btn seg-btn">TAKIM A vs B</button>
+      <div class="map-grid" id="modeGrid">
+        <button class="btn map-btn" data-mode="FFA">HERKES TEK</button>
+        <button class="btn map-btn" data-mode="TEAM">TAKIM A vs B</button>
+        <button class="btn map-btn" data-mode="BOMB">BOMB TAG</button>
+        <button class="btn map-btn" data-mode="HILL">KING OF THE HILL</button>
       </div>
+      <p id="modeDesc" class="mapdesc"></p>
 
       <span class="lbl">HARİTA</span>
       <div id="mapGrid" class="map-grid"></div>
@@ -100,7 +103,7 @@
       <div class="hud-top">
         <div class="title">LAST ONE WINS!</div>
         <div class="subtitle">Which country survives?</div>
-        <div class="left-badge">LEFT: <span id="leftNum">0</span></div>
+        <div class="left-badge"><span id="leftLbl">LEFT</span>: <span id="leftNum">0</span></div>
         <div id="specLine" class="spec-line">Spectating: 0</div>
       </div>
 

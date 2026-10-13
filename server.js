@@ -4,8 +4,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import {
-  DT, SUB, ARMOR_T, GHOST_T, SUPER_T, PU_R, PU_TYPES, BUMP_R, ORB_DIST,
-  MAPS, MAP_KEYS, newEnv, advanceEnv, gapInfo, ballR, ballMass,
+  DT, SUB, ARMOR_T, GHOST_T, SUPER_T, PU_R, PU_TYPES, MODES, BOMB_TIME, HILL_R, HILL_TIME,
+  MAPS, MAP_KEYS, mapFor, bumpers, newEnv, advanceEnv, gapInfo, ballR, ballMass,
   applyControl, moveSub
 } from './public/shared.js';
 
@@ -190,7 +190,7 @@ function startGame(room, botCount) {
   else shuffle(entries);
 
   const mapKey = room.map === 'random' ? MAP_KEYS[Math.floor(Math.random() * MAP_KEYS.length)] : room.map;
-  const map = MAPS[mapKey];
+  const map = mapFor(mapKey, room.mode);
   const n = entries.length;
   const dr = DIFFS[room.diff] || DIFFS.normal;
   const balls = entries.map((e, i) => {
@@ -211,6 +211,9 @@ function startGame(room, botCount) {
     balls,
     byId: new Map(balls.map((b) => [b.id, b])),
     roster: entries.map((e) => ({ id: e.id, name: e.name, country: e.country, countryName: COUNTRY_NAME[e.country], team: e.team, bot: e.bot })),
+    bomb: null,
+    hill: null,
+    scores: new Map(),
     pus: [],
     puId: 1,
     nextPU: PU_FIRST,
@@ -228,27 +231,82 @@ function startGame(room, botCount) {
 
 function aliveBalls(g) { return g.balls.filter((b) => b.alive); }
 
+function endMatch(room, winners, res) {
+  const g = room.game;
+  g.phase = 'over';
+  g.overT = 0;
+  winners.forEach((b) => { b.rank = 1; if (!b.bot) room.wins.set(b.id, (room.wins.get(b.id) || 0) + 1); });
+  const team = room.mode === 'TEAM' && winners.length ? winners[0].team : null;
+  g.ev.push({ k: 'over', ids: winners.map((b) => b.id), team, res });
+  pushRoom(room);
+}
+
+function results(g) {
+  return g.balls.map((b) => ({ id: b.id, rank: b.rank, kills: b.kills, score: +(g.scores.get(b.id) || 0).toFixed(1) }))
+    .sort((x, y) => x.rank - y.rank || y.kills - x.kills);
+}
+
 function checkOver(room) {
   const g = room.game;
   if (!g || g.phase === 'over') return;
   const alive = aliveBalls(g);
   let over = false;
-  let team = null;
-  if (room.mode === 'TEAM') {
-    const teams = new Set(alive.map((b) => b.team));
-    if (teams.size <= 1) { over = true; team = alive.length ? alive[0].team : null; }
-  } else if (alive.length <= 1) {
-    over = true;
-  }
+  if (room.mode === 'TEAM') over = new Set(alive.map((b) => b.team)).size <= 1;
+  else over = alive.length <= 1;
   if (!over) return;
-  g.phase = 'over';
-  g.overT = 0;
   alive.forEach((b) => { b.rank = 1; });
-  alive.forEach((b) => { if (!b.bot) room.wins.set(b.id, (room.wins.get(b.id) || 0) + 1); });
-  const res = g.balls.map((b) => ({ id: b.id, rank: b.rank, kills: b.kills }))
-    .sort((x, y) => x.rank - y.rank || y.kills - x.kills);
-  g.ev.push({ k: 'over', ids: alive.map((b) => b.id), team, res });
-  pushRoom(room);
+  endMatch(room, alive, results(g));
+}
+
+/* ------------------------------ Mod mantığı: BOMB / HILL ------------------------------ */
+function pickBomb(g, minT) {
+  const al = aliveBalls(g);
+  if (al.length < 2) { g.bomb = null; return; }
+  const t = Math.max(minT, 5, BOMB_TIME - (g.total - al.length) * 0.4);
+  g.bomb = { id: al[Math.floor(Math.random() * al.length)].id, t, noUntil: g.env.t + 1 };
+  g.ev.push({ k: 'pass', id: g.bomb.id });
+}
+
+function stepBomb(room, g) {
+  if (!g.bomb) { if (aliveBalls(g).length > 1) pickBomb(g, BOMB_TIME + 3); return; }
+  const h = g.byId.get(g.bomb.id);
+  if (!h || !h.alive) { pickBomb(g, g.bomb.t); return; }
+  g.bomb.t -= DT;
+  if (g.bomb.t > 0) return;
+  g.ev.push({ k: 'boom', id: h.id, x: +h.x.toFixed(1), y: +h.y.toFixed(1) });
+  h.lastHit = null;
+  eliminate(room, h, false);
+  if (g.phase === 'play') pickBomb(g, 0);
+}
+
+function moveHill(g) {
+  const env = g.env;
+  const first = !g.hill;
+  let x = 0;
+  let y = 0;
+  if (!first) {
+    for (let i = 0; i < 25; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = Math.sqrt(Math.random()) * (env.R * 0.6);
+      x = Math.cos(a) * d; y = Math.sin(a) * d;
+      if (!bumpers(env).some((bm) => Math.hypot(bm.x - x, bm.y - y) < bm.r + HILL_R + 10)) break;
+    }
+  }
+  g.hill = { x, y, moveAt: env.t + 15 };
+  g.ev.push({ k: 'hillMove', x: +x.toFixed(1), y: +y.toFixed(1) });
+}
+
+function stepHill(room, g) {
+  if (!g.hill || g.env.t >= g.hill.moveAt) moveHill(g);
+  const inside = aliveBalls(g).filter((b) => Math.hypot(b.x - g.hill.x, b.y - g.hill.y) < HILL_R);
+  if (inside.length === 1) g.scores.set(inside[0].id, (g.scores.get(inside[0].id) || 0) + DT);
+  if (g.env.t < HILL_TIME) return;
+  const sorted = g.balls.slice().sort((p, q) => (g.scores.get(q.id) || 0) - (g.scores.get(p.id) || 0));
+  const top = g.scores.get(sorted[0].id) || 0;
+  sorted.forEach((b, i) => { b.rank = (g.scores.get(b.id) || 0) === top ? 1 : i + 1; });
+  const winners = top > 0 ? sorted.filter((b) => (g.scores.get(b.id) || 0) === top) : [];
+  g.balls.forEach((b) => { if (!winners.includes(b)) b.rank = Math.max(b.rank, 2); });
+  endMatch(room, winners, results(g));
 }
 
 function eliminate(room, b, quit) {
@@ -273,10 +331,8 @@ function spawnPowerup(g) {
     const d = Math.sqrt(Math.random()) * (env.R - 90);
     const x = Math.cos(a) * d;
     const y = Math.sin(a) * d;
-    if (env.map.bump) {
-      if (d < BUMP_R + 50) continue;
-      if (Math.abs(d - ORB_DIST) < 75) continue;
-    }
+    if (bumpers(env).some((bm) => Math.hypot(bm.x - x, bm.y - y) < bm.r + 70)) continue;
+    if (env.map.hole && d < env.map.hole + 90) continue;
     if (g.pus.some((p) => Math.hypot(p.x - x, p.y - y) < 120)) continue;
     const type = Math.floor(Math.random() * PU_TYPES.length);
     g.pus.push({ id: g.puId++, type, x: +x.toFixed(1), y: +y.toFixed(1), life: PU_LIFE });
@@ -316,8 +372,19 @@ function botThink(room, g, b) {
   const gi = gapInfo(env, Math.atan2(b.y, b.x));
   b.ix = 0; b.iy = 0; b.dashQ = false;
 
+  // 0) Kara delik: yakınsam dışarı kaç
+  if (env.map.hole && d < env.map.hole + 110 && !(b.ghostT > 0)) {
+    b.ix = b.x / d; b.iy = b.y / d;
+    if (b.cd <= 0 && d < env.map.hole + 60) b.dashQ = true;
+    return;
+  }
+
+  // Mod davranışları
+  if (room.mode === 'BOMB' && g.bomb) return botBomb(g, b, d, R);
+  if (room.mode === 'HILL' && g.hill) return botHill(g, b, d, R);
+
   // 1) PANİK: kapıya yakınım -> merkeze kaç / dash at
-  if (d > R - 140 && gi.dist <= env.gh + 0.55 && !(b.ghostT > 0) && Math.random() < 0.55 + 0.45 * b.skill) {
+  if (env.gh > 0 && d > R - 140 && gi.dist <= env.gh + 0.55 && !(b.ghostT > 0) && Math.random() < 0.55 + 0.45 * b.skill) {
     b.ix = -b.x / d;
     b.iy = -b.y / d;
     if (b.cd <= 0 && (b.vx * b.x + b.vy * b.y) / d > 60) b.dashQ = true;
@@ -399,6 +466,45 @@ function botThink(room, g, b) {
   goto((b.x / d) * hold, (b.y / d) * hold, 0.5);
 }
 
+function botBomb(g, b, d, R) {
+  const holder = g.byId.get(g.bomb.id);
+  const others = aliveBalls(g).filter((o) => o.id !== b.id);
+  if (!holder || !others.length) return;
+  if (holder === b) {
+    let t = others[0];
+    let td = Infinity;
+    for (const o of others) { const dd = Math.hypot(o.x - b.x, o.y - b.y); if (dd < td) { td = dd; t = o; } }
+    const l = td || 1;
+    b.ix = (t.x - b.x) / l; b.iy = (t.y - b.y) / l;
+    if (td < 170 && b.cd <= 0 && Math.random() < 0.3 + 0.4 * b.skill) b.dashQ = true;
+    return;
+  }
+  const dx = b.x - holder.x;
+  const dy = b.y - holder.y;
+  const hd = Math.hypot(dx, dy) || 1;
+  b.ix = dx / hd; b.iy = dy / hd;
+  if (d > R - 110) { b.ix += (-b.x / d) * 1.4 + (-b.y / d) * 0.6; b.iy += (-b.y / d) * 1.4 + (b.x / d) * 0.6; }
+  if (hd < 150 && b.cd <= 0 && Math.random() < 0.2 + 0.5 * b.skill) b.dashQ = true;
+}
+
+function botHill(g, b, d, R) {
+  const h = g.hill;
+  const hd = Math.hypot(h.x - b.x, h.y - b.y);
+  const rival = aliveBalls(g).filter((o) => o.id !== b.id && Math.hypot(o.x - h.x, o.y - h.y) < HILL_R)
+    .sort((p, q) => Math.hypot(p.x - b.x, p.y - b.y) - Math.hypot(q.x - b.x, q.y - b.y))[0];
+  if (hd > HILL_R * 0.6 && !(rival && hd < HILL_R)) {
+    b.ix = (h.x - b.x) / (hd || 1); b.iy = (h.y - b.y) / (hd || 1);
+    return;
+  }
+  if (rival) {
+    const rd = Math.hypot(rival.x - b.x, rival.y - b.y) || 1;
+    b.ix = (rival.x - b.x) / rd; b.iy = (rival.y - b.y) / rd;
+    if (rd < 170 && b.cd <= 0 && Math.random() < 0.3 + 0.4 * b.skill) b.dashQ = true;
+    return;
+  }
+  b.ix = (h.x - b.x) / (hd || 1) * 0.3; b.iy = (h.y - b.y) / (hd || 1) * 0.3;
+}
+
 /* ------------------------------ Fizik ------------------------------ */
 function collide(room, g, a, b) {
   let dx = b.x - a.x;
@@ -416,6 +522,11 @@ function collide(room, g, a, b) {
   a.y -= ny * overlap * (mb / (ma + mb));
   b.x += nx * overlap * (ma / (ma + mb));
   b.y += ny * overlap * (ma / (ma + mb));
+  if (room.mode === 'BOMB' && g.bomb && g.env.t >= g.bomb.noUntil && (a.id === g.bomb.id || b.id === g.bomb.id)) {
+    g.bomb.id = a.id === g.bomb.id ? b.id : a.id;
+    g.bomb.noUntil = g.env.t + 0.8;
+    g.ev.push({ k: 'pass', id: g.bomb.id });
+  }
   const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
   if (vn >= 0) return;
   let e = 1;
@@ -467,7 +578,7 @@ function stepGame(room) {
         if (i) { b.ix = i.x; b.iy = i.y; b.dashQ = i.d; b.ack = i.s; } else b.dashQ = false;
       }
     }
-    applyControl(b, b.ix, b.iy, b.dashQ, g.ev);
+    applyControl(b, b.ix, b.iy, b.dashQ, g.ev, env);
     b.dashQ = false;
   }
 
@@ -483,6 +594,8 @@ function stepGame(room) {
     }
   }
   if (g.phase === 'play') updatePowerups(g, alive);
+  if (g.phase === 'play' && room.mode === 'BOMB') stepBomb(room, g);
+  if (g.phase === 'play' && room.mode === 'HILL') stepHill(room, g);
 }
 
 function sendSnapshot(room) {
@@ -512,6 +625,10 @@ function sendSnapshot(room) {
       b.id, r1(b.x), r1(b.y), Math.round(b.vx), Math.round(b.vy), r2(b.f),
       r2(b.cd), r2(b.armorT), r2(b.ghostT), r2(b.superT), r2(b.dashT)
     ]),
+    bm: g.bomb ? [g.bomb.id, r1(g.bomb.t)] : null,
+    hill: g.hill ? [g.hill.x, g.hill.y] : null,
+    ht: room.mode === 'HILL' ? r1(Math.max(0, HILL_TIME - g.env.t)) : 0,
+    sc: room.mode === 'HILL' ? g.balls.map((b) => [b.id, r1(g.scores.get(b.id) || 0)]).sort((p, q) => q[1] - p[1]) : null,
     pu: g.pus.map((p) => [p.id, p.type, p.x, p.y, r1(p.life)]),
     ev: g.ev
   };
@@ -672,7 +789,7 @@ io.on('connection', (socket) => {
   socket.on('setMode', safe((mode) => {
     const room = curRoom();
     if (!room || room.host !== pid || room.phase !== 'lobby') return;
-    if (mode === 'FFA' || mode === 'TEAM') { room.mode = mode; pushRoom(room); }
+    if (MODES.includes(mode)) { room.mode = mode; pushRoom(room); }
   }));
 
   socket.on('setMap', safe((key) => {
