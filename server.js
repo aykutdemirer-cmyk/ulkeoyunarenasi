@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import {
   DT, SUB, ARMOR_T, GHOST_T, SUPER_T, PU_R, PU_TYPES, MODES, BOMB_TIME, HILL_R, HILL_TIME,
-  SOCCER_R, SOCCER_TIME, GOAL_TARGET, gapInfo as gapInfoSoccer,
+  SOCCER_R, SOCCER_TIME, GOAL_TARGET, COINS_TIME, gapInfo as gapInfoSoccer,
   MAPS, MAP_KEYS, mapFor, bumpers, newEnv, advanceEnv, gapInfo, ballR, ballMass,
   applyControl, moveSub
 } from './public/shared.js';
@@ -226,6 +226,9 @@ function startGame(room, botCount, continuing = false) {
     roster: entries.map((e) => ({ id: e.id, name: e.name, country: e.country, countryName: COUNTRY_NAME[e.country], team: e.team, bot: e.bot })),
     bomb: null,
     hill: null,
+    coins: [],
+    coinId: 1,
+    nextCoin: 0.5,
     scores: new Map(),
     pus: [],
     puId: 1,
@@ -304,6 +307,61 @@ function stepBomb(room, g) {
   if (g.phase === 'play') pickBomb(g, 0);
 }
 
+function spawnCoin(g) {
+  const env = g.env;
+  for (let i = 0; i < 20; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = Math.sqrt(Math.random()) * (env.R - 80);
+    const x = Math.cos(a) * d;
+    const y = Math.sin(a) * d;
+    if (bumpers(env).some((bm) => Math.hypot(bm.x - x, bm.y - y) < bm.r + 40)) continue;
+    if (g.coins.some((c) => Math.hypot(c.x - x, c.y - y) < 60)) continue;
+    g.coins.push({ id: g.coinId++, x: +x.toFixed(1), y: +y.toFixed(1), v: Math.random() < 0.12 ? 3 : 1, life: 12 });
+    return;
+  }
+}
+
+function stepCoins(room, g) {
+  if (g.env.t >= g.nextCoin && g.coins.length < 12) { spawnCoin(g); g.nextCoin = g.env.t + 0.6; }
+  const alive = aliveBalls(g);
+  for (let i = g.coins.length - 1; i >= 0; i--) {
+    const c = g.coins[i];
+    c.life -= DT;
+    if (c.life <= 0) { g.coins.splice(i, 1); continue; }
+    for (const b of alive) {
+      if (Math.hypot(b.x - c.x, b.y - c.y) < ballR(b) + 16) {
+        g.scores.set(b.id, (g.scores.get(b.id) || 0) + c.v);
+        g.ev.push({ k: 'coin', id: b.id, v: c.v, x: c.x, y: c.y });
+        g.coins.splice(i, 1);
+        break;
+      }
+    }
+  }
+  if (g.env.t >= COINS_TIME) finishByScore(room, g);
+}
+
+function botCoins(g, b, d, R) {
+  let best = null;
+  let bs = -1;
+  for (const c of g.coins) {
+    const dd = Math.hypot(c.x - b.x, c.y - b.y);
+    const sc = c.v / (dd + 80);
+    if (sc > bs) { bs = sc; best = c; }
+  }
+  if (!best) {
+    const hold = Math.max(90, R * 0.35);
+    const l = Math.hypot(b.x, b.y) || 1;
+    b.ix = (-b.x / l) * 0.3 + (b.x / l) * (l > hold ? -0.4 : 0.2);
+    b.iy = (-b.y / l) * 0.3 + (b.y / l) * (l > hold ? -0.4 : 0.2);
+    return;
+  }
+  const dx = best.x - b.x;
+  const dy = best.y - b.y;
+  const dd = Math.hypot(dx, dy) || 1;
+  b.ix = dx / dd; b.iy = dy / dd;
+  if (dd > 320 && b.cd <= 0 && Math.random() < 0.03 * b.skill) b.dashQ = true;
+}
+
 function moveHill(g) {
   const env = g.env;
   const first = !g.hill;
@@ -326,6 +384,10 @@ function stepHill(room, g) {
   const inside = aliveBalls(g).filter((b) => Math.hypot(b.x - g.hill.x, b.y - g.hill.y) < HILL_R);
   if (inside.length === 1) g.scores.set(inside[0].id, (g.scores.get(inside[0].id) || 0) + DT);
   if (g.env.t < HILL_TIME) return;
+  finishByScore(room, g);
+}
+
+function finishByScore(room, g) {
   const sorted = g.balls.slice().sort((p, q) => (g.scores.get(q.id) || 0) - (g.scores.get(p.id) || 0));
   const top = g.scores.get(sorted[0].id) || 0;
   sorted.forEach((b, i) => { b.rank = (g.scores.get(b.id) || 0) === top ? 1 : i + 1; });
@@ -555,6 +617,16 @@ function botSoccer(g, b, R) {
     }
     return;
   }
+  // kaleci: kaleye en yakın (hücumcu olmayan) takım arkadaşı
+  const keeper = mates.filter((m) => m !== chaser).sort((p, q) => Math.hypot(p.x - ownX, p.y) - Math.hypot(q.x - ownX, q.y))[0];
+  if (keeper === b && mates.length >= 3) {
+    const kx = ownX * 0.8 + ball.x * 0.12;
+    const ky = Math.max(-100, Math.min(100, ball.y * 0.55));
+    const kd = Math.hypot(kx - b.x, ky - b.y);
+    goto(kx, ky, Math.min(1, kd / 50));
+    if (toBall < 120 && b.cd <= 0 && Math.random() < 0.3) b.dashQ = true; // uzaklaştırma şutu
+    return;
+  }
   // savunma: top ile kendi kale arasında konumlan
   let tx = ownX * 0.62 + ball.x * 0.38;
   let ty = ball.y * 0.45;
@@ -582,6 +654,7 @@ function botThink(room, g, b) {
   // Mod davranışları
   if (room.mode === 'BOMB' && g.bomb) return botBomb(g, b, d, R);
   if (room.mode === 'HILL' && g.hill) return botHill(g, b, d, R);
+  if (room.mode === 'COINS') return botCoins(g, b, d, R);
   if (room.mode === 'SOCCER' && g.ball) return botSoccer(g, b, R);
 
   // 1) PANİK: kapıya yakınım -> merkeze kaç / dash at
@@ -735,6 +808,15 @@ function collide(room, g, a, b) {
   if (a.armorT > 0 || b.armorT > 0) e = Math.max(e, a.team === b.team && teamMode(room) ? 0.9 : 1.7);
   a.lastHit = { id: b.id, t: g.env.t };
   b.lastHit = { id: a.id, t: g.env.t };
+  if (room.mode === 'COINS' && -vn > 450) {
+    const v = Math.hypot(a.vx, a.vy) < Math.hypot(b.vx, b.vy) ? a : b;
+    const sc = g.scores.get(v.id) || 0;
+    if (v.armorT <= 0 && sc >= 1) {
+      g.scores.set(v.id, sc - 1);
+      g.coins.push({ id: g.coinId++, x: +v.x.toFixed(1), y: +v.y.toFixed(1), v: 1, life: 12 });
+      g.ev.push({ k: 'drop', id: v.id, x: +v.x.toFixed(1), y: +v.y.toFixed(1) });
+    }
+  }
   const j = (-(1 + e) * vn) / (1 / ma + 1 / mb);
   a.vx -= (j * nx) / ma; a.vy -= (j * ny) / ma;
   b.vx += (j * nx) / mb; b.vy += (j * ny) / mb;
@@ -804,6 +886,7 @@ function stepGame(room) {
   if (g.phase === 'play' && g.ball) stepSoccerTick(room, g);
   if (g.phase === 'play' && room.mode === 'BOMB') stepBomb(room, g);
   if (g.phase === 'play' && room.mode === 'HILL') stepHill(room, g);
+  if (g.phase === 'play' && room.mode === 'COINS') stepCoins(room, g);
 }
 
 function sendSnapshot(room) {
@@ -840,8 +923,9 @@ function sendSnapshot(room) {
     fz: g.freeze > 0 ? 1 : 0,
     bm: g.bomb ? [g.bomb.id, r1(g.bomb.t)] : null,
     hill: g.hill ? [g.hill.x, g.hill.y] : null,
-    ht: room.mode === 'HILL' ? r1(Math.max(0, HILL_TIME - g.env.t)) : 0,
-    sc: room.mode === 'HILL' ? g.balls.map((b) => [b.id, r1(g.scores.get(b.id) || 0)]).sort((p, q) => q[1] - p[1]) : null,
+    ht: room.mode === 'HILL' ? r1(Math.max(0, HILL_TIME - g.env.t)) : room.mode === 'COINS' ? r1(Math.max(0, COINS_TIME - g.env.t)) : 0,
+    cn: room.mode === 'COINS' ? g.coins.map((c) => [c.id, c.x, c.y, c.v, r1(c.life)]) : null,
+    sc: (room.mode === 'HILL' || room.mode === 'COINS') ? g.balls.map((b) => [b.id, r1(g.scores.get(b.id) || 0)]).sort((p, q) => q[1] - p[1]) : null,
     pu: g.pus.map((p) => [p.id, p.type, p.x, p.y, r1(p.life)]),
     ev: g.ev
   };

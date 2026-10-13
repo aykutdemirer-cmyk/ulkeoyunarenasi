@@ -8,6 +8,7 @@ const MODE_INFO = {
   FFA: ['HERKES TEK', 'Son kalan kazanır.'],
   TEAM: ['TAKIM A vs B', 'Rakip takımı eleyin; takım arkadaşına yumuşak çarparsın.'],
   BOMB: ['BOMB TAG', 'Halka kapalı! Bombayı taşıyan süre bitince patlar; çarparak başkasına devret.'],
+  COINS: ['COIN RUSH', '60 sn: altınları topla! Güçlü çarpışmada az hızlı olan bir coin kaybeder. Halka kapalı.'],
   SOCCER: ['FUTBOL', 'Takım A vs B: topu rakip kaleye sok! İlk 5 gol ya da 2 dk. Kaleler yarığın olduğu iki uç; dash = şut. Harita sabit.'],
   HILL: ['KING OF THE HILL', '60 sn: tepede tek başına kalan puan kazanır. Halka kapalı, en çok puan kazanır.']
 };
@@ -292,6 +293,11 @@ const sfx = {
   pickup() {
     if (!actx) return;
     [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, 0.16, 0.2, i * 0.055));
+  },
+  coin(v) {
+    if (!actx) return;
+    tone('triangle', v > 1 ? 1500 : 1100, v > 1 ? 2200 : 1700, 0.12, 0.14);
+    if (v > 1) tone('triangle', 2000, 2600, 0.12, 0.1, 0.07);
   },
   spawn() {
     if (!actx) return;
@@ -738,7 +744,7 @@ function onSnap(s) {
     const mm = Math.floor(s.tl / 60);
     const ss = String(s.tl % 60).padStart(2, '0');
     $('specLine').textContent = s.ot ? 'GOLDEN GOAL!' : `${mm}:${ss}`;
-  } else if (S.mode === 'HILL') {
+  } else if (S.mode === 'HILL' || S.mode === 'COINS') {
     $('leftLbl').textContent = 'TIME';
     $('leftNum').textContent = String(Math.ceil(s.ht));
     const lead = s.sc && s.sc[0];
@@ -798,6 +804,13 @@ function onSnap(s) {
       burst(e.x, e.y, 26, PU_COL[e.type], 380);
       S.rings.push({ x: e.x, y: e.y, r: 20, max: 200, life: 0.55, max_life: 0.55, col: PU_COL[e.type] });
       S.floaters.push({ x: e.x, y: e.y - 40, text: PU_LABEL[e.type] + '!', col: PU_COL[e.type], life: 1.2 });
+    } else if (e.k === 'coin') {
+      sfx.coin(e.v);
+      burst(e.x, e.y, e.v > 1 ? 14 : 6, '#facc15', 260);
+      if (e.id === PID) { S.floaters.push({ x: e.x, y: e.y - 30, text: '+' + e.v, col: '#facc15', life: 0.8 }); vibrate(8); }
+    } else if (e.k === 'drop') {
+      burst(e.x, e.y, 10, '#facc15', 320);
+      if (e.id === PID) S.floaters.push({ x: e.x, y: e.y - 40, text: '-1', col: '#ef4444', life: 0.9 });
     } else if (e.k === 'goal') {
       sfx.win(); sfx.confetti();
       S.shake = Math.max(S.shake, 22);
@@ -840,7 +853,7 @@ function onSnap(s) {
 
 function maybeHint() {
   if (!S.roster.has(PID)) return;
-  if (S.mode === 'BOMB' || S.mode === 'HILL' || S.mode === 'SOCCER') {
+  if (S.mode === 'BOMB' || S.mode === 'HILL' || S.mode === 'SOCCER' || S.mode === 'COINS') {
     const hb = $('hint');
     hb.innerHTML = '<b>' + MODE_INFO[S.mode][0] + '</b><br>' + MODE_INFO[S.mode][1];
     hb.classList.remove('hidden');
@@ -911,7 +924,7 @@ function showResults(res, series) {
     const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = r.rank + '.'; d.appendChild(rk);
     d.appendChild(flagIcon(p.country, 44));
     const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = p.bot ? CNAME[p.country] : p.name; d.appendChild(nm);
-    const kl = document.createElement('span'); kl.className = 'kl'; kl.textContent = S.mode === 'HILL' ? Math.round(r.score) + ' pts' : S.mode === 'BOMB' ? '' : S.mode === 'SOCCER' ? r.kills + ' G' : r.kills + ' K'; d.appendChild(kl);
+    const kl = document.createElement('span'); kl.className = 'kl'; kl.textContent = (S.mode === 'HILL' || S.mode === 'COINS') ? Math.round(r.score) + ' pts' : S.mode === 'BOMB' ? '' : S.mode === 'SOCCER' ? r.kills + ' G' : r.kills + ' K'; d.appendChild(kl);
     box.appendChild(d);
   });
   box.classList.remove('hidden');
@@ -1355,6 +1368,28 @@ function drawDeco(st, time, dt) {
   ctx.restore();
 }
 
+function drawCoins(list, time) {
+  list.forEach((c) => {
+    const gold = c.v > 1;
+    const blink = c[4] < 2.5 && Math.floor(time * 8) % 2 === 0;
+    if (blink) return;
+    const r = gold ? 17 : 12;
+    const squash = Math.abs(Math.cos(time * 3 + c[0]));
+    ctx.save();
+    ctx.translate(CX + c[1], CY + c[2] + Math.sin(time * 4 + c[0]) * 3);
+    ctx.shadowColor = gold ? '#f59e0b' : '#facc15'; ctx.shadowBlur = gold ? 22 : 12;
+    ctx.fillStyle = gold ? '#fbbf24' : '#facc15';
+    ctx.beginPath(); ctx.ellipse(0, 0, r * (0.35 + 0.65 * squash), r, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#a16207'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(0, 0, r * (0.35 + 0.65 * squash), r, 0, 0, Math.PI * 2); ctx.stroke();
+    if (gold && squash > 0.5) {
+      ctx.fillStyle = '#a16207'; ctx.font = '900 18px "Segoe UI", Arial'; ctx.textAlign = 'center'; ctx.fillText('3', 0, 6);
+    }
+    ctx.restore();
+  });
+}
+
 function drawSoccerBall(st, time, dt) {
   const [x, y, vx, vy] = st.sb;
   S.ballRot = (S.ballRot || 0) + (vx / 20) * dt;
@@ -1608,7 +1643,7 @@ function drawHud(me, st, time) {
     if (me.gh > 0) chips.push(['GHOST ' + me.gh.toFixed(1), PU_COL[2]]);
     const bmk = S.latest && S.latest.bm;
     if (bmk && bmk[0] === PID) chips.push(['BOMB! ' + bmk[1].toFixed(1), '#ef4444']);
-    if (S.mode === 'HILL' && S.latest && S.latest.sc) {
+    if ((S.mode === 'HILL' || S.mode === 'COINS') && S.latest && S.latest.sc) {
       const mine = S.latest.sc.find((x) => x[0] === PID);
       if (mine) chips.push(['SCORE ' + mine[1].toFixed(1), '#4ade80']);
     }
@@ -1665,6 +1700,7 @@ function frame(now) {
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 
     drawPowerups(st.pu, time);
+    if (S.mode === 'COINS' && S.latest && S.latest.cn) drawCoins(S.latest.cn, time);
     if (st.sb) drawSoccerBall(st, time, dt);
     st.balls.sort((a, b) => a.y - b.y);
     st.balls.forEach((b) => drawBall(b, time));
