@@ -1,4 +1,5 @@
-# WebSocket (Socket.io) dahil her şeyi uygulamaya yönlendirir; sertifikayı Caddy kendisi alır ve yeniler.
+# DOMAIN birden fazla adres olabilir: DOMAIN="alanadin.com, eu.alanadin.com"
+# WebSocket (Socket.io) dahil her şey uygulamaya yönlendirilir; sertifikayı Caddy alır ve yeniler.
 {$DOMAIN} {
 	encode zstd gzip
 	reverse_proxy app:3000

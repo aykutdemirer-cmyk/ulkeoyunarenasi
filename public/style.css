@@ -478,6 +478,16 @@ html.ingame, html.ingame body { overflow: hidden; height: 100%; overscroll-behav
 .results .rr .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .results .rr .kl { color: #fca5a5; }
 
+/* ---- bölge seçici / ping ---- */
+.region-list { flex-wrap: wrap; margin-bottom: 12px; }
+.region-list .btn { flex: 1 1 30%; font-size: 12px; padding: 9px 6px; }
+.region-list .btn.on { border-color: var(--cyan); background: rgba(34, 211, 238, 0.15); box-shadow: 0 0 12px rgba(34, 211, 238, 0.4); }
+.region-list small { display: block; font-weight: 700; color: var(--muted); letter-spacing: 0; margin-top: 2px; }
+.ping-tag {
+  position: absolute; top: calc(var(--u) * 11.5); right: calc(var(--u) * 2.4); z-index: 5;
+  font-size: calc(var(--u) * 2.4); font-weight: 800; color: #4ade80; text-shadow: 0 1px 0 #000; pointer-events: none;
+}
+
 /* ---- dil seçici ---- */
 .lobby-head { position: relative; }
 .lang-sw { position: fixed; top: 12px; right: 12px; z-index: 6; display: flex; gap: 4px; }

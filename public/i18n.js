@@ -2,7 +2,7 @@
 
 const DICT = {
   tr: {
-    name_lbl: 'İSMİN', name_ph: 'Oyuncu adı', pick_country: 'ÜLKENİ SEÇ', quick: 'HIZLI OYNA', create: 'ODA KUR',
+    region: 'SUNUCU BÖLGESİ', name_lbl: 'İSMİN', name_ph: 'Oyuncu adı', pick_country: 'ÜLKENİ SEÇ', quick: 'HIZLI OYNA', create: 'ODA KUR',
     or_join: 'veya kodla katıl', join: 'KATIL', open_rooms: 'AÇIK ODALAR', room_code: 'ODA KODU', copy_title: 'Kopyala',
     sound_on: 'SES: AÇIK', sound_off: 'SES: KAPALI', leave: 'AYRIL', mode: 'MOD', map: 'HARİTA', bot_diff: 'BOT ZORLUĞU',
     easy: 'KOLAY', normal: 'NORMAL', hard: 'ZOR', series: 'SERİ', series1: 'TEK MAÇ', series3: "İLK 2'YE", series5: "İLK 3'E",
@@ -52,7 +52,7 @@ const DICT = {
     err_server_full: 'Sunucu şu an dolu, biraz sonra tekrar dene.', err_too_fast: 'Çok hızlı! Birkaç saniye bekle.',
     err_connect: 'Bağlanılamadı.', err_start: 'Başlatılamadı.',
     stats_line: 'Oyun: {games} · Galibiyet: {wins} · Eleme: {kills}', stats_first: 'İlk maçını oyna, istatistiklerin burada görünsün!',
-    quick_search: 'Rakip aranıyor... 8 sn içinde botlarla başlayacak.', enter_code: 'Oda kodunu gir.', copied: 'Kod kopyalandı: {code}',
+    quick_search: 'Rakip aranıyor... 8 sn içinde botlarla başlayacak.', enter_code: 'Oda kodunu gir.', copied: 'Davet bağlantısı kopyalandı: {code}',
     no_rooms: 'Şu an açık oda yok. Bir tane kur!', st_lobby: 'LOBİ', st_full: 'DOLU', st_playing: 'OYNANIYOR', watch: 'İZLE', join_btn: 'KATIL',
     offline: ' (bağlantı yok)', reconnecting: 'Bağlantı koptu, yeniden bağlanılıyor...',
     dropped: 'Odadan düşüldün (bağlantı çok uzun süre koptu).', disconnected: 'Sunucu bağlantısı koptu.',
@@ -70,7 +70,7 @@ const DICT = {
     feed_out: 'elendi', eliminated: 'ELENENLER', goals: 'GOLLER', round_lbl: 'RAUNT'
   },
   en: {
-    name_lbl: 'YOUR NAME', name_ph: 'Player name', pick_country: 'PICK YOUR COUNTRY', quick: 'QUICK PLAY', create: 'CREATE ROOM',
+    region: 'SERVER REGION', name_lbl: 'YOUR NAME', name_ph: 'Player name', pick_country: 'PICK YOUR COUNTRY', quick: 'QUICK PLAY', create: 'CREATE ROOM',
     or_join: 'or join with a code', join: 'JOIN', open_rooms: 'OPEN ROOMS', room_code: 'ROOM CODE', copy_title: 'Copy',
     sound_on: 'SOUND: ON', sound_off: 'SOUND: OFF', leave: 'LEAVE', mode: 'MODE', map: 'MAP', bot_diff: 'BOT DIFFICULTY',
     easy: 'EASY', normal: 'NORMAL', hard: 'HARD', series: 'SERIES', series1: 'SINGLE MATCH', series3: 'FIRST TO 2', series5: 'FIRST TO 3',
@@ -120,7 +120,7 @@ const DICT = {
     err_server_full: 'The server is full right now, try again shortly.', err_too_fast: 'Too fast! Wait a few seconds.',
     err_connect: 'Could not connect.', err_start: 'Could not start.',
     stats_line: 'Games: {games} · Wins: {wins} · Eliminations: {kills}', stats_first: 'Play your first match to see your stats here!',
-    quick_search: 'Looking for opponents... starting with bots in 8 s.', enter_code: 'Enter a room code.', copied: 'Code copied: {code}',
+    quick_search: 'Looking for opponents... starting with bots in 8 s.', enter_code: 'Enter a room code.', copied: 'Invite link copied: {code}',
     no_rooms: 'No open rooms right now. Create one!', st_lobby: 'LOBBY', st_full: 'FULL', st_playing: 'IN GAME', watch: 'WATCH', join_btn: 'JOIN',
     offline: ' (offline)', reconnecting: 'Connection lost, reconnecting...',
     dropped: 'You were dropped from the room (disconnected too long).', disconnected: 'Server connection lost.',

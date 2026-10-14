@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Yeni bir sunucuyu (Ubuntu/Debian, root) oyun sunucusu olarak hazırlar.
+#
+#   curl -fsSL https://raw.githubusercontent.com/aykutdemirer-cmyk/ulkeoyunarenasi/main/deploy/provision.sh | sudo bash -s -- \
+#     --domain "eu.alanadin.com" --region eu \
+#     --origins "https://alanadin.com,https://eu.alanadin.com,https://us.alanadin.com" \
+#     --deploy-key "ssh-ed25519 AAAA... github-deploy"
+#
+# --domain      HTTPS alan adı (birden fazla ise virgülle: "alanadin.com, eu.alanadin.com")
+# --region      bu sunucunun bölge kimliği (eu, us, ap ...)
+# --origins     socket bağlantısına izin verilen sayfa adresleri (virgülle)
+# --deploy-key  GitHub Actions'ın kullanacağı SSH PUBLIC anahtarı (yalnız deploy betiğini çalıştırabilir)
+# --regions     bölge listesi JSON dosyasının URL'i (isteğe bağlı; yoksa deploy/regions.example.json kopyalanır)
+# --harden-ssh  parola ile SSH girişini kapatır (ÖNCE anahtarla girişin çalıştığını doğrula!)
+set -euo pipefail
+
+DOMAIN=""; REGION="local"; ORIGINS=""; DEPLOY_KEY=""; HARDEN=0; REGIONS_URL=""
+REPO="${REPO:-https://github.com/aykutdemirer-cmyk/ulkeoyunarenasi.git}"
+DIR=/opt/last-one-wins
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --domain) DOMAIN="$2"; shift 2 ;;
+    --region) REGION="$2"; shift 2 ;;
+    --origins) ORIGINS="$2"; shift 2 ;;
+    --deploy-key) DEPLOY_KEY="$2"; shift 2 ;;
+    --regions) REGIONS_URL="$2"; shift 2 ;;
+    --harden-ssh) HARDEN=1; shift ;;
+    *) echo "Bilinmeyen seçenek: $1"; exit 1 ;;
+  esac
+done
+[ -n "$DOMAIN" ] || { echo "--domain gerekli"; exit 1; }
+[ "$(id -u)" -eq 0 ] || { echo "root olarak (sudo) çalıştır"; exit 1; }
+
+echo "==> Paketler"
+apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ufw fail2ban unattended-upgrades ca-certificates dnsutils
+systemctl enable --now fail2ban
+dpkg-reconfigure -f noninteractive unattended-upgrades || true
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "==> Docker"
+  curl -fsSL https://get.docker.com | sh
+fi
+
+echo "==> Güvenlik duvarı (SSH, 80, 443)"
+ufw allow OpenSSH
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw allow 443/udp
+ufw --force enable
+
+echo "==> deploy kullanıcısı"
+id deploy >/dev/null 2>&1 || adduser --disabled-password --gecos "" deploy
+usermod -aG docker deploy
+
+echo "==> Uygulama: $DIR"
+if [ -d "$DIR/.git" ]; then git -C "$DIR" pull --ff-only; else git clone "$REPO" "$DIR"; fi
+chown -R deploy:deploy "$DIR"
+chmod +x "$DIR"/deploy/*.sh
+
+cd "$DIR"
+if [ -n "$REGIONS_URL" ]; then
+  curl -fsSL "$REGIONS_URL" -o regions.json
+elif [ ! -f regions.json ]; then
+  cp deploy/regions.example.json regions.json
+fi
+cat > .env <<ENV
+DOMAIN=$DOMAIN
+REGION=$REGION
+ALLOWED_ORIGINS=$ORIGINS
+REGIONS_FILE_HOST=./regions.json
+APP_TAG=latest
+ENV
+chown deploy:deploy .env regions.json
+
+if [ -n "$DEPLOY_KEY" ]; then
+  echo "==> CI anahtarı (yalnız deploy betiğini çalıştırabilir)"
+  install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
+  echo "command=\"$DIR/deploy/run-deploy.sh\",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty $DEPLOY_KEY" > /home/deploy/.ssh/authorized_keys
+  chown deploy:deploy /home/deploy/.ssh/authorized_keys
+  chmod 600 /home/deploy/.ssh/authorized_keys
+fi
+
+if [ "$HARDEN" -eq 1 ]; then
+  echo "==> SSH sertleştirme (parola girişi kapatılıyor)"
+  cat > /etc/ssh/sshd_config.d/99-hardening.conf <<'CONF'
+PasswordAuthentication no
+PermitRootLogin prohibit-password
+CONF
+  systemctl reload ssh || systemctl reload sshd || true
+fi
+
+echo "==> DNS kontrolü"
+SERVER_IP="$(curl -4 -fsS https://ifconfig.me || true)"
+for d in $(echo "$DOMAIN" | tr ',' ' '); do
+  echo "    $d -> $(dig +short A "$d" | tail -n1) (sunucu: ${SERVER_IP:-?})"
+done
+
+echo "==> İlk başlatma (yerelde derlenir; sonraki sürümler GitHub'dan gelir)"
+docker compose up -d --build
+
+echo
+echo "Hazır. Birkaç dakika içinde: https://$(echo "$DOMAIN" | cut -d, -f1 | tr -d ' ')"
+echo "Sağlık: curl https://$(echo "$DOMAIN" | cut -d, -f1 | tr -d ' ')/healthz"
