@@ -2,6 +2,10 @@
 
 const DICT = {
   tr: {
+    mut_title: 'MUTATÖR', 'mut.none': 'Normal', 'mut.random': 'Rastgele (her maç sürpriz)', 'mut.turbo': 'Turbo', 'mut.slippery': 'Kaygan', 'mut.magnet': 'Mıknatıs', 'mut.bumpy': 'Tamponlu',
+    'mutdesc.none': 'Standart kurallar.', 'mutdesc.random': 'Her maç rastgele bir mutatör seçilir.', 'mutdesc.turbo': 'Toplar %50 daha çevik!', 'mutdesc.slippery': 'Zemin buz gibi: durmak zor.', 'mutdesc.magnet': 'Merkez seni çeker, kenara gitmek zor.', 'mutdesc.bumpy': 'Arenaya 3 fırlatıcı tampon eklenir.',
+    mut_banner: 'MUTATÖR: {m}', shock: 'ŞOK DALGASI', streak2: 'ÇİFTE ELEME!', streak3: 'ÜÇLÜ ELEME!', streak4: 'DURDURULAMIYOR!', final2: 'FİNAL: 2 KİŞİ!',
+    skin_title: '\u{1F3A8} TOP STİLİ', 'skin.none': 'Klasik', 'skin.gold': 'Altın', 'skin.fire': 'Ateş', 'skin.ice': 'Buz', 'skin.rainbow': 'Gökkuşağı', skin_lock: 'Lv.{l} gerekli',
     chat_title: '\u{1F4AC} LOBİ SOHBETİ', chat_ph: 'Mesaj yaz...', chat_send: 'GÖNDER', chat_empty: 'Henüz mesaj yok. Selam ver!', room_cap: 'Oda',
     how_title: '\u{1F3AE} KONTROLLER', how_move: 'Hareket', how_dash: 'Dash (ivme)', how_emote: 'Hızlı tepki', how_goal: 'Diğer ülkeleri halkadan dışarı it, yarışta sona kalma!',
     quests_title: '\u26A1 GÜNLÜK GÖREVLER', quest_win1: 'Bugün 1 maç kazan', quest_kill3: '3 rakip düşür', quest_play3: '3 maç oyna',
@@ -126,6 +130,10 @@ const DICT = {
     feed_out: 'elendi', eliminated: 'ELENENLER', goals: 'GOLLER', round_lbl: 'RAUNT'
   },
   en: {
+    mut_title: 'MUTATOR', 'mut.none': 'Normal', 'mut.random': 'Random (surprise every match)', 'mut.turbo': 'Turbo', 'mut.slippery': 'Slippery', 'mut.magnet': 'Magnet', 'mut.bumpy': 'Bumpy',
+    'mutdesc.none': 'Standard rules.', 'mutdesc.random': 'A random mutator is picked every match.', 'mutdesc.turbo': 'Balls are 50% more agile!', 'mutdesc.slippery': 'Ice-slick floor: hard to stop.', 'mutdesc.magnet': 'The center pulls you in; edges are hard to reach.', 'mutdesc.bumpy': '3 launching bumpers are added to the arena.',
+    mut_banner: 'MUTATOR: {m}', shock: 'SHOCKWAVE', streak2: 'DOUBLE KNOCKOUT!', streak3: 'TRIPLE KNOCKOUT!', streak4: 'UNSTOPPABLE!', final2: 'FINAL 2!',
+    skin_title: '\u{1F3A8} BALL STYLE', 'skin.none': 'Classic', 'skin.gold': 'Gold', 'skin.fire': 'Fire', 'skin.ice': 'Ice', 'skin.rainbow': 'Rainbow', skin_lock: 'Needs Lv.{l}',
     chat_title: '\u{1F4AC} LOBBY CHAT', chat_ph: 'Type a message...', chat_send: 'SEND', chat_empty: 'No messages yet. Say hi!', room_cap: 'Room',
     how_title: '\u{1F3AE} CONTROLS', how_move: 'Move', how_dash: 'Dash (boost)', how_emote: 'Quick emotes', how_goal: 'Push the other countries out of the ring, never finish last in a race!',
     quests_title: '\u26A1 DAILY QUESTS', quest_win1: 'Win 1 match today', quest_kill3: 'Knock out 3 rivals', quest_play3: 'Play 3 matches',
