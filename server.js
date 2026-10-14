@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import {
-  DT, SUB, ARMOR_T, GHOST_T, SUPER_T, PU_R, PU_TYPES, MODES, SIZES, RACE, RUSH, isRush, RUSH_TRACK_KEYS, RUSH_TRACK_NAMES, rushTrack, laserOn, pistonLen, BOMB_TIME, HILL_R, HILL_TIME,
+  DT, SUB, ARMOR_T, GHOST_T, SUPER_T, PU_R, PU_TYPES, MODES, SIZES, MUTATORS, SKINS, RACE, RUSH, isRush, RUSH_TRACK_KEYS, RUSH_TRACK_NAMES, rushTrack, laserOn, pistonLen, BOMB_TIME, HILL_R, HILL_TIME,
   SOCCER_R, SOCCER_TIME, GOAL_TARGET, COINS_TIME, gapInfo as gapInfoSoccer, lavaCycle, lavaAt, LAVA_SECTORS,
   MAPS, MAP_KEYS, mapFor, bumpers, newEnv, advanceEnv, gapInfo, ballR, ballMass,
   applyControl, moveSub
@@ -117,6 +117,7 @@ function normCode(c) {
   return s;
 }
 
+const validSkin = (id, lvl) => { const sk = SKINS.find((x) => x.id === id); return sk && lvl >= sk.lvl ? sk.id : 'none'; };
 const lobbyChat = [];
 const escapeHtml = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
@@ -138,7 +139,7 @@ function newRoom(hostPid) {
     code: makeCode(), mode: 'FFA', map: 'classic', diff: 'normal', phase: 'lobby',
     players: new Map(), host: hostPid, game: null, wins: new Map(), quick: false,
     rounds: 1, series: { round: 0, wins: new Map() }, lastBots: 0, botEntries: null,
-    manual: true, size: 'standard', autoAt: 0, autoTimer: null, public: false
+    manual: true, mutator: 'none', size: 'standard', autoAt: 0, autoTimer: null, public: false
   };
 }
 
@@ -173,6 +174,7 @@ function roomState(room) {
     diff: room.diff,
     rounds: room.rounds,
     manual: room.manual,
+    mutator: room.mutator,
     size: room.size,
     autoLeft: room.autoAt ? Math.max(0, Math.ceil((room.autoAt - Date.now()) / 1000)) : 0,
     phase: room.phase,
@@ -221,6 +223,7 @@ function gameInfo(room) {
     map: g.mapKey,
     mapName: (MAPS[g.mapKey] || {}).name || RUSH_TRACK_NAMES[g.mapKey] || g.mapKey,
     size: room.size,
+    mut: g.mutator,
     total: g.total,
     round: g.round,
     rounds: room.rounds,
@@ -258,7 +261,7 @@ function startGame(room, botCount, continuing = false) {
 
   let aCount = humans.filter((h) => h.team === 'A').length;
   let bCount = humans.length - aCount;
-  const entries = humans.map((h) => ({ id: h.id, name: h.name, country: h.country, team: h.team, bot: false, lvl: h.lvl || 1 }));
+  const entries = humans.map((h) => ({ id: h.id, name: h.name, country: h.country, team: h.team, bot: false, lvl: h.lvl || 1, skin: h.skin || 'none' }));
   const reuse = continuing && room.botEntries;
   if (reuse) room.botEntries.forEach((e) => { if (!used.has(e.country)) entries.push({ ...e }); });
   for (let i = 0; !reuse && i < bots; i++) {
@@ -268,7 +271,7 @@ function startGame(room, botCount, continuing = false) {
       team = aCount <= bCount ? 'A' : 'B';
       if (team === 'A') aCount++; else bCount++;
     }
-    entries.push({ id: 'bot' + i, name: c.name, country: c.code, team, bot: true, lvl: 1 + Math.floor(Math.random() * 9) });
+    entries.push({ id: 'bot' + i, name: c.name, country: c.code, team, bot: true, lvl: 1 + Math.floor(Math.random() * 9), skin: Math.random() < 0.35 ? SKINS[1 + Math.floor(Math.random() * (SKINS.length - 1))].id : 'none' });
   }
 
   if (!reuse) room.botEntries = entries.filter((e) => e.bot).map((e) => ({ ...e }));
@@ -285,7 +288,8 @@ function startGame(room, botCount, continuing = false) {
 
   const mapKey = isRush(room.mode) ? (RUSH_TRACK_KEYS.includes(room.map) ? room.map : 'r1')
     : room.map === 'random' ? MAP_KEYS[Math.floor(Math.random() * MAP_KEYS.length)] : (MAP_CHOICES.has(room.map) ? room.map : 'classic');
-  const map = mapFor(mapKey, room.mode, room.size);
+  const mutPick = room.mutator === 'random' ? ['turbo', 'slippery', 'magnet', 'bumpy'][Math.floor(Math.random() * 4)] : room.mutator;
+  const map = mapFor(mapKey, room.mode, room.size, mutPick);
   const n = entries.length;
   const spawnR = map.R0 * 0.78;
   const dr = DIFFS[room.diff] || DIFFS.normal;
@@ -303,10 +307,11 @@ function startGame(room, botCount, continuing = false) {
 
   room.game = {
     mapKey,
+    mutator: mutPick,
     env: newEnv(map, room.mode === 'SOCCER' ? 0 : Math.random() * Math.PI * 2),
     balls,
     byId: new Map(balls.map((b) => [b.id, b])),
-    roster: entries.map((e) => ({ id: e.id, name: e.name, country: e.country, countryName: COUNTRY_NAME[e.country], team: e.team, bot: e.bot, lvl: e.lvl || 1 })),
+    roster: entries.map((e) => ({ id: e.id, name: e.name, country: e.country, countryName: COUNTRY_NAME[e.country], team: e.team, bot: e.bot, lvl: e.lvl || 1, skin: e.skin || 'none' })),
     bomb: null,
     hill: null,
     coins: [],
@@ -542,7 +547,22 @@ function updatePowerups(g, alive) {
       if (Math.hypot(b.x - p.x, b.y - p.y) < ballR(b) + PU_R) {
         if (p.type === 0) b.armorT = ARMOR_T;
         else if (p.type === 1) { b.cd = 0; b.superT = SUPER_T; }
-        else b.ghostT = GHOST_T;
+        else if (p.type === 2) b.ghostT = GHOST_T;
+        else {
+          // şok dalgası: yakındaki herkesi iter, kendi adına sayılır
+          for (const o of alive) {
+            if (o === b || !o.alive) continue;
+            const dx = o.x - b.x;
+            const dy = o.y - b.y;
+            const d = Math.hypot(dx, dy) || 1;
+            if (d > 340) continue;
+            const f = 380 + 900 * (1 - d / 340);
+            o.vx += (dx / d) * f;
+            o.vy += (dy / d) * f;
+            o.lastHit = { id: b.id, t: g.env.t };
+          }
+          g.ev.push({ k: 'shock', id: b.id, x: +b.x.toFixed(1), y: +b.y.toFixed(1) });
+        }
         g.ev.push({ k: 'pickup', id: b.id, type: p.type, x: p.x, y: p.y });
         g.pus.splice(i, 1);
         break;
@@ -1585,10 +1605,11 @@ io.on('connection', (socket) => {
     const player = {
       id: pid, sid: socket.id, name: cleanName(data.name),
       country: freeCountry(room, data.country, pid), team: balancedTeam(room), dcAt: 0, gone: false,
-      ready: false, lvl: Math.max(1, Math.min(999, Math.floor(Number(data.lvl)) || 1)), uid: null
+      ready: false, lvl: Math.max(1, Math.min(999, Math.floor(Number(data.lvl)) || 1)), uid: null, skin: 'none'
     };
     const acc = socket.data.uid ? auth.getUser(socket.data.uid) : null;
     if (acc && !acc.banned) { player.uid = acc.username; player.name = acc.display; player.lvl = auth.levelOf(acc.xp); }
+    player.skin = validSkin(data.skin, player.lvl);
     room.players.set(pid, player);
     pidRoom.set(pid, room.code);
     socket.leave('browse');
@@ -1664,6 +1685,7 @@ io.on('connection', (socket) => {
     if (data.name !== undefined && !p.uid) p.name = cleanName(data.name);
     if (data.country !== undefined) p.country = freeCountry(room, data.country, pid);
     if (data.team === 'A' || data.team === 'B') p.team = data.team;
+    if (data.skin !== undefined) p.skin = validSkin(data.skin, p.lvl);
     if (data.lvl !== undefined && !p.uid) p.lvl = Math.max(1, Math.min(999, Math.floor(Number(data.lvl)) || 1));
     pushRoom(room);
   }));
@@ -1717,6 +1739,12 @@ io.on('connection', (socket) => {
     if (g && g.phase === 'over') g.overT = Math.max(g.overT, (g.overMax || OVER_TIME) - 0.05);
     if (room.phase === 'lobby' && pid !== room.host) p.ready = true;
     pushRoom(room);
+  }));
+
+  socket.on('setMutator', safe((key) => {
+    const room = curRoom();
+    if (!room || room.host !== pid || room.phase !== 'lobby') return;
+    if (MUTATORS.includes(key)) { room.mutator = key; pushRoom(room); }
   }));
 
   socket.on('setSize', safe((key) => {

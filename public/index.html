@@ -65,6 +65,9 @@
 
       <p id="statsLine" class="stats-line"></p>
 
+      <span class="lbl" data-i18n="skin_title">&#127912; TOP STİLİ</span>
+      <div id="skinRow" class="skin-row"></div>
+
       <span class="lbl" data-i18n="pick_country">ÜLKENİ SEÇ</span>
       <div id="countryGrid" class="country-grid"></div>
     </section>
@@ -117,6 +120,17 @@
         <button class="btn seg-btn" data-size="standard" data-i18n="size_standard">STANDART</button>
         <button class="btn seg-btn" data-size="large" data-i18n="size_large">BÜYÜK</button>
       </div>
+
+      <span class="lbl" data-i18n="mut_title">MUTATÖR</span>
+      <select id="mutSel" class="sel">
+        <option value="none" data-i18n="mut.none">Normal</option>
+        <option value="random" data-i18n="mut.random">Rastgele</option>
+        <option value="turbo" data-i18n="mut.turbo">Turbo</option>
+        <option value="slippery" data-i18n="mut.slippery">Kaygan</option>
+        <option value="magnet" data-i18n="mut.magnet">Mıknatıs</option>
+        <option value="bumpy" data-i18n="mut.bumpy">Tamponlu</option>
+      </select>
+      <p id="mutDesc" class="mapdesc"></p>
 
       <span class="lbl" data-i18n="bot_diff">BOT ZORLUĞU</span>
       <div class="seg" id="diffSeg">

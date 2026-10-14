@@ -30,7 +30,11 @@ export const BOMB_TIME = 9;
 export const HILL_R = 110;
 export const HILL_TIME = 60;
 export const PU_R = 24;
-export const PU_TYPES = ['armor', 'super', 'ghost'];
+export const PU_TYPES = ['armor', 'super', 'ghost', 'shock'];
+export const MUTATORS = ['none', 'turbo', 'slippery', 'magnet', 'bumpy', 'random'];
+export const SKINS = [
+  { id: 'none', lvl: 1 }, { id: 'gold', lvl: 3 }, { id: 'fire', lvl: 5 }, { id: 'ice', lvl: 8 }, { id: 'rainbow', lvl: 12 }
+];
 
 /* ELIMINATION RACE (Plinko): dikey çivili tahta. Orijin = tuval merkezi; y aşağı doğru artar. */
 export const RACE = (() => {
@@ -160,7 +164,7 @@ export const MAPS = {
 export const MAP_KEYS = Object.keys(MAPS);
 
 /* Oyun moduna ve arena boyutuna göre harita kopyası: BOMB/HILL/COINS'te halka kapalıdır */
-export function mapFor(key, mode, size = 'standard') {
+export function mapFor(key, mode, size = 'standard', mut = 'none') {
   const m = Object.assign({}, MAPS[key] || MAPS.classic);
   const k = SIZE_K[size] || 1;
   if (k !== 1) {
@@ -176,6 +180,14 @@ export function mapFor(key, mode, size = 'standard') {
   }
   if (mode === 'HILL' || mode === 'COINS' || mode === 'SOCCER') m.lava = null;
   if (mode === 'HILL' || mode === 'COINS') { m.hole = 0; m.gravity = 0; m.shrink = 0; m.Rmin = m.R0; }
+  if (mode !== 'SOCCER' && mode !== 'RACE' && !isRush(mode)) {
+    if (mut === 'turbo') m.accMul *= 1.5;
+    else if (mut === 'slippery') { m.friction = 0.995; m.accMul *= 0.7; }
+    else if (mut === 'magnet') m.gravity = Math.max(m.gravity, 450);
+    else if (mut === 'bumpy') m.bumpers = m.bumpers.concat([
+      { t: 'fixed', x: 0, y: -140 * k, r: BUMP_R * 0.7 }, { t: 'fixed', x: -125 * k, y: 85 * k, r: BUMP_R * 0.7 }, { t: 'fixed', x: 125 * k, y: 85 * k, r: BUMP_R * 0.7 }
+    ]);
+  }
   if (isRush(mode)) {
     Object.assign(m, {
       key: 'rush', name: 'SURVIVOR RUSH', desc: 'Engelli parkur yarışı.', col: '#22d3ee', rush: true, closed: true,

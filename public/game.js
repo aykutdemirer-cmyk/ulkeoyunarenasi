@@ -14,8 +14,8 @@ const CX = CW / 2;
 const CY = 960;
 const INTERP_MS = 100;
 const TEAM_COL = { A: '#22d3ee', B: '#f97316', F: '#ffffff' };
-const PU_COL = ['#94a3b8', '#facc15', '#22d3ee'];
-const puLabel = (i) => T(['armor', 'superdash', 'ghost'][i]);
+const PU_COL = ['#94a3b8', '#facc15', '#22d3ee', '#fb7185'];
+const puLabel = (i) => T(['armor', 'superdash', 'ghost', 'shock'][i]);
 const EMOTES = ['GG', 'LOL', 'OOPS!', '!!!'];
 const MAP_STARS = { classic: 1, collider: 3, shrinking: 3, gauntlet: 4, ice: 2, whirlpool: 2, pinball: 3, pulse: 3, lava: 4, blackhole: 4, random: 0 };
 const MAP_DETAIL = new Proxy({}, { get: (_, k) => ({ stars: MAP_STARS[k] || 0, tips: TL('maptips.' + String(k)) }) });
@@ -344,6 +344,7 @@ function saveProfile(pr) { try { localStorage.setItem('low_profile', JSON.string
 let profile = loadProfile();
 const myLvl = () => profile.level;
 function renderProfile() {
+  if (typeof renderSkins === 'function') renderSkins();
   const L = profile.level;
   const base = xpCum(L);
   const need = xpNeed(L);
@@ -583,12 +584,12 @@ nameInput.addEventListener('change', () => {
 $('createBtn').addEventListener('click', () => {
   initAudio();
   $('entryMsg').textContent = '';
-  socket.emit('createRoom', { name: myName(), country: S.myCountry, lvl: myLvl() }, onEnter);
+  socket.emit('createRoom', { name: myName(), country: S.myCountry, lvl: myLvl(), skin: S.skin }, onEnter);
 });
 $('quickBtn').addEventListener('click', () => {
   initAudio();
   $('entryMsg').textContent = '';
-  socket.emit('quickPlay', { name: myName(), country: S.myCountry, lvl: myLvl() }, (res) => {
+  socket.emit('quickPlay', { name: myName(), country: S.myCountry, lvl: myLvl(), skin: S.skin }, (res) => {
     onEnter(res);
     if (res && res.ok && res.quick) $('roomMsg').textContent = T('quick_search');
   });
@@ -606,7 +607,7 @@ $('codeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinC
 function joinRoomById(roomId) {
   initAudio();
   $('entryMsg').textContent = '';
-  socket.emit('join_room', { roomId, name: myName(), country: S.myCountry, lvl: myLvl() }, onEnter);
+  socket.emit('join_room', { roomId, name: myName(), country: S.myCountry, lvl: myLvl(), skin: S.skin }, onEnter);
 }
 function joinCode(raw) {
   initAudio();
@@ -636,6 +637,7 @@ $('roomCode').addEventListener('click', () => {
   $('roomMsg').textContent = T('copied', { code });
 });
 $('modeSel').addEventListener('change', () => socket.emit('setMode', $('modeSel').value));
+$('mutSel').addEventListener('change', () => socket.emit('setMutator', $('mutSel').value));
 document.querySelectorAll('#sizeSeg button').forEach((b) => b.addEventListener('click', () => socket.emit('setSize', b.dataset.size)));
 $('readyBtn').addEventListener('click', () => { const m = S.room && S.room.players.find((q) => q.id === S.id); socket.emit('setReady', !(m && m.ready)); });
 $('teamA').addEventListener('click', () => socket.emit('setProfile', { team: 'A' }));
@@ -705,6 +707,9 @@ function renderLobby() {
   const team = isTeam(r.mode);
 
   $('roomCode').textContent = r.code;
+  $('mutSel').value = r.mutator || 'none';
+  $('mutSel').disabled = !isHost;
+  $('mutDesc').textContent = T('mutdesc.' + (r.mutator || 'none'));
   $('modeSel').value = r.mode;
   $('modeSel').disabled = !isHost;
   $('modeDesc').textContent = (MODE_INFO[r.mode] || ['', ''])[1];
@@ -1052,7 +1057,10 @@ socket.on('roomState', (r) => {
 });
 socket.on('gameStart', (g) => {
   S.mode = g.mode;
-  S.map = mapFor(g.map, g.mode, g.size);
+  S.map = mapFor(g.map, g.mode, g.size, g.mut);
+  S.mut = g.mut || 'none';
+  S.streak = {};
+  S.final2 = false;
   S.round = g.round || 1;
   S.rounds = g.rounds || 1;
   S.hillPos = null;
@@ -1191,6 +1199,11 @@ function vibrate(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } cat
 
 function onSnap(s) {
   renderBoard(s);
+  if (!S.final2 && s.ph === 'play' && s.left === 2 && S.roster.size > 2 && !isRush(S.mode) && S.mode !== 'RACE' && S.mode !== 'SOCCER' && S.mode !== 'HILL' && S.mode !== 'COINS') {
+    S.final2 = true;
+    showBanner(T('final2'));
+    setTimeout(() => { if (!S.over && S.latest && S.latest.ph === 'play') $('banner').classList.add('hidden'); }, 1300);
+  }
   if (S.mode === 'SOCCER' && s.scr) {
     $('leftLbl').textContent = 'A';
     $('leftNum').textContent = `${s.scr[0]} : ${s.scr[1]} B`;
@@ -1261,6 +1274,12 @@ function onSnap(s) {
       S.bumpPulse[e.i] = 1;
       S.rings.push({ x: e.x, y: e.y, r: 40, max: 220, life: 0.5, max_life: 0.5, col: '#a78bfa' });
       burst(e.x, e.y, 14, '#c4b5fd', 420);
+    } else if (e.k === 'shock') {
+      sfx.boom ? sfx.boom() : sfx.hit(1, 1);
+      S.shake = Math.max(S.shake, 20);
+      S.rings.push({ x: e.x, y: e.y, r: 30, max: 340, life: 0.6, max_life: 0.6, col: '#fb7185' });
+      S.rings.push({ x: e.x, y: e.y, r: 10, max: 220, life: 0.45, max_life: 0.45, col: '#ffffff' });
+      burst(e.x, e.y, 40, '#fb7185', 600);
     } else if (e.k === 'puSpawn') {
       sfx.spawn();
       S.rings.push({ x: e.x, y: e.y, r: 10, max: 120, life: 0.6, max_life: 0.6, col: PU_COL[e.type] });
@@ -1340,7 +1359,8 @@ function showCountdown(cd) {
   const b = $('banner');
   const sub = (S.mode === 'RACE' ? '' : S.map.name) + (S.rounds > 1 ? (S.mode === 'RACE' ? '' : ' · ') + T('round_lbl') + ' ' + S.round + '/' + S.rounds : '');
   const html = `<div class="cd">${cd}</div><div class="goal">${T('goal.' + S.mode)}</div>` +
-    `<div class="ctrl">${isTouch() ? T('ctrl_touch') : T('ctrl_kb')}</div>` + (sub ? `<small>${sub}</small>` : '');
+    `<div class="ctrl">${isTouch() ? T('ctrl_touch') : T('ctrl_kb')}</div>` + (sub ? `<small>${sub}</small>` : '') +
+    (S.mut && S.mut !== 'none' ? `<small class="mut-tag">${T('mut_banner', { m: T('mut.' + S.mut) })}</small>` : '');
   b.classList.remove('over');
   b.classList.add('card');
   b.style.color = '';
@@ -1472,6 +1492,21 @@ function onElim(e) {
   S.shake = Math.max(S.shake, 12);
   addElim(e.id, e.rank, true);
   feedRow(e.by, e.id);
+  if (e.by) {
+    const nowK = performance.now();
+    const st = S.streak[e.by] || { n: 0, t: 0 };
+    st.n = nowK - st.t < 4500 ? st.n + 1 : 1;
+    st.t = nowK;
+    S.streak[e.by] = st;
+    if (st.n >= 2) {
+      const txt = T(st.n === 2 ? 'streak2' : st.n === 3 ? 'streak3' : 'streak4');
+      if (e.by === PID) {
+        showBanner(txt);
+        setTimeout(() => { if (!S.over && S.latest && S.latest.ph === 'play') $('banner').classList.add('hidden'); }, 1400);
+        sfx.win();
+      } else S.floaters.push({ x: e.x, y: e.y - 70, text: txt, col: '#facc15', life: 1.6 });
+    }
+  }
   if (e.by === PID) addXp(50, e.x, e.y);
   if (e.id === PID) {
     vibrate(80);
@@ -2304,6 +2339,10 @@ function drawPowerups(list, time) {
       ctx.beginPath();
       ctx.moveTo(4, -15); ctx.lineTo(-9, 3); ctx.lineTo(-1, 3); ctx.lineTo(-5, 15); ctx.lineTo(9, -4); ctx.lineTo(1, -4);
       ctx.closePath(); ctx.fill();
+    } else if (p[1] === 3) { // şok dalgası: sekiz kollu yıldız
+      ctx.beginPath();
+      for (let i = 0; i < 16; i++) { const a = (i * Math.PI) / 8; const r = i % 2 ? 6 : 15; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      ctx.closePath(); ctx.fill();
     } else { // hayalet
       ctx.beginPath();
       ctx.arc(0, -3, 10, Math.PI, 0);
@@ -2327,7 +2366,20 @@ function drawBall(b, time) {
     S.particles.push({ x: b.x, y: b.y, vx: 0, vy: 0, life: 0.3, max: 0.3, col: tc, r: R * 0.85 });
     S.particles.push({ x: b.x - Math.cos(b.f) * R * 0.8, y: b.y - Math.sin(b.f) * R * 0.8, vx: 0, vy: 0, life: 0.22, max: 0.22, col: '#ffffff', r: R * 0.5 });
   }
+  const skin = p.skin || 'none';
+  if (skin === 'fire' && b.sp > 140 && Math.random() < 0.7) S.particles.push({ x: b.x - Math.cos(b.f) * R * 0.6, y: b.y - Math.sin(b.f) * R * 0.6, vx: (Math.random() - 0.5) * 60, vy: -40 - Math.random() * 60, life: 0.45, max: 0.45, col: Math.random() < 0.5 ? '#fb923c' : '#facc15', r: 5 + Math.random() * 5 });
   ctx.translate(CX + b.x, CY + b.y);
+  if (skin !== 'none' && skin !== 'fire') {
+    ctx.save();
+    const sc = skin === 'gold' ? '#facc15' : skin === 'ice' ? '#67e8f9' : 'hsl(' + ((time * 200) % 360) + ',100%,60%)';
+    ctx.shadowColor = sc; ctx.shadowBlur = 18;
+    ctx.strokeStyle = sc; ctx.lineWidth = skin === 'rainbow' ? 6 : 4;
+    ctx.beginPath(); ctx.arc(0, 0, R + 5, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  } else if (skin === 'fire') {
+    ctx.save(); ctx.shadowColor = '#fb923c'; ctx.shadowBlur = 16; ctx.strokeStyle = 'rgba(251,146,60,0.9)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(0, 0, R + 5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
   if (b.fin) ctx.globalAlpha = 0.5;
 
   // kalkan / ghost balonu
@@ -2847,6 +2899,36 @@ $('admSend').addEventListener('click', async () => {
 })();
 window.addEventListener('hashchange', () => { if (location.hash === '#admin') openAdmin(); });
 
+/* ------------------------------ Top stilleri (seviye ile açılır) ------------------------------ */
+var SKIN_LIST = [{ id: 'none', lvl: 1 }, { id: 'gold', lvl: 3 }, { id: 'fire', lvl: 5 }, { id: 'ice', lvl: 8 }, { id: 'rainbow', lvl: 12 }];
+S.skin = 'none';
+try { S.skin = localStorage.getItem('low_skin') || 'none'; } catch (e) { /* yok */ }
+function renderSkins() {
+  const row = document.getElementById('skinRow');
+  if (!row) return;
+  const L = myLvl();
+  let cur = SKIN_LIST.find((x) => x.id === S.skin);
+  if (!cur || L < cur.lvl) { S.skin = 'none'; cur = SKIN_LIST[0]; }
+  row.innerHTML = '';
+  SKIN_LIST.forEach((sk) => {
+    const locked = L < sk.lvl;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'skin-btn' + (S.skin === sk.id ? ' on' : '') + (locked ? ' locked' : '');
+    b.dataset.skin = sk.id;
+    b.textContent = (locked ? '\u{1F512} ' : '') + T('skin.' + sk.id) + (locked ? ' · ' + T('skin_lock', { l: sk.lvl }) : '');
+    b.addEventListener('click', () => {
+      if (locked) return;
+      S.skin = sk.id;
+      try { localStorage.setItem('low_skin', sk.id); } catch (e) { /* yok */ }
+      if (S.room) socket.emit('setProfile', { skin: sk.id });
+      renderSkins();
+    });
+    row.appendChild(b);
+  });
+}
+renderSkins();
+
 /* ------------------------------ Günlük görevler ------------------------------ */
 const QUESTS = [
   { id: 'win1', stat: 'wins', goal: 1, xp: 100, key: 'quest_win1' },
@@ -2986,6 +3068,7 @@ $('shareBtn').addEventListener('click', async () => {
 document.querySelectorAll('.lang-sw button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
 onLang(() => {
   updateAccBtn();
+  renderSkins();
   renderQuests();
   Object.entries(SOCIAL).forEach(([id, url]) => { const a = document.getElementById(id); if (a && !url) a.title = T('soon'); });
   $('entryMsg').textContent = '';
