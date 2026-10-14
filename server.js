@@ -15,13 +15,23 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 
 const app = express();
+if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
 const server = http.createServer(app);
 const io = new Server(server);
+app.get('/healthz', (req, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.round(process.uptime()) }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* ------------------------------ Sabitler ------------------------------ */
 const TICK = 30;
 const MAX_PLAYERS = 16;
+const MAX_ROOMS = Number(process.env.MAX_ROOMS) || 300;
+const MAX_CONN_PER_IP = Number(process.env.MAX_CONN_PER_IP) || 25;
+const ipCount = new Map();
+const clientIp = (socket) => {
+  const h = socket.handshake;
+  const xf = process.env.TRUST_PROXY && h.headers['x-forwarded-for'];
+  return (xf ? String(xf).split(',')[0].trim() : h.address) || 'unknown';
+};
 const COUNTDOWN = 3;
 const OVER_TIME = 7;
 const SPAWN_R = 280;
@@ -1047,6 +1057,15 @@ function removePlayer(room, pid) {
 }
 
 io.on('connection', (socket) => {
+  const ip = clientIp(socket);
+  const n = (ipCount.get(ip) || 0) + 1;
+  if (n > MAX_CONN_PER_IP) { socket.disconnect(true); return; }
+  ipCount.set(ip, n);
+  socket.on('disconnect', () => {
+    const c = (ipCount.get(ip) || 1) - 1;
+    if (c <= 0) ipCount.delete(ip); else ipCount.set(ip, c);
+  });
+
   let pid = socket.handshake.auth && socket.handshake.auth.pid;
   if (typeof pid !== 'string' || !PID_RE.test(pid)) pid = 'p' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
   socket.data.pid = pid;
@@ -1094,6 +1113,10 @@ io.on('connection', (socket) => {
 
   socket.on('createRoom', safe((data, cb) => {
     if (typeof cb !== 'function') return;
+    const nowC = Date.now();
+    if (nowC - (socket.data.lastCreate || 0) < 1500) return cb({ ok: false, error: 'too_fast' });
+    if (rooms.size >= MAX_ROOMS) return cb({ ok: false, error: 'server_full' });
+    socket.data.lastCreate = nowC;
     if (curRoom()) leave();
     const room = newRoom(pid);
     rooms.set(room.code, room);
@@ -1159,6 +1182,7 @@ io.on('connection', (socket) => {
       pushRoom(open);
       return;
     }
+    if (rooms.size >= MAX_ROOMS) return cb({ ok: false, error: 'server_full' });
     const room = newRoom(pid);
     room.quick = true;
     rooms.set(room.code, room);
@@ -1232,6 +1256,14 @@ io.on('connection', (socket) => {
     if (room) pushRoom(room);
   }));
 });
+
+function shutdown() {
+  console.log('Kapatılıyor...');
+  io.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 3000).unref();
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 process.on('uncaughtException', (e) => console.error('uncaughtException:', e));
 process.on('unhandledRejection', (e) => console.error('unhandledRejection:', e));

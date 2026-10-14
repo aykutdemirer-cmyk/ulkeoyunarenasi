@@ -1,0 +1,5 @@
+# WebSocket (Socket.io) dahil her şeyi uygulamaya yönlendirir; sertifikayı Caddy kendisi alır ve yeniler.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
