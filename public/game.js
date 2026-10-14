@@ -1848,16 +1848,37 @@ function sampleState() {
 // Arka plan
 const bg = document.createElement('canvas');
 bg.width = CW; bg.height = CH;
-(function buildBg() {
+const THEMES = {
+  neon: { accent: '#ff2d85', bg1: '#14102a', bg2: '#05050f', grid: '120,120,255' },
+  cyber: { accent: '#38bdf8', bg1: '#0c1a33', bg2: '#030712', grid: '90,160,255' },
+  toxic: { accent: '#22c55e', bg1: '#0b2316', bg2: '#030a06', grid: '80,220,140' },
+  sunset: { accent: '#fb923c', bg1: '#2a1410', bg2: '#0a0405', grid: '255,150,90' },
+  royal: { accent: '#facc15', bg1: '#241d0a', bg2: '#080602', grid: '230,200,90' }
+};
+let themeKey = 'neon';
+try { const t = localStorage.getItem('low_theme'); if (THEMES[t]) themeKey = t; } catch (e) { /* yok */ }
+function buildBg() {
+  const th = THEMES[themeKey];
   const g = bg.getContext('2d');
   const gr = g.createRadialGradient(CX, CY, 50, CX, CY, 900);
-  gr.addColorStop(0, '#14102a');
-  gr.addColorStop(1, '#05050f');
+  gr.addColorStop(0, th.bg1);
+  gr.addColorStop(1, th.bg2);
   g.fillStyle = gr; g.fillRect(0, 0, CW, CH);
-  g.strokeStyle = 'rgba(120,120,255,0.06)'; g.lineWidth = 2;
+  g.strokeStyle = 'rgba(' + th.grid + ',0.07)'; g.lineWidth = 2;
   for (let x = 0; x <= CW; x += 60) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, CH); g.stroke(); }
   for (let y = 0; y <= CH; y += 60) { g.beginPath(); g.moveTo(0, y); g.lineTo(CW, y); g.stroke(); }
-})();
+}
+function applyTheme(k) {
+  if (!THEMES[k]) return;
+  themeKey = k;
+  document.documentElement.setAttribute('data-theme', k);
+  try { localStorage.setItem('low_theme', k); } catch (e) { /* yok */ }
+  document.querySelectorAll('#themeSw button').forEach((b) => b.classList.toggle('on', b.dataset.theme === k));
+  buildBg();
+}
+document.querySelectorAll('#themeSw button').forEach((b) => b.addEventListener('click', () => applyTheme(b.dataset.theme)));
+applyTheme(themeKey);
+
 
 function drawRace(st, time) {
   const hw = RACE.halfW, eh = RACE.exitHalf;
@@ -2079,7 +2100,7 @@ function drawRing(st, time) {
   ctx.lineCap = 'round';
   const segs = [];
   for (let k = 0; k < n; k++) segs.push([st.rot + k * step + st.gh, st.rot + (k + 1) * step - st.gh]);
-  const hot = S.map.col || '#FF2D85';
+  const hot = S.map.key === 'classic' ? THEMES[themeKey].accent : (S.map.col || '#FF2D85');
   ctx.shadowColor = hot;
   ctx.shadowBlur = 25;
   ctx.strokeStyle = hot;

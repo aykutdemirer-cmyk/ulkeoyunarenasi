@@ -256,4 +256,20 @@ export function rateLimit(key, max, windowMs) {
 }
 setInterval(() => { const now = Date.now(); for (const [k, v] of hits) if (!v.some((t) => now - t < 3600000)) hits.delete(k); }, 600000).unref();
 
+/* Günlük yedek: data/backups/users-YYYY-MM-DD.json (son 7 gün saklanır) */
+function backupUsers() {
+  try {
+    flushNow();
+    if (!fs.existsSync(USERS_FILE)) return;
+    const dir = path.join(DATA_DIR, 'backups');
+    fs.mkdirSync(dir, { recursive: true });
+    const dest = path.join(dir, 'users-' + new Date().toISOString().slice(0, 10) + '.json');
+    fs.copyFileSync(USERS_FILE, dest);
+    const files = fs.readdirSync(dir).filter((f) => /^users-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
+    while (files.length > 7) fs.unlinkSync(path.join(dir, files.shift()));
+  } catch (e) { console.error('yedek alınamadı:', e.message); }
+}
+setTimeout(backupUsers, 5000).unref();
+setInterval(backupUsers, 6 * 3600 * 1000).unref();
+
 process.on('exit', flushNow);
