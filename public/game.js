@@ -346,7 +346,71 @@ function toggleMute() {
   if (master) master.gain.value = muted ? 0 : 0.9;
   renderMute();
 }
-const socket = window.io({ auth: { pid: PID } });
+
+/* ------------------------------ Bölge seçimi (çok bölgeli kurulum) ------------------------------ */
+const URLP = new URLSearchParams(location.search);
+async function probe(url) {
+  let best = Infinity;
+  for (let i = 0; i < 2; i++) {
+    const t0 = performance.now();
+    try {
+      const ctl = new AbortController();
+      const to = setTimeout(() => ctl.abort(), 1500);
+      await fetch(url + '/healthz?_=' + Math.random(), { cache: 'no-store', mode: 'cors', signal: ctl.signal });
+      clearTimeout(to);
+      best = Math.min(best, performance.now() - t0);
+    } catch (e) { break; }
+  }
+  return best === Infinity ? null : Math.round(best);
+}
+async function pickServer() {
+  let info = { current: null, regions: [] };
+  try { info = await (await fetch('/regions.json')).json(); } catch (e) { /* tek sunucu modu */ }
+  const regions = Array.isArray(info.regions) ? info.regions : [];
+  if (!regions.length) return { url: '', regions: [], current: null, pings: {} };
+  const pings = {};
+  let saved = URLP.get('region');
+  if (!saved) { try { saved = localStorage.getItem('low_region'); } catch (e) { /* yok */ } }
+  let pick = regions.find((r) => r.id === saved);
+  if (!pick) { // ilk giriş: hepsine ping at, en yakınını seç
+    await Promise.all(regions.map(async (r) => { pings[r.id] = await probe(r.url); }));
+    pick = regions.filter((r) => pings[r.id] != null).sort((a, b) => pings[a.id] - pings[b.id])[0]
+      || regions.find((r) => r.id === info.current) || regions[0];
+  }
+  return { url: pick.url, regions, current: pick.id, pings };
+}
+const SERVER = await pickServer();
+const sameOrigin = !SERVER.url || new URL(SERVER.url, location.href).origin === location.origin;
+const socket = sameOrigin ? window.io({ auth: { pid: PID } }) : window.io(SERVER.url, { auth: { pid: PID } });
+
+function renderRegions() {
+  const box = document.getElementById('regionBox');
+  if (!box) return;
+  box.classList.toggle('hidden', !SERVER.regions.length);
+  const list = document.getElementById('regionList');
+  list.innerHTML = '';
+  SERVER.regions.forEach((r) => {
+    const b = document.createElement('button');
+    b.className = 'btn seg-btn' + (r.id === SERVER.current ? ' on' : '');
+    const ms = SERVER.pings[r.id];
+    b.innerHTML = '';
+    b.appendChild(document.createTextNode(r.name));
+    const sm = document.createElement('small');
+    sm.textContent = ms ? ms + ' ms' : '...';
+    b.appendChild(sm);
+    b.addEventListener('click', () => {
+      try { localStorage.setItem('low_region', r.id); } catch (e) { /* yok */ }
+      location.href = location.pathname + '?region=' + encodeURIComponent(r.id);
+    });
+    list.appendChild(b);
+  });
+}
+if (SERVER.regions.length) {
+  try { localStorage.setItem('low_region', SERVER.current); } catch (e) { /* yok */ }
+  renderRegions();
+  SERVER.regions.forEach((r) => { if (SERVER.pings[r.id] == null) probe(r.url).then((ms) => { SERVER.pings[r.id] = ms; renderRegions(); }); });
+}
+const pendingRoom = URLP.get('room');
 
 const S = {
   id: PID,
@@ -492,7 +556,8 @@ $('leaveBtn').addEventListener('click', leaveNow);
 $('exitBtn').addEventListener('click', leaveNow);
 $('roomCode').addEventListener('click', () => {
   const code = $('roomCode').textContent;
-  if (navigator.clipboard) navigator.clipboard.writeText(code).catch(() => {});
+  const link = location.origin + location.pathname + '?' + (SERVER.current ? 'region=' + encodeURIComponent(SERVER.current) + '&' : '') + 'room=' + encodeURIComponent(code);
+  if (navigator.clipboard) navigator.clipboard.writeText(link).catch(() => {});
   $('roomMsg').textContent = T('copied', { code });
 });
 document.querySelectorAll('#modeGrid button').forEach((b) => b.addEventListener('click', () => socket.emit('setMode', b.dataset.mode)));
@@ -822,6 +887,12 @@ requestAnimationFrame(sideLoop);
 /* ------------------------------ Socket olayları ------------------------------ */
 socket.on('connect', () => {
   $('netLine').classList.add('hidden');
+  if (pendingRoom && !S.room && !S.joinTried) {
+    S.joinTried = true;
+    $('codeInput').value = pendingRoom;
+    history.replaceState(null, '', location.pathname + (SERVER.current ? '?region=' + encodeURIComponent(SERVER.current) : ''));
+    joinCode(pendingRoom);
+  }
 });
 socket.on('disconnect', () => {
   S.needResume = !!S.room;
@@ -2023,3 +2094,16 @@ onLang(() => {
 applyStatic();
 renderMute();
 renderStats();
+
+/* ------------------------------ Gecikme (ping) göstergesi ------------------------------ */
+setInterval(() => {
+  if (!S.inGame || !socket.connected) return;
+  const t0 = performance.now();
+  socket.timeout(2000).emit('pingx', t0, (err) => {
+    const el = $('pingTag');
+    if (err) { el.textContent = '...'; el.style.color = '#ef4444'; return; }
+    const ms = Math.round(performance.now() - t0);
+    el.textContent = ms + ' ms';
+    el.style.color = ms < 80 ? '#4ade80' : ms < 160 ? '#facc15' : '#ef4444';
+  });
+}, 2000);

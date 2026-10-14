@@ -13,7 +13,7 @@ npm start          # http://localhost:3000   (farklı port: PORT=3001 npm start)
 
 Sunucu açılışta aynı ağdaki telefonlar için `http://<IP>:3000` adresini de yazar.
 
-Canlıya alma (kendi alan adınla ucuz bir sunucuda): bkz. [DEPLOY.md](DEPLOY.md)
+Canlıya alma (dünya çapında, çok bölgeli, GitHub'dan otomatik dağıtım): bkz. [DEPLOY.md](DEPLOY.md)
 
 Docker: `docker build -t last-one-wins . && docker run -p 3000:3000 last-one-wins`
 

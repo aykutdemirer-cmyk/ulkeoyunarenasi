@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import os from 'os';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
@@ -17,8 +18,46 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
 const server = http.createServer(app);
-const io = new Server(server);
-app.get('/healthz', (req, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.round(process.uptime()) }));
+const REGION = process.env.REGION || 'local';
+const VERSION = process.env.APP_VERSION || 'dev';
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map((x) => x.trim()).filter(Boolean);
+const io = new Server(server, ALLOWED_ORIGINS.length ? { cors: { origin: ALLOWED_ORIGINS } } : {});
+
+// Bölgeler arası: sağlık/bilgi uçları yalnız izinli alan adlarından okunabilir (ping ölçümü için)
+app.use((req, res, next) => {
+  const o = req.headers.origin;
+  if (o && ALLOWED_ORIGINS.includes(o)) {
+    res.setHeader('Access-Control-Allow-Origin', o);
+    res.setHeader('Vary', 'Origin');
+  }
+  next();
+});
+
+// Tick süresi metrikleri (son ~10 sn)
+const tickDur = [];
+function tickStats() {
+  if (!tickDur.length) return { avg: 0, p95: 0, max: 0, budget: +(1000 / 30).toFixed(1) };
+  const a = tickDur.slice().sort((x, y) => x - y);
+  const avg = a.reduce((p, c) => p + c, 0) / a.length;
+  const f = (v) => +v.toFixed(2);
+  return { avg: f(avg), p95: f(a[Math.floor(a.length * 0.95)]), max: f(a[a.length - 1]), budget: +(1000 / 30).toFixed(1) };
+}
+let regionsCache = { at: 0, data: [] };
+function regionsList() {
+  if (Date.now() - regionsCache.at < 30000) return regionsCache.data;
+  let data = [];
+  try { data = JSON.parse(fs.readFileSync(process.env.REGIONS_FILE || path.join(__dirname, 'regions.json'), 'utf8')); } catch (e) { /* tek sunucu modu */ }
+  if (!Array.isArray(data)) data = [];
+  regionsCache = { at: Date.now(), data };
+  return data;
+}
+app.get('/regions.json', (req, res) => res.json({ current: REGION, regions: regionsList() }));
+app.get('/info', (req, res) => {
+  let players = 0;
+  for (const r of rooms.values()) players += r.players.size;
+  res.json({ region: REGION, version: VERSION, rooms: rooms.size, players, tick: tickStats() });
+});
+app.get('/healthz', (req, res) => res.json({ ok: true, region: REGION, rooms: rooms.size, uptime: Math.round(process.uptime()), tick: tickStats() }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* ------------------------------ Sabitler ------------------------------ */
@@ -1001,6 +1040,7 @@ function endGame(room) {
 
 let secTick = 0;
 setInterval(() => {
+  const t0 = process.hrtime.bigint();
   for (const room of [...rooms.values()]) {
     try {
       if (room.game) {
@@ -1010,6 +1050,8 @@ setInterval(() => {
     } catch (e) { console.error('tick error:', e); }
   }
   if (++secTick >= TICK) { secTick = 0; sweep(); }
+  tickDur.push(Number(process.hrtime.bigint() - t0) / 1e6);
+  if (tickDur.length > 300) tickDur.shift();
 }, 1000 / TICK);
 
 /* ------------------------------ Oda yönetimi ------------------------------ */
@@ -1108,6 +1150,8 @@ io.on('connection', (socket) => {
     removePlayer(room, pid);
     socket.emit('rooms', roomList());
   };
+
+  socket.on('pingx', (t, cb) => { if (typeof cb === 'function') cb(t); });
 
   socket.on('listRooms', safe(() => socket.emit('rooms', roomList())));
 

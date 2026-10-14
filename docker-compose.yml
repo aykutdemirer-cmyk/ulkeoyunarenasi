@@ -1,12 +1,22 @@
-# Üretim kurulumu: uygulama + Caddy (otomatik HTTPS / Let's Encrypt)
-# Kullanım: .env dosyasına DOMAIN=alanadin.com yaz, sonra: docker compose up -d --build
+# Üretim: uygulama + Caddy (otomatik HTTPS). Ayarlar .env dosyasından okunur (bkz. deploy/provision.sh, DEPLOY.md)
 services:
   app:
-    build: .
+    image: ghcr.io/${GHCR_IMAGE:-aykutdemirer-cmyk/ulkeoyunarenasi}:${APP_TAG:-latest}
+    build:
+      context: .
+      args:
+        APP_VERSION: ${APP_TAG:-dev}
     restart: unless-stopped
     environment:
       PORT: "3000"
       TRUST_PROXY: "1"
+      REGION: ${REGION:-local}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      REGIONS_FILE: /app/regions.json
+      MAX_ROOMS: ${MAX_ROOMS:-300}
+      MAX_CONN_PER_IP: ${MAX_CONN_PER_IP:-25}
+    volumes:
+      - ${REGIONS_FILE_HOST:-./deploy/regions.empty.json}:/app/regions.json:ro
     expose:
       - "3000"
 

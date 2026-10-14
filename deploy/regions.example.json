@@ -1,0 +1,5 @@
+[
+  { "id": "eu", "name": "Europe", "url": "https://eu.alanadin.com" },
+  { "id": "us", "name": "USA", "url": "https://us.alanadin.com" },
+  { "id": "ap", "name": "Asia", "url": "https://ap.alanadin.com" }
+]
