@@ -177,3 +177,13 @@ npm install && npm start                       # http://localhost:3000
 npm run smoke                                  # hızlı uçtan uca test
 DOMAIN=localhost docker compose up --build     # Caddy + uygulama (yerel sertifika uyarısı normal)
 ```
+
+## Hesaplar ve Admin paneli
+
+- Kullanıcılar `data/users.json` içinde saklanır (şifreler scrypt ile hash'lenir). Docker'da bu klasör `gamedata` adlı kalıcı volume'dadır; güncellemede silinmez.
+- `.env` dosyasına (sunucuda `/opt/last-one-wins/.env`) şunları ekle:
+  - `ADMIN_PASSWORD=guclu-bir-sifre` — admin paneli için (boşsa panel kapalıdır)
+  - `ADMIN_USERS=kullanici1,kullanici2` — (isteğe bağlı) bu hesaplar giriş yapınca admin olur
+  - `AUTH_SECRET=uzun-rastgele-metin` — (isteğe bağlı) belirtmezsen `data/secret.key` otomatik üretilir
+- Panel: `https://alanadin.com/admin` ya da giriş penceresindeki küçük "Admin" bağlantısı.
+- Değişiklikten sonra: `docker compose up -d --force-recreate app`

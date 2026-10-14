@@ -15,8 +15,13 @@ services:
       REGIONS_FILE: /app/regions.json
       MAX_ROOMS: ${MAX_ROOMS:-300}
       MAX_CONN_PER_IP: ${MAX_CONN_PER_IP:-25}
+      DATA_DIR: /app/data
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_USERS: ${ADMIN_USERS:-}
+      AUTH_SECRET: ${AUTH_SECRET:-}
     volumes:
       - ${REGIONS_FILE_HOST:-./deploy/regions.empty.json}:/app/regions.json:ro
+      - gamedata:/app/data
     expose:
       - "3000"
 
@@ -37,5 +42,6 @@ services:
       - caddy_config:/config
 
 volumes:
+  gamedata:
   caddy_data:
   caddy_config:

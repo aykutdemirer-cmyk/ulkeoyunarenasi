@@ -15,6 +15,10 @@
   <!-- ===================== LOBİ ===================== -->
   <main id="lobby" class="screen">
     <header class="lobby-head">
+      <div class="top-left">
+        <button id="accBtn" class="acc-btn"><span class="acc-ic">&#128100;</span> <span id="accLbl" data-i18n="auth_btn">Giriş Yap / Profilim</span></button>
+        <button id="adminBtn" class="acc-btn hidden" title="Admin">&#9881;&#65039;</button>
+      </div>
       <div class="lang-sw"><button data-lang="tr">TR</button><button data-lang="en">EN</button></div>
       <h1 data-i18n="title">SON KALAN KAZANIR!</h1>
       <h2 data-i18n="subtitle">Hangi ülke hayatta kalacak?</h2>
@@ -210,6 +214,75 @@
         <ul id="elimListD" class="elimd"></ul>
       </div>
     </aside>
+  </div>
+
+  <!-- Duyuru bandı -->
+  <div id="announceBar" class="announce hidden"><div class="announce-track"><span id="announceText"></span></div><button id="announceClose" aria-label="x">&#10005;</button></div>
+
+  <!-- Giriş / Kayıt -->
+  <div id="authModal" class="modal hidden">
+    <div class="modal-card auth-card">
+      <button class="x-close" id="authClose" aria-label="x">&#10005;</button>
+      <div class="tabs"><button id="tabLogin" class="on" data-i18n="auth_login">GİRİŞ YAP</button><button id="tabReg" data-i18n="auth_register">KAYIT OL</button></div>
+      <form id="loginForm" class="auth-form" autocomplete="on">
+        <input id="loginId" type="text" maxlength="80" autocomplete="username" data-i18n-ph="auth_id" placeholder="Kullanıcı adı veya e-posta">
+        <input id="loginPw" type="password" maxlength="72" autocomplete="current-password" data-i18n-ph="auth_pw" placeholder="Şifre">
+        <button class="btn primary" type="submit" data-i18n="auth_login">GİRİŞ YAP</button>
+      </form>
+      <form id="regForm" class="auth-form hidden" autocomplete="on">
+        <input id="regUser" type="text" maxlength="16" autocomplete="username" data-i18n-ph="auth_user" placeholder="Kullanıcı adı">
+        <input id="regEmail" type="email" maxlength="120" autocomplete="email" data-i18n-ph="auth_email" placeholder="E-posta">
+        <input id="regPw" type="password" maxlength="72" autocomplete="new-password" data-i18n-ph="auth_pw" placeholder="Şifre">
+        <button class="btn primary" type="submit" data-i18n="auth_create">HESAP OLUŞTUR</button>
+      </form>
+      <p id="authMsg" class="msg"></p>
+      <div class="or" data-i18n="auth_or">veya</div>
+      <button id="guestBtn" class="btn wide" data-i18n="auth_guest">MİSAFİR OLARAK OYNA</button>
+      <a id="adminLink" class="small-link" href="#admin">Admin</a>
+    </div>
+  </div>
+
+  <!-- Hesabım -->
+  <div id="acctModal" class="modal hidden">
+    <div class="modal-card auth-card">
+      <button class="x-close" id="acctClose" aria-label="x">&#10005;</button>
+      <div class="m-head" data-i18n="acct_title">PROFİLİM</div>
+      <div id="acName" class="m-winner"></div>
+      <div id="acLvl" class="lvl-badge ac-lvl"></div>
+      <div class="xpbar big"><i id="acBar"></i></div>
+      <div id="acXp" class="m-xptxt"></div>
+      <div class="pstats ac-stats"><span><b id="acWins">0</b> <em data-i18n="wins_lbl">Zafer</em></span><span><b id="acScore">0</b> <em data-i18n="score_lbl">Skor</em></span></div>
+      <div class="m-btns">
+        <button id="adminOpen" class="btn hidden" data-i18n="admin_panel">&#9881;&#65039; Admin Paneli</button>
+        <button id="logoutBtn" class="btn" data-i18n="logout">ÇIKIŞ YAP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin paneli -->
+  <div id="adminModal" class="modal hidden">
+    <div class="modal-card admin-card">
+      <button class="x-close" id="adminClose" aria-label="x">&#10005;</button>
+      <div class="m-head">&#9881;&#65039; ADMIN</div>
+      <form id="adminLoginForm" class="auth-form">
+        <input id="adminPw" type="password" maxlength="100" autocomplete="current-password" data-i18n-ph="adm_pw" placeholder="Admin şifresi">
+        <button class="btn primary" type="submit" data-i18n="auth_login">GİRİŞ YAP</button>
+      </form>
+      <div id="adminDash" class="hidden">
+        <div id="admStats" class="adm-stats"></div>
+        <div class="adm-sec" data-i18n="adm_broadcast">SİSTEM DUYURUSU</div>
+        <div class="adm-row"><input id="admMsg" type="text" maxlength="200" data-i18n-ph="adm_msg_ph" placeholder="Sunucu 5 dk sonra güncellenecektir..."><button id="admSend" class="btn small" data-i18n="adm_send">YAYINLA</button></div>
+        <div class="adm-sec" data-i18n="adm_rooms">AKTİF ODALAR</div>
+        <div id="admRooms" class="adm-list"></div>
+        <div class="adm-sec" data-i18n="adm_users">KULLANICILAR</div>
+        <div class="adm-row"><input id="admQ" type="text" maxlength="40" data-i18n-ph="adm_search" placeholder="Ara..."><button id="admQBtn" class="btn small" data-i18n="adm_search_btn">ARA</button></div>
+        <div id="admUsers" class="adm-list"></div>
+        <div class="adm-sec" data-i18n="adm_ipban">IP YASAKLARI</div>
+        <div class="adm-row"><input id="admIp" type="text" maxlength="64" placeholder="1.2.3.4"><button id="admIpBan" class="btn small" data-i18n="adm_ban">YASAKLA</button></div>
+        <div id="admBans" class="adm-list"></div>
+        <p id="admMsgOut" class="msg"></p>
+      </div>
+    </div>
   </div>
 
   <!-- Maç sonu penceresi -->

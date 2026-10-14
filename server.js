@@ -12,6 +12,8 @@ import {
   applyControl, moveSub
 } from './public/shared.js';
 
+import * as auth from './auth.js';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 
@@ -288,7 +290,7 @@ function startGame(room, botCount, continuing = false) {
     const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
     return {
       id: e.id, name: e.name, country: e.country, team: e.team, bot: e.bot,
-      x: Math.cos(ang) * spawnR, y: Math.sin(ang) * spawnR, vx: 0, vy: 0, f: ang + Math.PI, fin: false, finOrder: 0, dmg: 0,
+      x: Math.cos(ang) * spawnR, y: Math.sin(ang) * spawnR, vx: 0, vy: 0, f: ang + Math.PI, fin: false, finOrder: 0, dmg: 0, xp: 0, xpT: -9,
       cd: 0, dashT: 0, armorT: 0, ghostT: 0, superT: 0,
       ix: 0, iy: 0, dashQ: false, inQ: [], ack: 0,
       alive: true, rank: 0, target: null, retarget: 0, noise: 0, kills: 0, lastHit: null, by: null,
@@ -336,6 +338,19 @@ function endMatch(room, winners, res) {
   g.phase = 'over';
   g.overT = 0;
   winners.forEach((b) => { b.rank = 1; if (!b.bot) room.wins.set(b.id, (room.wins.get(b.id) || 0) + 1); });
+  // hesaplı oyunculara XP / galibiyet işle (yalnızca sunucu hesaplar)
+  const winIds = new Set(winners.map((w) => w.id));
+  for (const b of g.balls) {
+    if (b.bot) continue;
+    const pl = room.players.get(b.id);
+    const au = pl && pl.uid ? auth.getUser(pl.uid) : null;
+    if (!au) continue;
+    const isWin = winIds.has(b.id);
+    const gain = b.xp + (isWin ? 250 : 0);
+    auth.award(au, { xp: gain, win: isWin });
+    pl.lvl = auth.levelOf(au.xp);
+    sendTo(pl, 'acct', { ...auth.publicUser(au), gained: gain });
+  }
   const team = teamMode(room) && winners.length ? winners[0].team : null;
   const sr = room.series;
   sr.round++;
@@ -486,7 +501,7 @@ function eliminate(room, b, quit) {
   let by = null;
   if (!quit && b.lastHit && g.env.t - b.lastHit.t <= KILL_WINDOW) {
     const k = g.byId.get(b.lastHit.id);
-    if (k && k.id !== b.id && (!teamMode(room) || k.team !== b.team)) { by = k.id; k.kills++; b.by = by; }
+    if (k && k.id !== b.id && (!teamMode(room) || k.team !== b.team)) { by = k.id; k.kills++; b.by = by; if (!k.bot) k.xp += 50; }
   }
   g.ev.push({ k: 'elim', id: b.id, rank: b.rank, by, x: +b.x.toFixed(1), y: +b.y.toFixed(1), q: quit ? 1 : 0 });
   checkOver(room);
@@ -1193,6 +1208,10 @@ function collide(room, g, a, b) {
   const kb = 1 + b.dmg / 110;
   a.vx -= ((j * nx) / ma) * ka; a.vy -= ((j * ny) / ma) * ka;
   b.vx += ((j * nx) / mb) * kb; b.vy += ((j * ny) / mb) * kb;
+  if (-vn > 140) {
+    const tt = g.env.t;
+    for (const x of [a, b]) if (!x.bot && tt - x.xpT > 0.45) { x.xp += 10; x.xpT = tt; }
+  }
   const dd = -vn > 140 ? Math.min(18, (-vn - 100) / 40) : 0;
   if (dd > 0 && !(a.armorT > 0) && !(b.armorT > 0 && false)) {
     if (!(a.armorT > 0)) a.dmg = Math.min(100, a.dmg + dd);
@@ -1396,8 +1415,131 @@ function removePlayer(room, pid) {
   pushRoom(room);
 }
 
+/* ------------------------------ Hesap & Yönetim API ------------------------------ */
+const bearer = (req) => { const h = req.headers.authorization || ''; return h.startsWith('Bearer ') ? h.slice(7) : ''; };
+const jsonBody = express.json({ limit: '4kb' });
+const apiLimit = (key, max, win) => (req, res, next) => {
+  if (!auth.rateLimit(key + ':' + req.ip, max, win)) return res.status(429).json({ error: 'too_many' });
+  next();
+};
+app.use('/api', (req, res, next) => { res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff'); next(); });
+app.use('/api', (req, res, next) => (auth.isIpBanned(req.ip) ? res.status(403).json({ error: 'banned' }) : next()));
+
+app.post('/api/register', apiLimit('reg', 6, 3600000), jsonBody, (req, res) => {
+  const r = auth.register(req.body || {});
+  if (r.error) return res.status(400).json({ error: r.error });
+  res.json({ token: auth.makeUserToken(r.user), user: auth.publicUser(r.user) });
+});
+app.post('/api/login', apiLimit('login', 12, 600000), jsonBody, (req, res) => {
+  const r = auth.login(req.body || {});
+  if (r.error) return res.status(r.error === 'banned' ? 403 : 401).json({ error: r.error });
+  res.json({ token: auth.makeUserToken(r.user), user: auth.publicUser(r.user) });
+});
+app.get('/api/me', (req, res) => {
+  const u = auth.userFromToken(bearer(req));
+  if (!u) return res.status(401).json({ error: 'unauthorized' });
+  res.json({ user: auth.publicUser(u) });
+});
+app.post('/api/profile', jsonBody, (req, res) => {
+  const u = auth.userFromToken(bearer(req));
+  if (!u) return res.status(401).json({ error: 'unauthorized' });
+  if (req.body && req.body.country) auth.setCountry(u, String(req.body.country));
+  res.json({ user: auth.publicUser(u) });
+});
+
+function adminAuth(req, res, next) {
+  const tok = bearer(req);
+  if (auth.isAdminToken(tok)) return next();
+  const u = auth.userFromToken(tok);
+  if (u && auth.isAdminUser(u)) return next();
+  res.status(401).json({ error: 'unauthorized' });
+}
+app.post('/api/admin/login', apiLimit('adm', 6, 600000), jsonBody, (req, res) => {
+  if (!auth.adminEnabled() || !auth.ADMIN_PASSWORD) return res.status(503).json({ error: 'admin_disabled' });
+  if (!auth.checkAdminPassword(req.body && req.body.password)) return res.status(401).json({ error: 'bad_credentials' });
+  res.json({ token: auth.makeAdminToken() });
+});
+
+const onlineSockets = () => io.sockets.sockets;
+function kickPlayer(room, p, reason) {
+  sendTo(p, 'kicked', { reason });
+  const ts = p.sid ? onlineSockets().get(p.sid) : null;
+  if (ts) { ts.leave(room.code); ts.join('browse'); }
+  removePlayer(room, p.id);
+}
+function kickUid(uid, reason) {
+  for (const room of [...rooms.values()]) {
+    for (const p of [...room.players.values()]) if (p.uid === uid) kickPlayer(room, p, reason);
+  }
+  for (const [, sk] of onlineSockets()) if (sk.data.uid === uid) { sk.emit('kicked', { reason }); sk.disconnect(true); }
+}
+
+app.get('/api/admin/stats', adminAuth, (req, res) => {
+  let players = 0;
+  for (const r of rooms.values()) for (const p of r.players.values()) if (p.dcAt === 0) players++;
+  res.json({ rooms: rooms.size, players, connections: io.engine.clientsCount, accounts: auth.userCount(), uptime: Math.round(process.uptime()), region: REGION, version: VERSION, tick: tickStats() });
+});
+app.get('/api/admin/rooms', adminAuth, (req, res) => {
+  res.json({
+    rooms: [...rooms.values()].map((r) => ({
+      code: r.code, mode: r.mode, map: r.map, phase: r.phase, count: r.players.size, host: (r.players.get(r.host) || {}).name || '-',
+      players: [...r.players.values()].map((p) => {
+        const sk = p.sid ? onlineSockets().get(p.sid) : null;
+        return { name: p.name, uid: p.uid, country: p.country, ip: sk ? clientIp(sk) : '' };
+      })
+    }))
+  });
+});
+app.post('/api/admin/rooms/close', adminAuth, jsonBody, (req, res) => {
+  const room = rooms.get(String((req.body || {}).code || ''));
+  if (!room) return res.status(404).json({ error: 'not_found' });
+  for (const p of [...room.players.values()]) {
+    sendTo(p, 'kicked', { reason: 'room_closed' });
+    const ts = p.sid ? onlineSockets().get(p.sid) : null;
+    if (ts) { ts.leave(room.code); ts.join('browse'); }
+  }
+  room.game = null;
+  destroyRoom(room);
+  res.json({ ok: true });
+});
+app.get('/api/admin/users', adminAuth, (req, res) => res.json({ users: auth.searchUsers(req.query.q) }));
+app.post('/api/admin/users/update', adminAuth, jsonBody, (req, res) => {
+  const b = req.body || {};
+  const u = auth.adminUpdate(b.username, b);
+  if (!u) return res.status(404).json({ error: 'not_found' });
+  res.json({ user: auth.publicUser(u) });
+});
+app.post('/api/admin/users/ban', adminAuth, jsonBody, (req, res) => {
+  const b = req.body || {};
+  const u = auth.setBanned(b.username, !!b.banned);
+  if (!u) return res.status(404).json({ error: 'not_found' });
+  if (u.banned) kickUid(u.username, 'banned');
+  res.json({ user: auth.publicUser(u) });
+});
+app.get('/api/admin/bans', adminAuth, (req, res) => res.json({ ips: auth.listBans() }));
+app.post('/api/admin/ip/ban', adminAuth, jsonBody, (req, res) => {
+  const b = req.body || {};
+  if (!auth.setIpBan(b.ip, !!b.banned)) return res.status(400).json({ error: 'bad_ip' });
+  if (b.banned) for (const [, sk] of onlineSockets()) if (clientIp(sk) === String(b.ip).trim()) { sk.emit('kicked', { reason: 'banned' }); sk.disconnect(true); }
+  res.json({ ips: auth.listBans() });
+});
+app.post('/api/admin/broadcast', adminAuth, jsonBody, (req, res) => {
+  const text = String((req.body || {}).message || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 200);
+  if (!text) return res.status(400).json({ error: 'empty' });
+  io.emit('announce', { text, at: Date.now() });
+  res.json({ ok: true });
+});
+app.get('/admin', (req, res) => res.redirect('/#admin'));
+
 io.on('connection', (socket) => {
   const ip = clientIp(socket);
+  const tokUser = auth.userFromToken(socket.handshake.auth && socket.handshake.auth.token);
+  if (auth.isIpBanned(ip) || (tokUser && tokUser.banned)) {
+    socket.emit('kicked', { reason: 'banned' });
+    socket.disconnect(true);
+    return;
+  }
+  if (tokUser) socket.data.uid = tokUser.username;
   const n = (ipCount.get(ip) || 0) + 1;
   if (n > MAX_CONN_PER_IP) { socket.disconnect(true); return; }
   ipCount.set(ip, n);
@@ -1433,8 +1575,10 @@ io.on('connection', (socket) => {
     const player = {
       id: pid, sid: socket.id, name: cleanName(data.name),
       country: freeCountry(room, data.country, pid), team: balancedTeam(room), dcAt: 0, gone: false,
-      ready: false, lvl: Math.max(1, Math.min(999, Math.floor(Number(data.lvl)) || 1))
+      ready: false, lvl: Math.max(1, Math.min(999, Math.floor(Number(data.lvl)) || 1)), uid: null
     };
+    const acc = socket.data.uid ? auth.getUser(socket.data.uid) : null;
+    if (acc && !acc.banned) { player.uid = acc.username; player.name = acc.display; player.lvl = auth.levelOf(acc.xp); }
     room.players.set(pid, player);
     pidRoom.set(pid, room.code);
     socket.leave('browse');
@@ -1488,10 +1632,10 @@ io.on('connection', (socket) => {
     const room = curRoom();
     const p = me();
     if (!p || room.phase !== 'lobby' || !data) return;
-    if (data.name !== undefined) p.name = cleanName(data.name);
+    if (data.name !== undefined && !p.uid) p.name = cleanName(data.name);
     if (data.country !== undefined) p.country = freeCountry(room, data.country, pid);
     if (data.team === 'A' || data.team === 'B') p.team = data.team;
-    if (data.lvl !== undefined) p.lvl = Math.max(1, Math.min(999, Math.floor(Number(data.lvl)) || 1));
+    if (data.lvl !== undefined && !p.uid) p.lvl = Math.max(1, Math.min(999, Math.floor(Number(data.lvl)) || 1));
     pushRoom(room);
   }));
 
