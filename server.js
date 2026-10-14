@@ -1793,7 +1793,7 @@ io.on('connection', (socket) => {
     if (n === 1 || n === 3 || n === 5) { room.rounds = n; pushRoom(room); }
   }));
 
-  socket.on('startGame', safe((data, cb) => {
+  const startHandler = safe((data, cb) => {
     const reply = typeof cb === 'function' ? cb : () => {};
     const room = curRoom();
     if (!room || room.host !== pid) return reply({ ok: false, error: 'not_host' });
@@ -1801,7 +1801,9 @@ io.on('connection', (socket) => {
     room.quick = false;
     const err = startGame(room, Number(data && data.bots) || 0);
     reply(err ? { ok: false, error: err } : { ok: true });
-  }));
+  });
+  socket.on('start_game', startHandler);
+  socket.on('startGame', startHandler);
 
   // İstemci tahmini için numaralı girdi: {s: seq, x, y, d: dash}
   socket.on('inp', safe((data) => {

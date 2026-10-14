@@ -591,7 +591,6 @@ $('quickBtn').addEventListener('click', () => {
   $('entryMsg').textContent = '';
   socket.emit('quickPlay', { name: myName(), country: S.myCountry, lvl: myLvl(), skin: S.skin }, (res) => {
     onEnter(res);
-    if (res && res.ok && res.quick) $('roomMsg').textContent = T('quick_search');
   });
 });
 document.querySelectorAll('#diffSeg button').forEach((b) => b.addEventListener('click', () => socket.emit('setDiff', b.dataset.diff)));
@@ -646,7 +645,7 @@ $('botCount').addEventListener('input', () => { $('botVal').textContent = $('bot
 $('startBtn').addEventListener('click', () => {
   initAudio();
   $('roomMsg').textContent = '';
-  socket.emit('startGame', { bots: Number($('botCount').value) }, (res) => {
+  socket.emit('start_game', { bots: Number($('botCount').value) }, (res) => {
     if (!res || !res.ok) $('roomMsg').textContent = errText(res && res.error, 'err_start');
   });
 });
@@ -684,13 +683,6 @@ function renderRooms(list) {
   });
 }
 
-function updateAutoMsg() {
-  const el = $('autoMsg');
-  if (!S.room || S.inGame || !S.autoAt) { el.classList.add('hidden'); return; }
-  el.textContent = T('auto_start', { s: Math.max(0, Math.ceil((S.autoAt - performance.now()) / 1000)) });
-  el.classList.remove('hidden');
-}
-setInterval(updateAutoMsg, 250);
 
 function renderLobby() {
   const r = S.room;
@@ -729,7 +721,7 @@ function renderLobby() {
   $('teamA').classList.toggle('on', !!me && me.team === 'A');
   $('teamB').classList.toggle('on', !!me && me.team === 'B');
   $('hostControls').classList.toggle('hidden', !isHost);
-  $('waitMsg').classList.toggle('hidden', isHost);
+  $('waitBtn').classList.toggle('hidden', isHost);
   $('guestControls').classList.toggle('hidden', isHost);
   const myReady = !!(me && me.ready);
   $('readyBtn').textContent = myReady ? T('not_ready') : T('ready');
@@ -1051,7 +1043,6 @@ socket.on('rooms', (list) => {
 });
 socket.on('roomState', (r) => {
   S.room = r;
-  S.autoAt = r.autoLeft > 0 && !r.manual ? performance.now() + r.autoLeft * 1000 : 0;
   S.id = PID;
   if (!S.inGame) renderLobby(); else updateHostBadge();
 });
