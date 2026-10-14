@@ -2,6 +2,16 @@
 
 const DICT = {
   tr: {
+    auth_btn: 'Giriş Yap / Profilim', auth_login: 'GİRİŞ YAP', auth_register: 'KAYIT OL', auth_create: 'HESAP OLUŞTUR', auth_guest: 'MİSAFİR OLARAK OYNA', auth_or: 'veya',
+    auth_id: 'Kullanıcı adı veya e-posta', auth_pw: 'Şifre', auth_user: 'Kullanıcı adı', auth_email: 'E-posta',
+    auth_err_bad_username: 'Kullanıcı adı 3-16 karakter olmalı (harf, rakam, _).', auth_err_bad_email: 'Geçerli bir e-posta gir.', auth_err_bad_password: 'Şifre 6-72 karakter olmalı.',
+    auth_err_username_taken: 'Bu kullanıcı adı alınmış.', auth_err_email_taken: 'Bu e-posta zaten kayıtlı.', auth_err_bad_credentials: 'Kullanıcı adı / e-posta veya şifre hatalı.',
+    auth_err_banned: 'Bu hesap yasaklanmış.', auth_err_too_many: 'Çok fazla deneme, biraz bekle.', auth_err_net: 'Sunucuya ulaşılamadı.',
+    acct_title: 'PROFİLİM', logout: 'ÇIKIŞ YAP', admin_panel: '\u2699\uFE0F Admin Paneli', banned_msg: 'Bu hesap veya IP yasaklandı.', closed_msg: 'Oda yönetici tarafından kapatıldı.',
+    adm_pw: 'Admin şifresi', adm_disabled: 'Admin kapalı (ADMIN_PASSWORD tanımlı değil)', adm_bad_pw: 'Şifre hatalı', adm_broadcast: 'SİSTEM DUYURUSU', adm_msg_ph: 'Sunucu 5 dk sonra güncellenecektir...', adm_send: 'YAYINLA',
+    adm_rooms: 'AKTİF ODALAR', adm_users: 'KULLANICILAR', adm_search: 'Ara...', adm_search_btn: 'ARA', adm_ipban: 'IP YASAKLARI', adm_ban: 'YASAKLA', adm_unban: 'YASAĞI KALDIR',
+    adm_s_rooms: 'Aktif oda', adm_s_players: 'Anlık oyuncu', adm_s_conn: 'Bağlantı', adm_s_accounts: 'Toplam hesap', adm_s_uptime: 'Çalışma', adm_none: 'Açık oda yok',
+    adm_close_room: 'ODAYI KAPAT', adm_save: 'KAYDET', adm_reset: 'SIFIRLA', adm_saved: 'Kaydedildi', adm_sent: 'Duyuru yayınlandı',
     you_lbl: 'SEN', rush_leader: 'Lider',
     'mapdesc.r1': 'Dönen pervaneler, fırlatan tamponlar ve yeşil hız bantları.', 'mapdesc.r2': 'Yanıp sönen lazerler ve topların tek tek sığdığı huni boğazlar.', 'mapdesc.r3': 'Aşırı kaygan buz, devasa pistonlar ve çift yönlü hız bantları.',
     'maptips.r1': 'Pervanenin ritmini bekle|Yeşil bantlar seni hızlandırır|Tamponlar rastgele fırlatır', 'maptips.r2': 'Lazer yanıyorken geçme, geri püskürtür|Huni boğazda sıra bekle|Kesikli çizgi = lazer yakında açılır', 'maptips.r3': 'Zemin çok kaygan: erken fren yap|Kırmızı bant seni geri iter|Pistonlar kapanmadan geç',
@@ -108,6 +118,16 @@ const DICT = {
     feed_out: 'elendi', eliminated: 'ELENENLER', goals: 'GOLLER', round_lbl: 'RAUNT'
   },
   en: {
+    auth_btn: 'Log in / My profile', auth_login: 'LOG IN', auth_register: 'SIGN UP', auth_create: 'CREATE ACCOUNT', auth_guest: 'PLAY AS GUEST', auth_or: 'or',
+    auth_id: 'Username or e-mail', auth_pw: 'Password', auth_user: 'Username', auth_email: 'E-mail',
+    auth_err_bad_username: 'Username must be 3-16 characters (letters, digits, _).', auth_err_bad_email: 'Enter a valid e-mail.', auth_err_bad_password: 'Password must be 6-72 characters.',
+    auth_err_username_taken: 'That username is taken.', auth_err_email_taken: 'That e-mail is already registered.', auth_err_bad_credentials: 'Wrong username / e-mail or password.',
+    auth_err_banned: 'This account is banned.', auth_err_too_many: 'Too many attempts, wait a bit.', auth_err_net: 'Could not reach the server.',
+    acct_title: 'MY PROFILE', logout: 'LOG OUT', admin_panel: '\u2699\uFE0F Admin Panel', banned_msg: 'This account or IP is banned.', closed_msg: 'The room was closed by an admin.',
+    adm_pw: 'Admin password', adm_disabled: 'Admin disabled (ADMIN_PASSWORD not set)', adm_bad_pw: 'Wrong password', adm_broadcast: 'SYSTEM ANNOUNCEMENT', adm_msg_ph: 'The server will update in 5 minutes...', adm_send: 'BROADCAST',
+    adm_rooms: 'ACTIVE ROOMS', adm_users: 'USERS', adm_search: 'Search...', adm_search_btn: 'SEARCH', adm_ipban: 'IP BANS', adm_ban: 'BAN', adm_unban: 'UNBAN',
+    adm_s_rooms: 'Active rooms', adm_s_players: 'Live players', adm_s_conn: 'Connections', adm_s_accounts: 'Total accounts', adm_s_uptime: 'Uptime', adm_none: 'No open rooms',
+    adm_close_room: 'CLOSE ROOM', adm_save: 'SAVE', adm_reset: 'RESET', adm_saved: 'Saved', adm_sent: 'Announcement sent',
     you_lbl: 'YOU', rush_leader: 'Leader',
     'mapdesc.r1': 'Spinning propellers, launching bumpers and green boost pads.', 'mapdesc.r2': 'Blinking lasers and funnel chokepoints that fit one ball at a time.', 'mapdesc.r3': 'Ultra-slippery ice, huge pistons and two-way boost pads.',
     'maptips.r1': 'Wait for the propeller rhythm|Green pads speed you up|Bumpers launch you randomly', 'maptips.r2': 'Never cross an active laser, it blasts you back|Queue up at the funnel|Dashed line = laser about to fire', 'maptips.r3': 'The floor is very slippery: brake early|Red pads push you backwards|Pass the pistons before they close',

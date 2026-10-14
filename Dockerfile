@@ -2,8 +2,9 @@ FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
-COPY server.js ./
+COPY server.js auth.js ./
 COPY public ./public
+RUN mkdir -p /app/data && chown node:node /app/data
 ARG APP_VERSION=dev
 ENV PORT=3000 NODE_ENV=production APP_VERSION=$APP_VERSION
 EXPOSE 3000

@@ -600,3 +600,40 @@ html[lang="tr"] .title { font-size: calc(var(--u) * 7); white-space: nowrap; mar
 }
 
 .stage.rush .feed { top: calc(var(--u) * 82); }
+
+/* ---- hesap / admin ---- */
+.top-left { position: fixed; top: 12px; left: 12px; z-index: 6; display: flex; gap: 6px; }
+.acc-btn { font: inherit; font-size: 12px; font-weight: 900; color: #fff; background: #090916; border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; cursor: pointer; max-width: 55vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc-btn:hover { border-color: var(--pink); }
+.auth-card { position: relative; width: min(420px, 94vw); max-height: 92vh; overflow-y: auto; text-align: left; }
+.x-close { position: absolute; top: 10px; right: 12px; background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; }
+.tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.tabs button { flex: 1; font: inherit; font-weight: 900; font-size: 13px; letter-spacing: 1px; color: var(--muted); background: #090916; border: 1px solid var(--line); border-radius: 10px; padding: 10px; cursor: pointer; }
+.tabs button.on { color: #fff; border-color: var(--pink); background: rgba(255, 45, 133, 0.18); }
+.auth-form { display: flex; flex-direction: column; gap: 10px; }
+.auth-form input, .adm-row input { font: inherit; color: #fff; background: #090916; border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.auth-card .or { text-align: center; color: var(--muted); font-size: 12px; margin: 12px 0 8px; }
+.small-link { display: block; text-align: center; margin-top: 10px; font-size: 11px; color: #4b4b70; text-decoration: none; }
+.ac-lvl { text-align: center; margin: 6px 0; }
+.ac-stats { justify-content: center; margin-top: 6px; }
+.admin-card { position: relative; width: min(760px, 96vw); max-height: 92vh; overflow-y: auto; text-align: left; }
+.adm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 8px 0; }
+.adm-stats div { background: #090916; border: 1px solid var(--line); border-radius: 10px; padding: 8px; text-align: center; font-size: 11px; color: var(--muted); }
+.adm-stats b { display: block; font-size: 20px; color: var(--cyan); }
+.adm-sec { margin: 14px 0 6px; font-size: 12px; font-weight: 900; letter-spacing: 2px; color: var(--muted); }
+.adm-row { display: flex; gap: 8px; }
+.adm-row input { flex: 1; }
+.adm-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; margin-top: 6px; }
+.adm-item { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; background: #090916; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 12px; }
+.adm-item .grow { flex: 1; min-width: 140px; }
+.adm-item input { width: 74px; font: inherit; font-size: 12px; color: #fff; background: #05050f; border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; }
+.adm-item button { font: inherit; font-size: 11px; font-weight: 900; color: #fff; background: #3b3b6b; border: 0; border-radius: 8px; padding: 5px 9px; cursor: pointer; }
+.adm-item button.danger { background: #b91c1c; }
+.adm-item .sub { color: var(--muted); font-size: 11px; width: 100%; }
+
+/* sistem duyurusu */
+.announce { position: fixed; top: 0; left: 0; right: 0; z-index: 90; display: flex; align-items: center; background: linear-gradient(90deg, #7f0020, #dc143c, #7f0020); border-bottom: 2px solid #ff3b6b; box-shadow: 0 0 28px rgba(255, 30, 80, 0.8); color: #fff; font-weight: 900; font-size: 18px; text-shadow: 0 0 10px #ff6b8f; }
+.announce-track { flex: 1; overflow: hidden; white-space: nowrap; padding: 9px 0; }
+.announce-track span { display: inline-block; padding-left: 100%; animation: marq 16s linear infinite; }
+.announce button { background: none; border: 0; color: #fff; font-size: 18px; padding: 0 14px; cursor: pointer; }
+@keyframes marq { from { transform: translateX(0); } to { transform: translateX(-100%); } }

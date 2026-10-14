@@ -355,8 +355,15 @@ function renderProfile() {
   set('pWins', (el) => { el.textContent = String(profile.wins); });
   set('pScore', (el) => { el.textContent = String(profile.score); });
 }
+const acct = { on: false, user: null };
 function addXp(n, x, y) {
   if (!n) return;
+  if (acct.on) {
+    // hesaplı oyuncu: XP'yi sunucu işler, burada yalnızca gösterim
+    S.matchXp += n;
+    if (typeof x === 'number') S.floaters.push({ x, y: y - 50, text: '+' + n + ' XP', col: '#a78bfa', life: 0.9 });
+    return;
+  }
   const before = profile.level;
   profile.xp += n;
   profile.score += n;
@@ -423,8 +430,11 @@ async function pickServer() {
   return { url: pick.url, regions, current: pick.id, pings };
 }
 const SERVER = await pickServer();
+const getToken = () => { try { return localStorage.getItem('low_token') || ''; } catch (e) { return ''; } };
+const setToken = (t) => { try { if (t) localStorage.setItem('low_token', t); else localStorage.removeItem('low_token'); } catch (e) { /* yok */ } };
 const sameOrigin = !SERVER.url || new URL(SERVER.url, location.href).origin === location.origin;
-const socket = sameOrigin ? window.io({ auth: { pid: PID } }) : window.io(SERVER.url, { auth: { pid: PID } });
+const socket = sameOrigin ? window.io({ auth: { pid: PID, token: getToken() } }) : window.io(SERVER.url, { auth: { pid: PID, token: getToken() } });
+const API = sameOrigin ? '' : SERVER.url.replace(/\/$/, '');
 
 function renderRegions() {
   const box = document.getElementById('regionBox');
@@ -519,6 +529,7 @@ COUNTRIES.forEach((c) => {
     if (b.classList.contains('taken')) return;
     S.myCountry = c.code;
     refreshCountrySel();
+    if (acct.on) apiCall('POST', '/api/profile', { country: c.code }).catch(() => {});
     if (S.room) socket.emit('setProfile', { country: c.code, name: myName() });
   });
   grid.appendChild(b);
@@ -1054,6 +1065,7 @@ socket.on('gameStart', (g) => {
   $('elimListD').innerHTML = '';
   $('overModal').classList.add('hidden');
   S.matchXp = 0;
+  S.acctPrev = undefined;
   $('elimTitle').textContent = g.mode === 'SOCCER' ? T('goals') : T('eliminated');
   (g.elims || []).forEach((e) => addElim(e.id, e.rank, false));
   updateHostBadge();
@@ -1078,14 +1090,25 @@ socket.on('gameStart', (g) => {
   initAudio();
   $('dashBtn').classList.toggle('hidden', !isTouch());
 });
-socket.on('kicked', () => {
+socket.on('kicked', (e) => {
   S.room = null;
   S.needResume = false;
   $('overModal').classList.add('hidden');
   showScreen(false);
   renderLobby();
-  $('entryMsg').textContent = T('kicked_msg');
+  const r = e && e.reason;
+  $('entryMsg').textContent = r === 'banned' ? T('banned_msg') : r === 'room_closed' ? T('closed_msg') : T('kicked_msg');
 });
+socket.on('acct', (u) => {
+  if (!acct.on) return;
+  S.acctPrev = profile.xp;
+  profile.xp = u.xp; profile.wins = u.wins; profile.score = u.score; profile.level = levelOf(u.xp);
+  S.matchXp = u.gained;
+  acct.user = { ...acct.user, ...u };
+  renderProfile();
+  updateAccBtn();
+});
+socket.on('announce', (a) => showAnnounce(a.text));
 socket.on('toLobby', () => {
   $('overModal').classList.add('hidden');
   S.over = false;
@@ -1461,12 +1484,14 @@ function onOver(e) {
   $('results').classList.add('hidden');
 
   const mine = e.res && e.res.find((r) => r.id === PID);
-  const levelBefore = profile.level;
-  const xpBefore = profile.xp - S.matchXp;
+  const xpBefore = S.acctPrev !== undefined ? S.acctPrev : profile.xp - S.matchXp;
+  const levelBefore = levelOf(xpBefore);
   if (inGame) {
-    if (youWin) { profile.wins++; addXp(250); }
-    saveProfile(profile);
-    renderProfile();
+    if (!acct.on) {
+      if (youWin) { profile.wins++; addXp(250); }
+      saveProfile(profile);
+      renderProfile();
+    }
     const st = loadStats();
     st.games++;
     if (youWin) st.wins++;
@@ -2586,9 +2611,210 @@ requestAnimationFrame(frame);
 // Sunucudan oda listesi iste
 socket.emit('listRooms');
 
+/* ------------------------------ Hesap (giriş / kayıt / misafir) ------------------------------ */
+async function apiCall(method, path, body, tokenOverride) {
+  const headers = { 'Content-Type': 'application/json' };
+  const tok = tokenOverride !== undefined ? tokenOverride : getToken();
+  if (tok) headers.Authorization = 'Bearer ' + tok;
+  const res = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  let data = {};
+  try { data = await res.json(); } catch (e) { /* boş */ }
+  if (!res.ok) { const err = new Error(data.error || 'net'); err.status = res.status; throw err; }
+  return data;
+}
+const authErr = (code) => { const k = 'auth_err_' + code; const v = T(k); return v === k ? T('auth_err_net') : v; };
+
+function updateAccBtn() {
+  const lbl = $('accLbl');
+  if (acct.on && acct.user) { lbl.removeAttribute('data-i18n'); lbl.textContent = acct.user.username + ' · Lv.' + profile.level; }
+  else { lbl.setAttribute('data-i18n', 'auth_btn'); lbl.textContent = T('auth_btn'); }
+  $('adminBtn').classList.toggle('hidden', !(acct.on && acct.user && acct.user.role === 'admin'));
+}
+
+function applyAccount(user) {
+  acct.on = true;
+  acct.user = user;
+  profile.xp = user.xp; profile.wins = user.wins; profile.score = user.score; profile.level = levelOf(user.xp);
+  nameInput.value = user.username;
+  nameInput.readOnly = true;
+  if (user.country && CNAME[user.country]) { S.myCountry = user.country; refreshCountrySel(); }
+  renderProfile();
+  updateAccBtn();
+}
+
+function showModal(id, on) { $(id).classList.toggle('hidden', !on); }
+function setAuthTab(tab) {
+  $('tabLogin').classList.toggle('on', tab === 'login');
+  $('tabReg').classList.toggle('on', tab === 'register');
+  $('loginForm').classList.toggle('hidden', tab !== 'login');
+  $('regForm').classList.toggle('hidden', tab !== 'register');
+  $('authMsg').textContent = '';
+}
+$('tabLogin').addEventListener('click', () => setAuthTab('login'));
+$('tabReg').addEventListener('click', () => setAuthTab('register'));
+$('authClose').addEventListener('click', () => { try { sessionStorage.setItem('low_guest', '1'); } catch (e) { /* yok */ } showModal('authModal', false); });
+$('guestBtn').addEventListener('click', () => { try { sessionStorage.setItem('low_guest', '1'); } catch (e) { /* yok */ } showModal('authModal', false); });
+
+async function authSubmit(path, body) {
+  $('authMsg').textContent = '';
+  try {
+    const r = await apiCall('POST', path, body, '');
+    setToken(r.token);
+    location.reload(); // soket oturumu yeni token ile açılsın
+  } catch (e) { $('authMsg').textContent = authErr(e.message); }
+}
+$('loginForm').addEventListener('submit', (ev) => { ev.preventDefault(); authSubmit('/api/login', { id: $('loginId').value, password: $('loginPw').value }); });
+$('regForm').addEventListener('submit', (ev) => { ev.preventDefault(); authSubmit('/api/register', { username: $('regUser').value, email: $('regEmail').value, password: $('regPw').value }); });
+
+function openAccount() {
+  const u = acct.user;
+  const L = profile.level;
+  $('acName').textContent = u.username;
+  $('acLvl').textContent = 'Lv.' + L;
+  $('acXp').textContent = T('xp_total', { x: profile.xp, y: xpCum(L + 1) });
+  $('acBar').style.width = (Math.max(0, Math.min(1, (profile.xp - xpCum(L)) / xpNeed(L))) * 100).toFixed(1) + '%';
+  $('acWins').textContent = String(profile.wins);
+  $('acScore').textContent = String(profile.score);
+  $('adminOpen').classList.toggle('hidden', u.role !== 'admin');
+  showModal('acctModal', true);
+}
+$('accBtn').addEventListener('click', () => { if (acct.on) openAccount(); else { setAuthTab('login'); showModal('authModal', true); } });
+$('acctClose').addEventListener('click', () => showModal('acctModal', false));
+$('logoutBtn').addEventListener('click', () => { setToken(''); try { sessionStorage.removeItem('low_admin'); } catch (e) { /* yok */ } location.reload(); });
+$('adminBtn').addEventListener('click', () => openAdmin());
+$('adminOpen').addEventListener('click', () => { showModal('acctModal', false); openAdmin(); });
+$('adminLink').addEventListener('click', (ev) => { ev.preventDefault(); showModal('authModal', false); openAdmin(); });
+
+/* Sistem duyurusu: tüm oyunculara kayan kırmızı neon bant */
+let announceTimer = null;
+function showAnnounce(text) {
+  $('announceText').textContent = '⚠ ' + text + '   ⚠ ' + text;
+  $('announceBar').classList.remove('hidden');
+  clearTimeout(announceTimer);
+  announceTimer = setTimeout(() => $('announceBar').classList.add('hidden'), 45000);
+  try { sfx.alarm(); } catch (e) { /* yok */ }
+}
+$('announceClose').addEventListener('click', () => $('announceBar').classList.add('hidden'));
+
+/* ------------------------------ Admin paneli ------------------------------ */
+let admTimer = null;
+const admToken = () => { let t = ''; try { t = sessionStorage.getItem('low_admin') || ''; } catch (e) { /* yok */ } return t || (acct.on && acct.user && acct.user.role === 'admin' ? getToken() : ''); };
+const admCall = (method, path, body) => apiCall(method, path, body, admToken());
+const mk = (tag, cls, text) => { const el = document.createElement(tag); if (cls) el.className = cls; if (text !== undefined) el.textContent = text; return el; };
+function admBtn(label, fn, danger) { const b = mk('button', danger ? 'danger' : '', label); b.addEventListener('click', fn); return b; }
+const admOut = (t) => { $('admMsgOut').textContent = t || ''; };
+
+function openAdmin() {
+  showModal('adminModal', true);
+  const tok = admToken();
+  $('adminLoginForm').classList.toggle('hidden', !!tok);
+  $('adminDash').classList.toggle('hidden', !tok);
+  if (tok) startAdmin();
+}
+function closeAdmin() { showModal('adminModal', false); clearInterval(admTimer); admTimer = null; if (location.hash === '#admin') history.replaceState(null, '', location.pathname + location.search); }
+$('adminClose').addEventListener('click', closeAdmin);
+$('adminLoginForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  try {
+    const r = await apiCall('POST', '/api/admin/login', { password: $('adminPw').value }, '');
+    try { sessionStorage.setItem('low_admin', r.token); } catch (e) { /* yok */ }
+    $('adminPw').value = '';
+    $('adminLoginForm').classList.add('hidden');
+    $('adminDash').classList.remove('hidden');
+    startAdmin();
+  } catch (e) { $('adminPw').value = ''; $('adminPw').placeholder = e.message === 'admin_disabled' ? T('adm_disabled') : T('adm_bad_pw'); }
+});
+function adminLost() { try { sessionStorage.removeItem('low_admin'); } catch (e) { /* yok */ } clearInterval(admTimer); $('adminDash').classList.add('hidden'); $('adminLoginForm').classList.remove('hidden'); }
+function startAdmin() {
+  refreshAdmin();
+  clearInterval(admTimer);
+  admTimer = setInterval(() => { if ($('adminModal').classList.contains('hidden')) { clearInterval(admTimer); return; } refreshAdmin(true); }, 3000);
+  loadAdmUsers();
+  loadAdmBans();
+}
+async function refreshAdmin() {
+  try {
+    const [st, rm] = await Promise.all([admCall('GET', '/api/admin/stats'), admCall('GET', '/api/admin/rooms')]);
+    const box = $('admStats');
+    box.innerHTML = '';
+    [[T('adm_s_rooms'), st.rooms], [T('adm_s_players'), st.players], [T('adm_s_conn'), st.connections], [T('adm_s_accounts'), st.accounts], [T('adm_s_uptime'), Math.round(st.uptime / 60) + ' dk']].forEach(([k, v]) => {
+      const d = mk('div'); d.appendChild(mk('b', '', String(v))); d.appendChild(document.createTextNode(k)); box.appendChild(d);
+    });
+    const list = $('admRooms');
+    list.innerHTML = '';
+    if (!rm.rooms.length) list.appendChild(mk('div', 'adm-item', T('adm_none')));
+    rm.rooms.forEach((r) => {
+      const it = mk('div', 'adm-item');
+      it.appendChild(mk('div', 'grow', `${r.code} · ${r.mode} · ${r.map} · ${r.count} · ${r.phase} · ${r.host}`));
+      it.appendChild(admBtn(T('adm_close_room'), async () => { if (!confirm(r.code + '?')) return; try { await admCall('POST', '/api/admin/rooms/close', { code: r.code }); refreshAdmin(); } catch (e) { admOut(e.message); } }, true));
+      const sub = mk('div', 'sub');
+      r.players.forEach((p) => {
+        const sp = mk('span', '', (p.uid ? '@' + p.uid : p.name) + (p.ip ? ' [' + p.ip + '] ' : ' '));
+        sub.appendChild(sp);
+        if (p.ip) { const b = admBtn('IP ban', async () => { try { await admCall('POST', '/api/admin/ip/ban', { ip: p.ip, banned: true }); loadAdmBans(); refreshAdmin(); } catch (e) { admOut(e.message); } }, true); sub.appendChild(b); }
+      });
+      it.appendChild(sub);
+      list.appendChild(it);
+    });
+  } catch (e) { if (e.status === 401) adminLost(); }
+}
+async function loadAdmUsers() {
+  try {
+    const r = await admCall('GET', '/api/admin/users?q=' + encodeURIComponent($('admQ').value));
+    const list = $('admUsers');
+    list.innerHTML = '';
+    r.users.forEach((u) => {
+      const it = mk('div', 'adm-item');
+      it.appendChild(mk('div', 'grow', `${u.username} · ${u.email} · Lv.${u.level}${u.role === 'admin' ? ' · ADMIN' : ''}${u.banned ? ' · BAN' : ''}`));
+      const xp = mk('input'); xp.type = 'number'; xp.value = u.xp; xp.title = 'XP';
+      const wn = mk('input'); wn.type = 'number'; wn.value = u.wins; wn.title = 'Wins';
+      it.append(xp, wn);
+      it.appendChild(admBtn(T('adm_save'), async () => { try { await admCall('POST', '/api/admin/users/update', { username: u.key, xp: xp.value, wins: wn.value }); admOut(T('adm_saved')); loadAdmUsers(); } catch (e) { admOut(e.message); } }));
+      it.appendChild(admBtn(T('adm_reset'), async () => { if (!confirm(u.username + ' ?')) return; try { await admCall('POST', '/api/admin/users/update', { username: u.key, reset: true }); loadAdmUsers(); } catch (e) { admOut(e.message); } }, true));
+      it.appendChild(admBtn(u.banned ? T('adm_unban') : T('adm_ban'), async () => { try { await admCall('POST', '/api/admin/users/ban', { username: u.key, banned: !u.banned }); loadAdmUsers(); } catch (e) { admOut(e.message); } }, !u.banned));
+      list.appendChild(it);
+    });
+  } catch (e) { if (e.status === 401) adminLost(); }
+}
+async function loadAdmBans() {
+  try {
+    const r = await admCall('GET', '/api/admin/bans');
+    const list = $('admBans');
+    list.innerHTML = '';
+    r.ips.forEach((ip) => {
+      const it = mk('div', 'adm-item');
+      it.appendChild(mk('div', 'grow', ip));
+      it.appendChild(admBtn(T('adm_unban'), async () => { try { await admCall('POST', '/api/admin/ip/ban', { ip, banned: false }); loadAdmBans(); } catch (e) { admOut(e.message); } }));
+      list.appendChild(it);
+    });
+  } catch (e) { if (e.status === 401) adminLost(); }
+}
+$('admQBtn').addEventListener('click', loadAdmUsers);
+$('admQ').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadAdmUsers(); });
+$('admIpBan').addEventListener('click', async () => { try { await admCall('POST', '/api/admin/ip/ban', { ip: $('admIp').value, banned: true }); $('admIp').value = ''; loadAdmBans(); } catch (e) { admOut(e.message); } });
+$('admSend').addEventListener('click', async () => {
+  const m = $('admMsg').value.trim();
+  if (!m) return;
+  try { await admCall('POST', '/api/admin/broadcast', { message: m }); $('admMsg').value = ''; admOut(T('adm_sent')); } catch (e) { admOut(e.message); }
+});
+
+/* Açılışta: kayıtlı oturumu doğrula; yoksa giriş penceresini göster */
+(async function initAccount() {
+  const tok = getToken();
+  if (tok) {
+    try { applyAccount((await apiCall('GET', '/api/me', null, tok)).user); } catch (e) { if (e.status === 401 || e.status === 403) setToken(''); }
+  }
+  let guest = false;
+  try { guest = sessionStorage.getItem('low_guest') === '1'; } catch (e) { /* yok */ }
+  if (location.hash === '#admin') { openAdmin(); return; }
+  if (!acct.on && !guest) { setAuthTab('login'); showModal('authModal', true); }
+})();
+window.addEventListener('hashchange', () => { if (location.hash === '#admin') openAdmin(); });
+
 /* ------------------------------ Dil seçici ------------------------------ */
 document.querySelectorAll('.lang-sw button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
 onLang(() => {
+  updateAccBtn();
   $('entryMsg').textContent = '';
   $('roomMsg').textContent = '';
   refreshNames();
