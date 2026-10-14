@@ -804,6 +804,5 @@ html[data-theme="royal"] { --pink: #facc15; --pink-rgb: 250, 204, 21; --cyan: #a
 .skin-btn[data-skin="rainbow"] { background: linear-gradient(90deg, #f43f5e55, #facc1555, #22c55e55, #38bdf855, #a78bfa55); }
 .banner small.mut-tag { color: #fb7185; margin-top: 4px; }
 
-#cv { will-change: transform; transform: translateZ(0); backface-visibility: hidden; image-rendering: auto; }
 
 #cv { will-change: transform; transform: translate3d(0, 0, 0); image-rendering: -webkit-optimize-contrast; }

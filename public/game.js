@@ -2390,6 +2390,26 @@ function drawPowerups(list, time) {
 }
 
 /* Önbellek: bayrak + gölgeleme önceden bir kez offscreen tuvale çizilir (ülke × yarıçap) */
+const textCache = new Map();
+/* Metin bir kez offscreen tuvale (kontur + dolgu) çizilir; her karede yalnızca drawImage */
+function textSprite(text, font, fill) {
+  const key = font + '|' + fill + '|' + text;
+  let c = textCache.get(key);
+  if (c) return c;
+  if (textCache.size > 300) textCache.clear();
+  const m = document.createElement('canvas').getContext('2d');
+  m.font = font;
+  const w = Math.ceil(m.measureText(text).width) + 12;
+  const h = 40;
+  c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.font = font; g.textAlign = 'center'; g.lineWidth = 5; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.lineJoin = 'round';
+  g.strokeText(text, w / 2, 28); g.fillStyle = fill; g.fillText(text, w / 2, 28);
+  c.baseY = 28;
+  textCache.set(key, c);
+  return c;
+}
 const spriteCache = new Map();
 function ballSprite(code, R) {
   const key = code + R;
@@ -2498,20 +2518,12 @@ function drawBall(b, time) {
     ctx.stroke();
     ctx.fillStyle = '#facc15';
     ctx.beginPath(); ctx.moveTo(0, -R - 24); ctx.lineTo(-10, -R - 42); ctx.lineTo(10, -R - 42); ctx.closePath(); ctx.fill();
-    ctx.font = '900 20px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center';
-    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-    ctx.strokeText(T('you_lbl'), 0, -R - 48);
-    ctx.fillStyle = '#facc15'; ctx.fillText(T('you_lbl'), 0, -R - 48);
+    const ys = textSprite(T('you_lbl'), '900 20px "Segoe UI", Arial, sans-serif', '#facc15');
+    ctx.drawImage(ys, -ys.width / 2, -R - 48 - ys.baseY);
   }
 
-  ctx.font = '800 22px "Segoe UI", Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-  const label = 'Lv.' + lvlOf(p) + ' ' + CNAME[p.country];
-  ctx.strokeText(label, 0, R + 26);
-  ctx.fillStyle = '#fff';
-  ctx.fillText(label, 0, R + 26);
+  const ls = textSprite('Lv.' + lvlOf(p) + ' ' + CNAME[p.country], '800 22px "Segoe UI", Arial, sans-serif', '#fff');
+  ctx.drawImage(ls, -ls.width / 2, R + 26 - ls.baseY);
   if (b.dmg > 0 && S.mode !== 'RACE') {
     const hp = Math.max(0, 100 - b.dmg);
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(-24, R + 32, 48, 6);
@@ -2702,19 +2714,24 @@ function frame(now) {
     if (S.danger > 0.4 && now - S.lastAlarm > 480 - 280 * S.danger) { S.lastAlarm = now; sfx.alarm(); }
   }
 
-  // parçacıklar
-  for (let i = S.particles.length - 1; i >= 0; i--) {
-    const p = S.particles[i];
-    p.life -= dt;
-    if (p.life <= 0) { const last = S.particles.pop(); if (i < S.particles.length) S.particles[i] = last; PPOOL.push(p); continue; }
-    p.x += p.vx * dt; p.y += p.vy * dt;
-    p.vx *= 0.95; p.vy *= 0.95;
-    ctx.globalAlpha = Math.max(0, p.life / p.max);
-    ctx.fillStyle = p.col;
-    ctx.beginPath(); ctx.arc(CX + p.x, CY + p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  // parçacıklar: ömür boyunca yarıçap küçülür; aynı renkler tek yolda toplu çizilir
+  {
+    let cur = null;
+    let open = false;
+    for (let i = S.particles.length - 1; i >= 0; i--) {
+      const p = S.particles[i];
+      p.life -= dt;
+      if (p.life <= 0) { const last = S.particles.pop(); if (i < S.particles.length) S.particles[i] = last; PPOOL.push(p); continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vx *= 0.95; p.vy *= 0.95;
+      if (p.col !== cur) { if (open) ctx.fill(); ctx.beginPath(); ctx.fillStyle = p.col; cur = p.col; open = true; }
+      const rr = Math.max(0.6, p.r * (p.life / p.max));
+      ctx.moveTo(CX + p.x + rr, CY + p.y);
+      ctx.arc(CX + p.x, CY + p.y, rr, 0, Math.PI * 2);
+    }
+    if (open) ctx.fill();
   }
   ctx.globalAlpha = 1;
-  
 
   // yüzen yazılar
   for (let i = S.floaters.length - 1; i >= 0; i--) {
