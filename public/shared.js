@@ -4,12 +4,12 @@ export const DT = 1 / 30;
 export const SUB = 2;
 export const BALL_R = 26;
 export const ARMOR_R = 34;
-export const ACC = 300;
+export const ACC = 390;
 export const FRICTION = 0.98;
-export const DASH_SPEED = 720;
-export const DASH_CD = 2.0;
+export const DASH_SPEED = 936;
+export const DASH_CD = 1.5;
 export const DASH_TIME = 0.25;
-export const MAX_SPEED = 1500;
+export const MAX_SPEED = 1950;
 export const WALL_REST = 0.9;
 export const ARMOR_T = 5;
 export const GHOST_T = 3;
@@ -18,7 +18,8 @@ export const ARMOR_MASS = 6;
 export const BUMP_R = 64;
 export const ORB_R = 34;
 export const ORB_DIST = 190;
-export const MODES = ['FFA', 'TEAM', 'BOMB', 'HILL', 'SOCCER', 'COINS', 'RACE'];
+export const MODES = ['FFA', 'TEAM', 'BOMB', 'HILL', 'SOCCER', 'COINS', 'RACE', 'RUSH', 'RUSHT'];
+export const isRush = (m) => m === 'RUSH' || m === 'RUSHT';
 export const SIZES = ['small', 'standard', 'large'];
 export const SIZE_K = { small: 0.8, standard: 1, large: 1.25 };
 export const COINS_TIME = 60;
@@ -42,6 +43,22 @@ export const RACE = (() => {
   return { halfW, topY: -470, funnelY: -290, exitHalf: 130, redY: 470, pegR: 9, pegs, gravity: 1100, dashY: 520, bottomY: 560 };
 })();
 
+/* SURVIVOR OBSTACLE RUSH: soldan sağa uzun koridor. Orijin = koridor orta çizgisi (y), x = pist boyunca */
+export const RUSH = {
+  len: 6000, halfH: 360, startX: 150, finishX: 5800, padAcc: 2200,
+  props: [
+    { x: 1000, y: 0, L: 200, s: 2.1 }, { x: 2300, y: -130, L: 165, s: -2.6 }, { x: 2300, y: 150, L: 165, s: 2.6 },
+    { x: 3700, y: 0, L: 215, s: 2.4 }, { x: 4900, y: -110, L: 170, s: -2.8 }, { x: 4900, y: 140, L: 170, s: 2.8 }
+  ],
+  pads: [{ x: 1500, w: 240 }, { x: 3000, w: 240 }, { x: 5200, w: 240 }],
+  bumps: [
+    { x: 1900, y: -190, r: 46 }, { x: 1900, y: 0, r: 46 }, { x: 1900, y: 190, r: 46 },
+    { x: 3400, y: -210, r: 46 }, { x: 3400, y: 210, r: 46 },
+    { x: 4400, y: -230, r: 46 }, { x: 4400, y: 0, r: 46 }, { x: 4400, y: 230, r: 46 }
+  ],
+  gates: [{ x: 2700, gy: -120, gap: 200 }, { x: 4100, gy: 130, gap: 190 }, { x: 5500, gy: 0, gap: 210 }]
+};
+
 const deg = (d) => (d * Math.PI) / 180;
 
 const base = { R0: 360, Rmin: 360, shrink: 0, gaps: 2, gapHalf: deg(17.5), rot: 0.7, sudden: 35, grow: 0.012, gapMax: 1.0,
@@ -57,6 +74,12 @@ export const MAPS = {
       { t: 'orbit', dist: ORB_DIST, r: ORB_R, speed: -1.3, phase: 0 },
       { t: 'orbit', dist: ORB_DIST, r: ORB_R, speed: -1.3, phase: Math.PI }
     ]
+  }),
+  greenring: mk({
+    key: 'greenring', name: 'THE GREEN RING', desc: 'Tek dar kapılı zümrüt halka.', gaps: 1, gapHalf: deg(15), rot: 0.55, sudden: 50, grow: 0.012, col: '#22c55e'
+  }),
+  arenashrinks: mk({
+    key: 'arenashrinks', name: 'THE ARENA SHRINKS!', desc: 'Tek kapılı altın halka saniyede 1 px daralır.', R0: 400, Rmin: 150, shrink: 1, gaps: 1, gapHalf: deg(15), rot: 0.6, sudden: 9999, grow: 0, col: '#facc15'
   }),
   shrinking: mk({
     key: 'shrinking', name: 'SHRINKING DEATH', desc: 'Halka zamanla daralır.', Rmin: 170, shrink: 2.7, rot: 0.8, sudden: 55, grow: 0.02, col: '#ff4d4d'
@@ -112,6 +135,13 @@ export function mapFor(key, mode, size = 'standard') {
   }
   if (mode === 'HILL' || mode === 'COINS' || mode === 'SOCCER') m.lava = null;
   if (mode === 'HILL' || mode === 'COINS') { m.hole = 0; m.gravity = 0; m.shrink = 0; m.Rmin = m.R0; }
+  if (isRush(mode)) {
+    Object.assign(m, {
+      key: 'rush', name: 'SURVIVOR RUSH', desc: 'Engelli parkur yarışı.', col: '#22d3ee', rush: true, closed: true,
+      R0: 600, Rmin: 600, shrink: 0, rot: 0, gaps: 2, gapHalf: 0, gapMax: 0, grow: 0, pulseAmp: 0, hole: 0, gravity: 0,
+      swirl: 0, bumpers: [], lava: null, friction: 0.985, accMul: 1, wallX0: -520, wallV: 100, wallA: 0.9
+    });
+  }
   if (mode === 'RACE') {
     Object.assign(m, {
       key: 'race', name: 'ELIMINATION RACE', desc: 'Çivili yarış.', col: '#ff2d85', race: true, closed: true,
@@ -139,6 +169,7 @@ export function advanceEnv(env) {
   env.R = Math.max(m.Rmin, m.R0 - m.shrink * env.t);
   if (m.pulseAmp) env.R -= m.pulseAmp * (0.5 - 0.5 * Math.cos((Math.PI * 2 * env.t) / m.pulsePeriod));
   env.gh = Math.min(m.gapMax, m.gapHalf + Math.max(0, env.t - m.sudden) * m.grow);
+  if (m.rush) env.R = m.wallX0 + m.wallV * env.t + m.wallA * env.t * env.t; // ölüm bariyerinin x konumu
 }
 
 export function gapInfo(env, ang) {
@@ -327,11 +358,58 @@ function raceMove(b, env, r, rnd, ev) {
   return false;
 }
 
+function rushMove(b, env, r, rnd, ev) {
+  const hh = RUSH.halfH;
+  if (b.y < -hh + r) { b.y = -hh + r; if (b.vy < 0) b.vy *= -0.5; }
+  if (b.y > hh - r) { b.y = hh - r; if (b.vy > 0) b.vy *= -0.5; }
+  // hızlandırma bantları
+  for (const p of RUSH.pads) if (b.x > p.x - p.w / 2 && b.x < p.x + p.w / 2) b.vx += RUSH.padAcc * (DT / SUB);
+  // dönen pervaneler
+  for (const p of RUSH.props) {
+    if (b.x < p.x - p.L - 60 || b.x > p.x + p.L + 60) continue;
+    const a = p.s * env.t;
+    const c = Math.cos(a) * p.L;
+    const sn = Math.sin(a) * p.L;
+    if (segCollide(b, r + 12, p.x - c, p.y - sn, p.x + c, p.y + sn, 1.5)) {
+      const k = Math.hypot(b.x - p.x, b.y - p.y) || 1;
+      b.vx += ((b.x - p.x) / k) * 260;
+      b.vy += ((b.y - p.y) / k) * 260;
+      if (ev) ev.push({ k: 'rushHit', x: +b.x.toFixed(0), y: +b.y.toFixed(0) });
+    }
+  }
+  // tamponlar
+  for (const bm of RUSH.bumps) {
+    const dx = b.x - bm.x;
+    const dy = b.y - bm.y;
+    if (dx > 140 || dx < -140) continue;
+    const d = Math.hypot(dx, dy) || 0.001;
+    if (d < bm.r + r) {
+      const nx = dx / d;
+      const ny = dy / d;
+      b.x = bm.x + nx * (bm.r + r);
+      b.y = bm.y + ny * (bm.r + r);
+      const sp = Math.max(750, Math.hypot(b.vx, b.vy) * 1.1);
+      const a = Math.atan2(ny, nx) + (rnd() - 0.5) * 0.5;
+      b.vx = Math.cos(a) * sp;
+      b.vy = Math.sin(a) * sp;
+      if (ev) ev.push({ k: 'rushHit', x: +b.x.toFixed(0), y: +b.y.toFixed(0) });
+    }
+  }
+  // dar geçitler
+  for (const g of RUSH.gates) {
+    if (b.x < g.x - 60 || b.x > g.x + 60) continue;
+    segCollide(b, r + 14, g.x, -hh, g.x, g.gy - g.gap / 2, 0.4);
+    segCollide(b, r + 14, g.x, g.gy + g.gap / 2, g.x, hh, 0.4);
+  }
+  return false;
+}
+
 export function moveSub(b, env, sdt, rnd, ev) {
   b.x += b.vx * sdt;
   b.y += b.vy * sdt;
   const r = ballR(b);
   if (env.map.race) return raceMove(b, env, r, rnd, ev);
+  if (env.map.rush) return rushMove(b, env, r, rnd, ev);
 
   if (env.map.bumpers.length) {
     const list = bumpers(env);

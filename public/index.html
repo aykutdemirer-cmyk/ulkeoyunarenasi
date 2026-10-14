@@ -6,8 +6,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#05050f">
-  <title>SON KALAN KAZANIR! - Hangi ülke hayatta kalacak?</title>
-  <link rel="icon" href="data:,">
+  <title>PLAY BALL WAR ⚔️ | Last One Wins!</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='37' r='25' fill='%2305050f' stroke='%23ff2d85' stroke-width='5'/%3E%3Cpath d='M32 19A18 18 0 0 0 32 55Z' fill='%233b82f6'/%3E%3Cpath d='M32 19A18 18 0 0 1 32 55Z' fill='%23ef4444'/%3E%3Cellipse cx='25' cy='36' rx='5' ry='6' fill='%23fff'/%3E%3Cellipse cx='39' cy='36' rx='5' ry='6' fill='%23fff'/%3E%3Ccircle cx='26' cy='38' r='2.6' fill='%23111'/%3E%3Ccircle cx='38' cy='38' r='2.6' fill='%23111'/%3E%3Cpath d='M18 28L29 33M46 28L35 33' stroke='%23111' stroke-width='3.4' stroke-linecap='round'/%3E%3Cpath d='M20 17L23 5L29 12L32 3L35 12L41 5L44 17Z' fill='%23facc15' stroke='%23a16207' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -58,15 +58,17 @@
       </div>
 
       <span class="lbl" data-i18n="mode">MOD</span>
-      <div class="map-grid" id="modeGrid">
-        <button class="btn map-btn" data-mode="FFA" data-i18n="mode.FFA">HERKES TEK</button>
-        <button class="btn map-btn" data-mode="TEAM" data-i18n="mode.TEAM">TAKIM A vs B</button>
-        <button class="btn map-btn" data-mode="BOMB" data-i18n="mode.BOMB">BOMB TAG</button>
-        <button class="btn map-btn" data-mode="HILL" data-i18n="mode.HILL">KING OF THE HILL</button>
-        <button class="btn map-btn" data-mode="SOCCER" data-i18n="mode.SOCCER">FUTBOL</button>
-        <button class="btn map-btn" data-mode="COINS" data-i18n="mode.COINS">COIN RUSH</button>
-        <button class="btn map-btn" data-mode="RACE" data-i18n="mode.RACE">ELIMINATION RACE</button>
-      </div>
+      <select id="modeSel" class="sel">
+        <option value="FFA" data-i18n="mode.FFA">HERKES TEK</option>
+        <option value="TEAM" data-i18n="mode.TEAM">TAKIM A vs B</option>
+        <option value="BOMB" data-i18n="mode.BOMB">BOMB TAG</option>
+        <option value="HILL" data-i18n="mode.HILL">KING OF THE HILL</option>
+        <option value="SOCCER" data-i18n="mode.SOCCER">FUTBOL</option>
+        <option value="COINS" data-i18n="mode.COINS">COIN RUSH</option>
+        <option value="RACE" data-i18n="mode.RACE">ELIMINATION RACE</option>
+        <option value="RUSH" data-i18n="mode.RUSH">SURVIVOR RUSH</option>
+        <option value="RUSHT" data-i18n="mode.RUSHT">SURVIVOR RUSH (TAKIM)</option>
+      </select>
       <p id="modeDesc" class="mapdesc"></p>
 
       <span class="lbl" data-i18n="map">HARİTA</span>
@@ -108,11 +110,12 @@
       <div id="hostControls" class="hidden">
         <label class="lbl" for="botCount"><span data-i18n="bots">BOT SAYISI</span>: <b id="botVal">0</b></label>
         <input id="botCount" type="range" min="0" max="15" value="5">
-        <label class="chk"><input id="manualChk" type="checkbox" checked> <span data-i18n="manual_start">Oda Sahibi Manuel Başlatsın</span></label>
         <button id="startBtn" class="btn primary" data-i18n="start">OYUNU BAŞLAT</button>
       </div>
+      <div id="guestControls" class="hidden">
+        <button id="readyBtn" class="btn primary" data-i18n="ready">HAZIRIM</button>
+      </div>
       <p id="waitMsg" class="msg hidden" data-i18n="wait_host">Oda sahibinin oyunu başlatması bekleniyor...</p>
-      <p id="autoMsg" class="msg auto-msg hidden"></p>
       <p id="roomMsg" class="msg"></p>
     </section>
 
@@ -140,23 +143,25 @@
   <!-- ===================== OYUN ===================== -->
   <div id="game" class="screen hidden">
     <aside id="panelL" class="dpanel left">
+      <button id="exitBtnD" class="leave-d" data-i18n-title="leave_menu" title="Menüye Dön">&#128682;<span data-i18n="leave_menu">Ayrıl / Menüye Dön</span></button>
       <div class="dcard">
-        <div class="dtitle" data-i18n="room_code">ODA KODU</div>
+        <div class="dtitle" data-i18n="room_lbl">ODA</div>
         <div id="dRoom" class="dbig">-</div>
+        <div id="dHost" class="hostbadge hidden" data-i18n="host_badge">&#128081; Oda Lideri / Host</div>
         <div id="dMode" class="dline"></div>
         <div id="dMap" class="dline"></div>
       </div>
-      <div class="dcard">
-        <div class="dtitle" data-i18n="emote_title">HIZLI TEPKİ</div>
-        <div id="emoteSlot"></div>
+      <div class="dcard prof">
+        <div class="dtitle" data-i18n="profile">PROFİL</div>
+        <div class="lvl-row"><span id="pLvl" class="lvl-badge">Lv.1</span><span id="pXpTxt" class="xp-txt"></span></div>
+        <div class="xpbar"><i id="pXpBar"></i></div>
+        <div class="pstats"><span><b id="pWins">0</b> <em data-i18n="wins_lbl">Zafer</em></span><span><b id="pScore">0</b> <em data-i18n="score_lbl">Skor</em></span></div>
       </div>
-      <div class="dcard">
-        <div class="dtitle" data-i18n="keys_title">KONTROLLER</div>
-        <ul class="keys">
-          <li><kbd>W A S D</kbd> / <kbd>&larr;&uarr;&darr;&rarr;</kbd> <span data-i18n="keys_move">hareket</span></li>
-          <li><kbd>SPACE</kbd> <span data-i18n="keys_dash">dash</span></li>
-          <li><kbd>1</kbd>-<kbd>4</kbd> <span data-i18n="keys_emote">tepki</span></li>
-        </ul>
+      <div class="dcard bottomcard">
+        <div class="dtitle" data-i18n="emote_title">HIZLI TEPKİ</div>
+        <div id="emotesD" class="emotes-d">
+          <button data-i="0">GG</button><button data-i="1">LOL</button><button data-i="2">OOPS</button><button data-i="3">!!!</button>
+        </div>
       </div>
     </aside>
 
@@ -187,17 +192,41 @@
         <div id="elimList" class="elim-list"></div>
       </div>
 
+      <div class="dock">
+        <span class="keys-line"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>SPACE</kbd> <span data-i18n="keys_short">hareket / dash</span></span>
+        <button id="copyLinkBtn" class="copy-link" data-i18n="copy_link">&#128279; Oda Linkini Kopyala</button>
+      </div>
       <div id="joyBase" class="joy-base hidden"><div id="joyKnob" class="joy-knob"></div></div>
       <button id="dashBtn" class="dash-btn hidden">DASH</button>
     </div>
 
     <aside id="panelR" class="dpanel right">
-      <div class="dcard grow">
-        <div class="dtitle" data-i18n="live_board">CANLI SIRALAMA</div>
+      <div class="dcard">
+        <div class="dtitle" data-i18n="lb_title">SIRALAMA / LİDERLİK TABLOSU</div>
         <ul id="liveBoard" class="live"></ul>
       </div>
-      <div id="elimSlot" class="dcard"></div>
+      <div class="dcard grow">
+        <div class="dtitle" data-i18n="eliminated">ELENENLER</div>
+        <ul id="elimListD" class="elimd"></ul>
+      </div>
     </aside>
+  </div>
+
+  <!-- Maç sonu penceresi -->
+  <div id="overModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="m-head" id="mHead">GAME OVER</div>
+      <div id="mFlag" class="m-flag"></div>
+      <div id="mWinner" class="m-winner"></div>
+      <div id="mRank" class="m-rank"></div>
+      <div id="mXp" class="m-xp"></div>
+      <div class="xpbar big"><i id="mBar"></i></div>
+      <div id="mXpTxt" class="m-xptxt"></div>
+      <div class="m-btns">
+        <button id="againBtn" class="btn primary" data-i18n="play_again">&#128260; YENİDEN OYNA</button>
+        <button id="menuBtn" class="btn" data-i18n="to_menu">&#128682; MENÜYE DÖN</button>
+      </div>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
