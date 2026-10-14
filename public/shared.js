@@ -21,7 +21,7 @@ export const ORB_DIST = 190;
 export const MODES = ['FFA', 'TEAM', 'BOMB', 'HILL', 'SOCCER', 'COINS', 'RACE', 'RUSH', 'RUSHT'];
 export const isRush = (m) => m === 'RUSH' || m === 'RUSHT';
 export const SIZES = ['small', 'standard', 'large'];
-export const SIZE_K = { small: 0.8, standard: 1, large: 1.25 };
+export const SIZE_K = { small: 0.95, standard: 1.2, large: 1.5 };
 export const COINS_TIME = 60;
 export const SOCCER_R = 20;
 export const SOCCER_TIME = 120;
@@ -168,7 +168,7 @@ export function mapFor(key, mode, size = 'standard', mut = 'none') {
   const m = Object.assign({}, MAPS[key] || MAPS.classic);
   const k = SIZE_K[size] || 1;
   if (k !== 1) {
-    m.R0 *= k; m.Rmin *= k; m.pulseAmp *= k;
+    m.R0 *= k; m.Rmin *= k; m.pulseAmp *= k; m.hole *= k;
     m.bumpers = m.bumpers.map((bm) => (bm.t === 'orbit' ? { ...bm, dist: bm.dist * k } : { ...bm, x: bm.x * k, y: bm.y * k }));
   }
   if (mode === 'BOMB' || mode === 'HILL' || mode === 'COINS') { m.gapHalf = 0; m.gapMax = 0; m.grow = 0; }
