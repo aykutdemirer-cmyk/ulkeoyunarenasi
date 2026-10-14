@@ -135,7 +135,7 @@ function newRoom(hostPid) {
     code: makeCode(), mode: 'FFA', map: 'classic', diff: 'normal', phase: 'lobby',
     players: new Map(), host: hostPid, game: null, wins: new Map(), quick: false,
     rounds: 1, series: { round: 0, wins: new Map() }, lastBots: 0, botEntries: null,
-    manual: true, size: 'standard', autoAt: 0, autoTimer: null
+    manual: true, size: 'standard', autoAt: 0, autoTimer: null, public: false
   };
 }
 
@@ -1352,6 +1352,7 @@ function endGame(room) {
   room.series = { round: 0, wins: new Map() };
   io.to(room.code).emit('toLobby');
   room.players.forEach((p) => { p.ready = !!p.wantAgain && p.id !== room.host; p.wantAgain = false; });
+  if (room.public && !room.manual && room.players.size) scheduleAuto(room, 8000); // genel oda: bir sonraki maç otomatik gelir
   pushRoom(room);
 }
 
@@ -1434,6 +1435,11 @@ app.post('/api/login', apiLimit('login', 12, 600000), jsonBody, (req, res) => {
   const r = auth.login(req.body || {});
   if (r.error) return res.status(r.error === 'banned' ? 403 : 401).json({ error: r.error });
   res.json({ token: auth.makeUserToken(r.user), user: auth.publicUser(r.user) });
+});
+let lbCache = { at: 0, data: [] };
+app.get('/api/leaderboard', (req, res) => {
+  if (Date.now() - lbCache.at > 10000) lbCache = { at: Date.now(), data: auth.leaderboard(10) };
+  res.json({ top: lbCache.data });
 });
 app.get('/api/me', (req, res) => {
   const u = auth.userFromToken(bearer(req));
@@ -1707,19 +1713,24 @@ io.on('connection', (socket) => {
     if (typeof cb !== 'function') return;
     data = data || {};
     if (curRoom()) leave();
-    const open = [...rooms.values()].filter((r) => r.phase === 'lobby' && r.players.size < MAX_PLAYERS)
+    // Hemen oyna: başlamamış, boş yeri olan genel (public) odaya gir; yoksa yeni genel oda aç
+    const open = [...rooms.values()].filter((r) => r.public && r.phase === 'lobby' && r.players.size < MAX_PLAYERS && [...r.players.values()].some((p) => p.dcAt === 0))
       .sort((a, b) => b.players.size - a.players.size)[0];
     if (open) {
       enter(open, data);
-      cb({ ok: true, id: pid, code: open.code });
+      if (!open.autoTimer) scheduleAuto(open, 5000);
+      cb({ ok: true, id: pid, code: open.code, quick: true });
       pushRoom(open);
       return;
     }
     if (rooms.size >= MAX_ROOMS) return cb({ ok: false, error: 'server_full' });
     const room = newRoom(pid);
     room.quick = true;
+    room.public = true;
+    room.manual = false; // genel oda: 5 sn sonra botlarla otomatik başlar
     rooms.set(room.code, room);
     enter(room, data);
+    scheduleAuto(room, 5000);
     cb({ ok: true, id: pid, code: room.code, quick: true });
     pushRoom(room);
   }));

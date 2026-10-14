@@ -202,6 +202,15 @@ export function searchUsers(q, limit = 50) {
   return out;
 }
 
+/* Küresel liderlik tablosu: XP, sonra galibiyet sırasına göre (yasaklılar hariç) */
+export function leaderboard(limit = 10) {
+  return [...users.values()]
+    .filter((u) => !u.banned && (u.xp > 0 || u.wins > 0))
+    .sort((a, b) => b.xp - a.xp || b.wins - a.wins || a.created - b.created)
+    .slice(0, limit)
+    .map((u, i) => ({ rank: i + 1, username: u.display, country: u.country || '', level: levelOf(u.xp), wins: u.wins, xp: u.xp }));
+}
+
 /* IP yasakları */
 export const isIpBanned = (ip) => bans.ips.includes(ip);
 export const listBans = () => bans.ips.slice();

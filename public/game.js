@@ -684,11 +684,21 @@ function renderRooms(list) {
   });
 }
 
+function updateAutoMsg() {
+  const el = $('autoMsg');
+  if (!S.room || S.inGame || !S.autoAt) { el.classList.add('hidden'); return; }
+  el.textContent = T('auto_start', { s: Math.max(0, Math.ceil((S.autoAt - performance.now()) / 1000)) });
+  el.classList.remove('hidden');
+}
+setInterval(updateAutoMsg, 250);
+
 function renderLobby() {
   const r = S.room;
   updateSides();
   $('entryCard').classList.toggle('hidden', !!r);
   $('roomCard').classList.toggle('hidden', !r);
+  $('lbCard').classList.toggle('hidden', !!r);
+  if (!r) loadLeaderboard();
   refreshCountrySel();
   if (!r) return;
   const me = r.players.find((p) => p.id === S.id);
@@ -1038,6 +1048,7 @@ socket.on('rooms', (list) => {
 });
 socket.on('roomState', (r) => {
   S.room = r;
+  S.autoAt = r.autoLeft > 0 && !r.manual ? performance.now() + r.autoLeft * 1000 : 0;
   S.id = PID;
   if (!S.inGame) renderLobby(); else updateHostBadge();
 });
@@ -1524,7 +1535,10 @@ function onOver(e) {
   $('mBar').style.width = (Math.max(0, (xpBefore - xpCum(L0)) / xpNeed(L0)) * 100).toFixed(1) + '%';
   $('mXpTxt').textContent = inGame ? T('xp_total', { x: profile.xp, y: xpCum(profile.level + 1) }) + (profile.level > levelBefore ? ' · ' + T('level_up', { l: profile.level }) : '') : '';
   $('againBtn').disabled = false;
+  $('shareBtn').classList.toggle('hidden', !(youWin && inGame));
+  $('shareBtn').textContent = T('share_win');
   $('overModal').classList.remove('hidden');
+  loadLeaderboard(true);
   const frac = profile.level > L0 ? 1 : Math.max(0, (profile.xp - xpCum(profile.level)) / xpNeed(profile.level));
   setTimeout(() => {
     $('mBar').style.transition = '';
@@ -2810,6 +2824,51 @@ $('admSend').addEventListener('click', async () => {
   if (!acct.on && !guest) { setAuthTab('login'); showModal('authModal', true); }
 })();
 window.addEventListener('hashchange', () => { if (location.hash === '#admin') openAdmin(); });
+
+/* ------------------------------ Küresel liderlik tablosu ------------------------------ */
+var lbAt = 0;
+async function loadLeaderboard(force) {
+  if (!force && performance.now() - lbAt < 20000) return;
+  lbAt = performance.now();
+  try {
+    const r = await apiCall('GET', '/api/leaderboard', null, '');
+    const ol = $('lbList');
+    ol.innerHTML = '';
+    $('lbEmpty').classList.toggle('hidden', r.top.length > 0);
+    const medals = ['\u{1F947}', '\u{1F948}', '\u{1F949}'];
+    r.top.forEach((u, i) => {
+      const li = mk('li', 'r' + (i + 1) + (acct.on && acct.user && u.username.toLowerCase() === acct.user.username.toLowerCase() ? ' me' : ''));
+      li.appendChild(mk('span', 'rk', i < 3 ? medals[i] : String(u.rank)));
+      const img = document.createElement('img');
+      img.alt = '';
+      if (u.country && CNAME[u.country]) img.src = flagDataUrl(u.country);
+      li.appendChild(img);
+      li.appendChild(mk('span', 'nm', u.username));
+      li.appendChild(mk('span', 'lv', 'Lv.' + u.level));
+      li.appendChild(mk('span', 'wn', '\u{1F3C6} ' + u.wins));
+      ol.appendChild(li);
+    });
+  } catch (e) { /* ağ yok */ }
+}
+setInterval(() => { if (!S.room && !S.inGame) loadLeaderboard(true); }, 30000);
+loadLeaderboard(true);
+
+/* Zafer paylaşımı */
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy') ? resolve() : reject(new Error('copy')); } catch (e) { reject(e); } finally { ta.remove(); }
+  });
+}
+$('shareBtn').addEventListener('click', async () => {
+  const b = $('shareBtn');
+  const old = b.textContent;
+  try { await copyText(T('share_text')); b.textContent = T('share_done'); } catch (e) { b.textContent = T('share_text'); }
+  setTimeout(() => { b.textContent = old; }, 2200);
+});
 
 /* ------------------------------ Dil seçici ------------------------------ */
 document.querySelectorAll('.lang-sw button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
