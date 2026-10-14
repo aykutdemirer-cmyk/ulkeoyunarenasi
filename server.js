@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import {
-  DT, SUB, ARMOR_T, GHOST_T, SUPER_T, PU_R, PU_TYPES, MODES, SIZES, RACE, RUSH, isRush, BOMB_TIME, HILL_R, HILL_TIME,
+  DT, SUB, ARMOR_T, GHOST_T, SUPER_T, PU_R, PU_TYPES, MODES, SIZES, RACE, RUSH, isRush, RUSH_TRACK_KEYS, RUSH_TRACK_NAMES, rushTrack, laserOn, pistonLen, BOMB_TIME, HILL_R, HILL_TIME,
   SOCCER_R, SOCCER_TIME, GOAL_TARGET, COINS_TIME, gapInfo as gapInfoSoccer, lavaCycle, lavaAt, LAVA_SECTORS,
   MAPS, MAP_KEYS, mapFor, bumpers, newEnv, advanceEnv, gapInfo, ballR, ballMass,
   applyControl, moveSub
@@ -88,6 +88,7 @@ const COUNTRIES = [
 const COUNTRY_CODES = new Set(COUNTRIES.map((c) => c.code));
 const COUNTRY_NAME = Object.fromEntries(COUNTRIES.map((c) => [c.code, c.name]));
 const MAP_CHOICES = new Set([...MAP_KEYS, 'random']);
+const mapOk = (room, key) => (isRush(room.mode) ? RUSH_TRACK_KEYS.includes(key) : MAP_CHOICES.has(key));
 const DIFFS = { easy: [0.25, 0.5], normal: [0.5, 0.85], hard: [0.8, 1.0] };
 const FREEZE_T = 2.2; // gol sonrası bekleme
 const KILL_WINDOW = 6; // sn: son vuruştan sonra bu süre içinde elenirsen vuran kişi sayılır
@@ -213,7 +214,7 @@ function gameInfo(room) {
   return {
     mode: room.mode,
     map: g.mapKey,
-    mapName: MAPS[g.mapKey].name,
+    mapName: (MAPS[g.mapKey] || {}).name || RUSH_TRACK_NAMES[g.mapKey] || g.mapKey,
     size: room.size,
     total: g.total,
     round: g.round,
@@ -277,7 +278,8 @@ function startGame(room, botCount, continuing = false) {
   if (teamMode(room)) entries.sort((x, y) => (x.team < y.team ? -1 : x.team > y.team ? 1 : 0));
   else shuffle(entries);
 
-  const mapKey = room.map === 'random' ? MAP_KEYS[Math.floor(Math.random() * MAP_KEYS.length)] : room.map;
+  const mapKey = isRush(room.mode) ? (RUSH_TRACK_KEYS.includes(room.map) ? room.map : 'r1')
+    : room.map === 'random' ? MAP_KEYS[Math.floor(Math.random() * MAP_KEYS.length)] : (MAP_CHOICES.has(room.map) ? room.map : 'classic');
   const map = mapFor(mapKey, room.mode, room.size);
   const n = entries.length;
   const spawnR = map.R0 * 0.78;
@@ -1043,23 +1045,40 @@ function initRush(g) {
 }
 
 function botRush(g, b) {
+  const T = rushTrack(g.env.map);
+  const t = g.env.t;
   b.ix = 1; b.iy = 0; b.dashQ = false;
   let ty = b.noise;
-  const gate = RUSH.gates.find((q) => q.x > b.x - 30 && q.x - b.x < 520);
+  let hold = false;
+  const gate = T.gates.find((q) => q.x > b.x - 30 && q.x - b.x < 520);
   if (gate) ty = gate.gy;
-  for (const bm of RUSH.bumps) {
+  const fun = T.funnels.find((q) => q.x > b.x - 40 && q.x - b.x < 520);
+  if (fun) ty = 0;
+  for (const bm of T.bumps) {
     const dx = bm.x - b.x;
     if (dx > 0 && dx < 230 && Math.abs(bm.y - b.y) < bm.r + 70) ty = b.y + (b.y >= bm.y ? 1 : -1) * 160;
   }
-  for (const p of RUSH.props) {
+  for (const p of T.props) {
     const dx = p.x - b.x;
     if (dx > -40 && dx < p.L + 120 && Math.random() < 0.3 + 0.7 * b.skill) ty = b.y + (b.y >= p.y ? 1 : -1) * 200;
   }
+  for (const l of T.lasers) {
+    const dx = l.x - b.x;
+    if (dx > 20 && dx < 300 && b.y > l.y0 - 40 && b.y < l.y1 + 40 && (laserOn(l, t + 0.5) || laserOn(l, t))) hold = true;
+  }
+  for (const p of T.pistons) {
+    const dx = p.x - b.x;
+    if (dx > -30 && dx < 260) {
+      const len = pistonLen(p, t + 0.4);
+      const edge = p.side * (RUSH.halfH - len);
+      if (Math.abs(b.y - edge) < 120) ty = b.y - p.side * 180;
+    }
+  }
   ty = Math.max(-RUSH.halfH + 60, Math.min(RUSH.halfH - 60, ty));
   b.iy = Math.max(-1, Math.min(1, (ty - b.y) / 70));
-  b.ix = 1 - Math.min(0.5, Math.abs(b.iy) * 0.3);
-  const ahead = RUSH.gates.some((q) => q.x > b.x && q.x - b.x < 300) || RUSH.props.some((q) => q.x > b.x - 60 && q.x - b.x < 330);
-  if (!ahead && b.cd <= 0 && b.skill > 0.45 && Math.random() < 0.02 + 0.04 * b.skill) b.dashQ = true;
+  b.ix = hold ? -0.3 : 1 - Math.min(0.5, Math.abs(b.iy) * 0.3);
+  const ahead = T.gates.some((q) => q.x > b.x && q.x - b.x < 300) || T.props.some((q) => q.x > b.x - 60 && q.x - b.x < 330) || T.lasers.some((q) => q.x > b.x && q.x - b.x < 400) || T.funnels.some((q) => q.x > b.x && q.x - b.x < 400);
+  if (!ahead && !hold && b.cd <= 0 && b.skill > 0.45 && Math.random() < 0.02 + 0.04 * b.skill) b.dashQ = true;
 }
 
 function rushFinishTeam(room, g) {
@@ -1479,13 +1498,17 @@ io.on('connection', (socket) => {
   socket.on('setMode', safe((mode) => {
     const room = curRoom();
     if (!room || room.host !== pid || room.phase !== 'lobby') return;
-    if (MODES.includes(mode)) { room.mode = mode; pushRoom(room); }
+    if (MODES.includes(mode)) {
+      room.mode = mode;
+      if (!mapOk(room, room.map)) room.map = isRush(mode) ? 'r1' : 'classic';
+      pushRoom(room);
+    }
   }));
 
   socket.on('setMap', safe((key) => {
     const room = curRoom();
     if (!room || room.host !== pid || room.phase !== 'lobby') return;
-    if (MAP_CHOICES.has(key)) { room.map = key; pushRoom(room); }
+    if (mapOk(room, key)) { room.map = key; pushRoom(room); }
   }));
 
   // Hazır durumu (lider dışındakiler)
