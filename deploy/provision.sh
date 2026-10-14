@@ -29,8 +29,18 @@ while [ $# -gt 0 ]; do
     *) echo "Bilinmeyen seçenek: $1"; exit 1 ;;
   esac
 done
+# Sohbetten kopyalamada bozulan biçimleri ([metin](url)) temizle
+DOMAIN="$(echo "$DOMAIN" | sed -E 's/\[([^]]*)\]\([^)]*\)/\1/g; s/https?:\/\///g')"
 [ -n "$DOMAIN" ] || { echo "--domain gerekli"; exit 1; }
 [ "$(id -u)" -eq 0 ] || { echo "root olarak (sudo) çalıştır"; exit 1; }
+
+# Yeni sunucularda işletim sistemi kendi güncellemelerini yapıp paket kilidini tutabilir: kilit açılana kadar bekle
+echo 'DPkg::Lock::Timeout "900";' > /etc/apt/apt.conf.d/99-lock-timeout
+echo "==> Sistem güncellemeleri bitene kadar bekleniyor (varsa)"
+for _ in $(seq 1 180); do
+  fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock >/dev/null 2>&1 || break
+  sleep 5
+done
 
 echo "==> Paketler"
 apt-get update -y
