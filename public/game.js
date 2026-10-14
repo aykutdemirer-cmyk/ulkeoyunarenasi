@@ -697,7 +697,7 @@ function renderLobby() {
   updateSides();
   $('entryCard').classList.toggle('hidden', !!r);
   $('roomCard').classList.toggle('hidden', !r);
-  $('lbCard').classList.toggle('hidden', !!r);
+  $('lobby').classList.toggle('in-room', !!r);
   if (!r) loadLeaderboard();
   refreshCountrySel();
   if (!r) return;
@@ -1116,6 +1116,7 @@ socket.on('acct', (u) => {
   profile.xp = u.xp; profile.wins = u.wins; profile.score = u.score; profile.level = levelOf(u.xp);
   S.matchXp = u.gained;
   acct.user = { ...acct.user, ...u };
+  renderQuests();
   renderProfile();
   updateAccBtn();
 });
@@ -1500,6 +1501,7 @@ function onOver(e) {
   if (inGame) {
     if (!acct.on) {
       if (youWin) { profile.wins++; addXp(250); }
+      guestQuestAward(youWin, mine ? mine.kills : 0);
       saveProfile(profile);
       renderProfile();
     }
@@ -2651,6 +2653,7 @@ function applyAccount(user) {
   profile.xp = user.xp; profile.wins = user.wins; profile.score = user.score; profile.level = levelOf(user.xp);
   nameInput.value = user.username;
   nameInput.readOnly = true;
+  renderQuests();
   if (user.country && CNAME[user.country]) { S.myCountry = user.country; refreshCountrySel(); }
   renderProfile();
   updateAccBtn();
@@ -2825,6 +2828,63 @@ $('admSend').addEventListener('click', async () => {
 })();
 window.addEventListener('hashchange', () => { if (location.hash === '#admin') openAdmin(); });
 
+/* ------------------------------ Günlük görevler ------------------------------ */
+const QUESTS = [
+  { id: 'win1', stat: 'wins', goal: 1, xp: 100, key: 'quest_win1' },
+  { id: 'kill3', stat: 'kills', goal: 3, xp: 50, key: 'quest_kill3' },
+  { id: 'play3', stat: 'played', goal: 3, xp: 30, key: 'quest_play3' }
+];
+const todayStr = () => new Date().toISOString().slice(0, 10);
+function guestDaily() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem('low_daily') || 'null'); } catch (e) { d = null; }
+  if (!d || d.date !== todayStr()) d = { date: todayStr(), wins: 0, kills: 0, played: 0, claimed: [] };
+  return d;
+}
+function currentDaily() { return acct.on && acct.user && acct.user.daily ? acct.user.daily : guestDaily(); }
+/* Misafir: maç sonunda ilerlemeyi yerelde işle, tamamlanan görevin XP'sini ver (hesaplılarda sunucu işler) */
+function guestQuestAward(win, kills) {
+  const d = guestDaily();
+  d.played++; if (win) d.wins++; d.kills += kills;
+  let bonus = 0;
+  for (const q of QUESTS) if (!d.claimed.includes(q.id) && d[q.stat] >= q.goal) { d.claimed.push(q.id); bonus += q.xp; }
+  try { localStorage.setItem('low_daily', JSON.stringify(d)); } catch (e) { /* yok */ }
+  if (bonus) addXp(bonus);
+  renderQuests();
+}
+function renderQuests() {
+  const ul = document.getElementById('questList');
+  if (!ul) return;
+  const d = currentDaily();
+  ul.innerHTML = '';
+  QUESTS.forEach((q) => {
+    const have = Math.min(q.goal, d[q.stat] || 0);
+    const done = d.claimed.includes(q.id);
+    const li = document.createElement('li');
+    if (done) li.className = 'done';
+    const top = document.createElement('div');
+    top.className = 'q-top';
+    const t = document.createElement('span'); t.textContent = (done ? '✔ ' : '') + T(q.key);
+    const r = document.createElement('b'); r.textContent = '+' + q.xp + ' XP';
+    top.append(t, r);
+    const bar = document.createElement('div'); bar.className = 'q-bar';
+    const fill = document.createElement('i'); fill.style.width = (have / q.goal * 100) + '%';
+    bar.appendChild(fill);
+    const cnt = document.createElement('small'); cnt.textContent = have + ' / ' + q.goal;
+    li.append(top, bar, cnt);
+    ul.appendChild(li);
+  });
+}
+renderQuests();
+
+/* Topluluk bağlantıları: adresleri buraya yaz; boş olan düğme pasif kalır */
+const SOCIAL = { socDiscord: '', socX: '', socIg: '' };
+Object.entries(SOCIAL).forEach(([id, url]) => {
+  const a = document.getElementById(id);
+  if (!a) return;
+  if (url) a.href = url; else { a.classList.add('off'); a.title = T('soon'); a.addEventListener('click', (e) => e.preventDefault()); }
+});
+
 /* ------------------------------ Küresel liderlik tablosu ------------------------------ */
 var lbAt = 0;
 async function loadLeaderboard(force) {
@@ -2874,6 +2934,8 @@ $('shareBtn').addEventListener('click', async () => {
 document.querySelectorAll('.lang-sw button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
 onLang(() => {
   updateAccBtn();
+  renderQuests();
+  Object.entries(SOCIAL).forEach(([id, url]) => { const a = document.getElementById(id); if (a && !url) a.title = T('soon'); });
   $('entryMsg').textContent = '';
   $('roomMsg').textContent = '';
   refreshNames();

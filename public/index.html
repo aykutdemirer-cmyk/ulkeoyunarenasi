@@ -24,7 +24,32 @@
       <h2 data-i18n="subtitle">Hangi ülke hayatta kalacak?</h2>
     </header>
 
-    <section class="card">
+    <aside class="col col-left" id="colLeft">
+      <section class="card guide-card">
+        <span class="lbl" data-i18n="how_title">&#127918; NASIL OYNANIR</span>
+        <div class="key-cards">
+          <div class="key-card"><span class="kbds"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <i>/</i> <kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd></span><b data-i18n="how_move">Hareket</b></div>
+          <div class="key-card"><span class="kbds"><kbd>SPACE</kbd></span><b data-i18n="how_dash">Dash (ivme)</b></div>
+          <div class="key-card"><span class="kbds"><kbd>1</kbd>-<kbd>4</kbd></span><b data-i18n="how_emote">Hızlı tepki</b></div>
+        </div>
+        <p class="goal-text" data-i18n="how_goal">Diğer ülkeleri halkadan dışarı it, yarışta sona kalma!</p>
+      </section>
+      <section class="card quest-card">
+        <span class="lbl" data-i18n="quests_title">&#9889; GÜNLÜK GÖREVLER</span>
+        <ul id="questList" class="quests"></ul>
+      </section>
+      <section class="card social-card">
+        <span class="lbl" data-i18n="social_title">TOPLULUK</span>
+        <div class="social-row">
+          <a id="socDiscord" class="soc" target="_blank" rel="noopener">Discord</a>
+          <a id="socX" class="soc" target="_blank" rel="noopener">X / Twitter</a>
+          <a id="socIg" class="soc" target="_blank" rel="noopener">Instagram</a>
+        </div>
+      </section>
+    </aside>
+
+    <div class="col col-mid">
+    <section class="card name-card">
       <label class="lbl" for="nameInput" data-i18n="name_lbl">İSMİN</label>
       <input id="nameInput" type="text" maxlength="14" placeholder="Oyuncu adı" data-i18n-ph="name_ph" autocomplete="off">
 
@@ -47,15 +72,6 @@
         <button id="joinBtn" class="btn" data-i18n="join">KATIL</button>
       </div>
       <p id="entryMsg" class="msg"></p>
-
-      <span class="lbl" data-i18n="open_rooms">AÇIK ODALAR</span>
-      <ul id="roomList" class="rooms"></ul>
-    </section>
-
-    <section id="lbCard" class="card">
-      <span class="lbl" data-i18n="lb_top">&#127942; EN İYİLER (TOP 10)</span>
-      <ol id="lbList" class="lb-list"></ol>
-      <p id="lbEmpty" class="msg hidden" data-i18n="lb_empty">Henüz sıralama yok. İlk sen ol!</p>
     </section>
 
     <section id="roomCard" class="card hidden">
@@ -129,6 +145,20 @@
       <p id="autoMsg" class="msg auto-msg hidden"></p>
       <p id="roomMsg" class="msg"></p>
     </section>
+
+    </div>
+
+    <aside class="col col-right" id="colRight">
+      <section id="lbCard" class="card lb-card">
+        <span class="lbl" data-i18n="lb_top">&#127942; EN İYİLER (TOP 10)</span>
+        <ol id="lbList" class="lb-list"></ol>
+        <p id="lbEmpty" class="msg hidden" data-i18n="lb_empty">Henüz sıralama yok. İlk sen ol!</p>
+      </section>
+      <section id="roomsCard" class="card rooms-card">
+        <span class="lbl" data-i18n="open_rooms">&#127760; AÇIK ODALAR</span>
+        <ul id="roomList" class="rooms"></ul>
+      </section>
+    </aside>
 
     <p class="hint" data-i18n="controls_hint">WASD / Yön tuşları: hareket</p>
   </main>

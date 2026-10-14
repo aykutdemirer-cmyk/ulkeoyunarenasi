@@ -108,10 +108,22 @@ export function checkAdminPassword(pw) {
 const USER_RE = /^[A-Za-z0-9_]{3,16}$/;
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 
+/* Günlük görevler (UTC günü): kimlik, hedef, ödül XP */
+export const QUESTS = [
+  { id: 'win1', stat: 'wins', goal: 1, xp: 100 },
+  { id: 'kill3', stat: 'kills', goal: 3, xp: 50 },
+  { id: 'play3', stat: 'played', goal: 3, xp: 30 }
+];
+const today = () => new Date().toISOString().slice(0, 10);
+export function dailyOf(u) {
+  if (!u.daily || u.daily.date !== today()) u.daily = { date: today(), wins: 0, kills: 0, played: 0, claimed: [] };
+  return u.daily;
+}
+
 export function publicUser(u) {
   return {
     username: u.display, key: u.username, email: u.email, xp: u.xp, level: levelOf(u.xp), wins: u.wins, score: u.score,
-    country: u.country || '', role: isAdminUser(u) ? 'admin' : 'user', banned: !!u.banned, created: u.created, lastLogin: u.lastLogin || 0
+    country: u.country || '', daily: dailyOf(u), role: isAdminUser(u) ? 'admin' : 'user', banned: !!u.banned, created: u.created, lastLogin: u.lastLogin || 0
   };
 }
 
@@ -164,11 +176,19 @@ export function setCountry(u, code) {
 }
 
 /* Maç sonu ödülü (yalnızca sunucu hesaplar) */
-export function award(u, { xp = 0, win = false }) {
-  u.xp += Math.max(0, Math.min(5000, Math.floor(xp)));
-  u.score += Math.max(0, Math.min(5000, Math.floor(xp)));
+export function award(u, { xp = 0, win = false, kills = 0 }) {
+  const d = dailyOf(u);
+  d.played++;
+  if (win) d.wins++;
+  d.kills += Math.max(0, Math.floor(kills));
+  let bonus = 0;
+  for (const q of QUESTS) if (!d.claimed.includes(q.id) && d[q.stat] >= q.goal) { d.claimed.push(q.id); bonus += q.xp; }
+  const total = Math.max(0, Math.min(5000, Math.floor(xp))) + bonus;
+  u.xp += total;
+  u.score += total;
   if (win) u.wins++;
   saveSoon();
+  return bonus;
 }
 
 /* Yönetici düzenlemeleri */
