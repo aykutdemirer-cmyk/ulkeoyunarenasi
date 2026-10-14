@@ -38,7 +38,22 @@ const lobbyEl = $('lobby');
 const gameEl = $('game');
 const stage = $('stage');
 const cv = $('cv');
-const ctx = cv.getContext('2d');
+const ctx = cv.getContext('2d', { alpha: false, desynchronized: true });
+/* PERFORMANS: ana tuvalde dinamik shadowBlur çok pahalı; tüm atamaları etkisizleştir (parlama sahte halo ile yapılır) */
+(function disableShadowBlur() {
+  const d = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'shadowBlur');
+  if (!d || !d.set) return;
+  Object.defineProperty(ctx, 'shadowBlur', { configurable: true, get() { return 0; }, set() { d.set.call(ctx, 0); } });
+})();
+/* Ucuz parlama: geniş, düşük opaklıklı ikinci çizgi (blur yok) */
+function haloStroke(col, w, alpha) {
+  const ga = ctx.globalAlpha;
+  ctx.globalAlpha = ga * alpha;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = w;
+  ctx.stroke();
+  ctx.globalAlpha = ga;
+}
 
 /* ------------------------------ Bayraklar (vektör) ------------------------------ */
 const FW = 192;
@@ -1058,7 +1073,7 @@ socket.on('gameStart', (g) => {
   S.roster = new Map(g.roster.map((p) => [p.id, p]));
   S.snaps = [];
   S.latest = null;
-  S.particles = [];
+  while (S.particles.length) PPOOL.push(S.particles.pop());
   S.rings = [];
   S.floaters = [];
   S.confetti = [];
@@ -1073,6 +1088,8 @@ socket.on('gameStart', (g) => {
   $('elimListD').innerHTML = '';
   $('overModal').classList.add('hidden');
   S.matchXp = 0;
+  S.lastAt = 0;
+  ballObjs.clear();
   S.acctPrev = undefined;
   $('elimTitle').textContent = g.mode === 'SOCCER' ? T('goals') : T('eliminated');
   (g.elims || []).forEach((e) => addElim(e.id, e.rank, false));
@@ -1129,8 +1146,14 @@ socket.on('toLobby', () => {
 });
 socket.on('snap', (s) => {
   if (!S.inGame) return;
-  s.at = performance.now();
-  s.m = new Map(s.b.map((a) => [a[0], a]));
+  const arr = performance.now();
+  // titreşimi (jitter) yumuşat: beklenen 33.3 ms aralığına doğru ağırlıklı çek
+  const exp = S.lastAt ? S.lastAt + 33.33 : arr;
+  s.at = Math.abs(arr - exp) > 120 ? arr : exp + (arr - exp) * 0.2;
+  S.lastAt = s.at;
+  const mm = new Map();
+  for (let i = 0; i < s.b.length; i++) mm.set(s.b[i][0], s.b[i]);
+  s.m = mm;
   S.snaps.push(s);
   if (S.snaps.length > 12) S.snaps.shift();
   S.latest = s;
@@ -1593,13 +1616,20 @@ $('copyLinkBtn').addEventListener('click', () => {
 document.addEventListener('visibilitychange', refreshTitle);
 
 /* ------------------------------ Efektler ------------------------------ */
+const PPOOL = [];
+for (let i = 0; i < 600; i++) PPOOL.push({ x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 1, col: '#fff', r: 2 });
+function spawnP(x, y, vx, vy, life, max, col, r) {
+  const p = PPOOL.length ? PPOOL.pop() : S.particles.shift(); // havuz boşsa en eskiyi geri dönüştür
+  if (!p) return;
+  p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.life = life; p.max = max; p.col = col; p.r = r;
+  S.particles.push(p);
+}
 function burst(x, y, n, col, speed) {
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2;
     const v = speed * (0.2 + Math.random() * 0.8);
-    S.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.35 + Math.random() * 0.5, max: 0.85, col, r: 2 + Math.random() * 3.5 });
+    spawnP(x, y, Math.cos(a) * v, Math.sin(a) * v, 0.35 + Math.random() * 0.5, 0.85, col, 2 + Math.random() * 3.5);
   }
-  if (S.particles.length > 500) S.particles.splice(0, S.particles.length - 500);
 }
 
 function spawnConfetti() {
@@ -1824,29 +1854,44 @@ function ballFromArr(a) {
   return { id: a[0], x: a[1], y: a[2], f: a[5], cd: a[6], arm: a[7], gh: a[8], sup: a[9], dsh: a[10], fin: !!a[11], fo: a[12] || 0, dmg: a[13] || 0, sp: Math.hypot(a[3], a[4]) };
 }
 
+const SS = { sb: null, t: 0, rot: 0, gh: 0, R: 0, balls: [], pu: null, ph: '', gate: 0 };
+const ballObjs = new Map();
+const EXTRA_MAX = 90; // ms: yeni paket gecikirse hızla tahmin yürüt
 function sampleState() {
   const snaps = S.snaps;
-  if (!snaps.length) return null;
+  const n = snaps.length;
+  if (!n) return null;
   const rt = performance.now() - INTERP_MS;
   let a = snaps[0];
   let b = snaps[0];
-  if (rt >= snaps[snaps.length - 1].at) {
-    a = b = snaps[snaps.length - 1];
+  let ex = 0;
+  const last = snaps[n - 1];
+  if (rt >= last.at) {
+    a = b = last;
+    ex = Math.min(EXTRA_MAX, rt - last.at) / 1000; // ileri tahmin (sn)
   } else if (rt > snaps[0].at) {
-    for (let i = 0; i < snaps.length - 1; i++) {
+    for (let i = 0; i < n - 1; i++) {
       if (snaps[i].at <= rt && rt <= snaps[i + 1].at) { a = snaps[i]; b = snaps[i + 1]; break; }
     }
   }
   const span = b.at - a.at;
   const t = span > 0 ? Math.min(1, Math.max(0, (rt - a.at) / span)) : 1;
-  const balls = [];
-  for (const nb of b.b) {
-    const cur = ballFromArr(nb);
-    const pb = a.m.get(nb[0]);
-    if (pb && a !== b) {
+  const balls = SS.balls;
+  let cnt = 0;
+  for (let i = 0; i < b.b.length; i++) {
+    const nb = b.b[i];
+    let cur = ballObjs.get(nb[0]);
+    if (!cur) { cur = {}; ballObjs.set(nb[0], cur); }
+    cur.id = nb[0]; cur.x = nb[1]; cur.y = nb[2]; cur.f = nb[5]; cur.cd = nb[6]; cur.arm = nb[7]; cur.gh = nb[8]; cur.sup = nb[9]; cur.dsh = nb[10];
+    cur.fin = !!nb[11]; cur.fo = nb[12] || 0; cur.dmg = nb[13] || 0; cur.sp = Math.hypot(nb[3], nb[4]);
+    const pb = a !== b ? a.m.get(nb[0]) : null;
+    if (pb) {
       cur.x = lerp(pb[1], nb[1], t);
       cur.y = lerp(pb[2], nb[2], t);
       cur.f = lerpAng(pb[5], nb[5], t);
+    } else if (ex > 0 && !cur.fin) {
+      cur.x += nb[3] * ex;
+      cur.y += nb[4] * ex;
     }
     if (nb[0] === PID && P.b) {
       // kendi topumuz: tahmin edilen durum (gecikmesiz his)
@@ -1859,16 +1904,15 @@ function sampleState() {
       cur.sup = P.b.superT;
       cur.sp = Math.hypot(P.b.vx, P.b.vy);
     }
-    balls.push(cur);
+    balls[cnt++] = cur;
   }
-  const L = snaps[snaps.length - 1];
+  balls.length = cnt;
   let sb = null;
   if (b.sb) sb = (a.sb && a !== b) ? [lerp(a.sb[0], b.sb[0], t), lerp(a.sb[1], b.sb[1], t), b.sb[2], b.sb[3]] : b.sb;
-  return {
-    sb,
-    t: lerp(a.t, b.t, t), rot: lerp(a.rot, b.rot, t), gh: lerp(a.gh, b.gh, t), R: lerp(a.R, b.R, t),
-    balls, pu: L.pu, ph: b.ph, gate: b.gt || 0
-  };
+  SS.sb = sb;
+  SS.t = lerp(a.t, b.t, t); SS.rot = lerp(a.rot, b.rot, t); SS.gh = lerp(a.gh, b.gh, t); SS.R = lerp(a.R, b.R, t);
+  SS.pu = last.pu; SS.ph = b.ph; SS.gate = b.gt || 0;
+  return SS;
 }
 
 // Arka plan
@@ -2127,12 +2171,10 @@ function drawRing(st, time) {
   const segs = [];
   for (let k = 0; k < n; k++) segs.push([st.rot + k * step + st.gh, st.rot + (k + 1) * step - st.gh]);
   const hot = S.map.key === 'classic' ? THEMES[themeKey].accent : (S.map.col || '#FF2D85');
-  ctx.shadowColor = hot;
-  ctx.shadowBlur = 25;
+  segs.forEach(([a, b]) => { ctx.beginPath(); ctx.arc(0, 0, st.R + 9, a, b); haloStroke(hot, 44, 0.12); haloStroke(hot, 30, 0.22); });
   ctx.strokeStyle = hot;
   ctx.lineWidth = 18;
   segs.forEach(([a, b]) => { ctx.beginPath(); ctx.arc(0, 0, st.R + 9, a, b); ctx.stroke(); });
-  ctx.shadowBlur = 0;
   ctx.strokeStyle = '#ffd0e6';
   ctx.lineWidth = 5;
   segs.forEach(([a, b]) => { ctx.beginPath(); ctx.arc(0, 0, st.R + 9, a, b); ctx.stroke(); });
@@ -2346,6 +2388,26 @@ function drawPowerups(list, time) {
   });
 }
 
+/* Önbellek: bayrak + gölgeleme önceden bir kez offscreen tuvale çizilir (ülke × yarıçap) */
+const spriteCache = new Map();
+function ballSprite(code, R) {
+  const key = code + R;
+  let c = spriteCache.get(key);
+  if (c) return c;
+  const size = Math.ceil(R * 2) + 2;
+  c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const g = c.getContext('2d');
+  g.translate(size / 2, size / 2);
+  drawFlagCircle(g, code, 0, 0, R);
+  const sh = g.createRadialGradient(-8, -10, 4, 0, 0, R);
+  sh.addColorStop(0, 'rgba(255,255,255,0.28)');
+  sh.addColorStop(1, 'rgba(0,0,0,0.25)');
+  g.fillStyle = sh;
+  g.beginPath(); g.arc(0, 0, R, 0, Math.PI * 2); g.fill();
+  spriteCache.set(key, c);
+  return c;
+}
 function drawBall(b, time) {
   const p = S.roster.get(b.id);
   if (!p) return;
@@ -2354,11 +2416,11 @@ function drawBall(b, time) {
   ctx.save();
   if (b.dsh > 0) {
     const tc = p.team === 'B' ? '#fb923c' : p.team === 'A' ? '#22d3ee' : (mine ? '#facc15' : '#ff2d85');
-    S.particles.push({ x: b.x, y: b.y, vx: 0, vy: 0, life: 0.3, max: 0.3, col: tc, r: R * 0.85 });
-    S.particles.push({ x: b.x - Math.cos(b.f) * R * 0.8, y: b.y - Math.sin(b.f) * R * 0.8, vx: 0, vy: 0, life: 0.22, max: 0.22, col: '#ffffff', r: R * 0.5 });
+    spawnP(b.x, b.y, 0, 0, 0.3, 0.3, tc, R * 0.85);
+    spawnP(b.x - Math.cos(b.f) * R * 0.8, b.y - Math.sin(b.f) * R * 0.8, 0, 0, 0.22, 0.22, '#ffffff', R * 0.5);
   }
   const skin = p.skin || 'none';
-  if (skin === 'fire' && b.sp > 140 && Math.random() < 0.7) S.particles.push({ x: b.x - Math.cos(b.f) * R * 0.6, y: b.y - Math.sin(b.f) * R * 0.6, vx: (Math.random() - 0.5) * 60, vy: -40 - Math.random() * 60, life: 0.45, max: 0.45, col: Math.random() < 0.5 ? '#fb923c' : '#facc15', r: 5 + Math.random() * 5 });
+  if (skin === 'fire' && b.sp > 140 && Math.random() < 0.7) spawnP(b.x - Math.cos(b.f) * R * 0.6, b.y - Math.sin(b.f) * R * 0.6, (Math.random() - 0.5) * 60, -40 - Math.random() * 60, 0.45, 0.45, Math.random() < 0.5 ? '#fb923c' : '#facc15', 5 + Math.random() * 5);
   ctx.translate(CX + b.x, CY + b.y);
   if (skin !== 'none' && skin !== 'fire') {
     ctx.save();
@@ -2402,12 +2464,8 @@ function drawBall(b, time) {
     ctx.beginPath(); ctx.arc(0, 0, R + 3, 0, Math.PI * 2); ctx.stroke();
   }
 
-  drawFlagCircle(ctx, p.country, 0, 0, R);
-  const sh = ctx.createRadialGradient(-8, -10, 4, 0, 0, R);
-  sh.addColorStop(0, 'rgba(255,255,255,0.28)');
-  sh.addColorStop(1, 'rgba(0,0,0,0.25)');
-  ctx.fillStyle = sh;
-  ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+  const spr = ballSprite(p.country, R);
+  ctx.drawImage(spr, -R - 1, -R - 1);
 
   // gözler
   const k = R / BALL_R;
@@ -2639,12 +2697,11 @@ function frame(now) {
   for (let i = S.particles.length - 1; i >= 0; i--) {
     const p = S.particles[i];
     p.life -= dt;
-    if (p.life <= 0) { S.particles.splice(i, 1); continue; }
+    if (p.life <= 0) { const last = S.particles.pop(); if (i < S.particles.length) S.particles[i] = last; PPOOL.push(p); continue; }
     p.x += p.vx * dt; p.y += p.vy * dt;
     p.vx *= 0.95; p.vy *= 0.95;
     ctx.globalAlpha = Math.max(0, p.life / p.max);
     ctx.fillStyle = p.col;
-    ctx.shadowColor = p.col; ctx.shadowBlur = 10;
     ctx.beginPath(); ctx.arc(CX + p.x, CY + p.y, p.r, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalAlpha = 1;
