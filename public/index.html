@@ -34,6 +34,14 @@
         </div>
         <p class="goal-text" data-i18n="how_goal">Diğer ülkeleri halkadan dışarı it, yarışta sona kalma!</p>
       </section>
+      <section class="card chat-card" id="chatCard">
+        <span class="lbl" data-i18n="chat_title">&#128172; LOBİ SOHBETİ</span>
+        <div id="chatLog" class="chat-log"></div>
+        <form id="chatForm" class="chat-form" autocomplete="off">
+          <input id="chatInput" type="text" maxlength="100" data-i18n-ph="chat_ph" placeholder="Mesaj yaz...">
+          <button class="btn small primary" type="submit" data-i18n="chat_send">GÖNDER</button>
+        </form>
+      </section>
       <section class="card quest-card">
         <span class="lbl" data-i18n="quests_title">&#9889; GÜNLÜK GÖREVLER</span>
         <ul id="questList" class="quests"></ul>
@@ -149,14 +157,14 @@
     </div>
 
     <aside class="col col-right" id="colRight">
+      <section id="roomsCard" class="card rooms-card">
+        <span class="lbl" data-i18n="open_rooms">&#127760; AÇIK ODALAR</span>
+        <ul id="roomList" class="rooms"></ul>
+      </section>
       <section id="lbCard" class="card lb-card">
         <span class="lbl" data-i18n="lb_top">&#127942; EN İYİLER (TOP 10)</span>
         <ol id="lbList" class="lb-list"></ol>
         <p id="lbEmpty" class="msg hidden" data-i18n="lb_empty">Henüz sıralama yok. İlk sen ol!</p>
-      </section>
-      <section id="roomsCard" class="card rooms-card">
-        <span class="lbl" data-i18n="open_rooms">&#127760; AÇIK ODALAR</span>
-        <ul id="roomList" class="rooms"></ul>
       </section>
     </aside>
 

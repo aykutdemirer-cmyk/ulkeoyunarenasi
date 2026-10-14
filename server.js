@@ -117,6 +117,9 @@ function normCode(c) {
   return s;
 }
 
+const lobbyChat = [];
+const escapeHtml = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
 function cleanName(n) {
   const s = String(n || '').replace(/[<>&"'`]/g, '').trim().slice(0, 14);
   return s || 'Player';
@@ -1575,6 +1578,7 @@ io.on('connection', (socket) => {
   } else {
     socket.join('browse');
     socket.emit('rooms', roomList());
+    socket.emit('lobby_chat_history', lobbyChat);
   }
 
   const enter = (room, data) => {
@@ -1618,10 +1622,10 @@ io.on('connection', (socket) => {
     pushRoom(room);
   }));
 
-  socket.on('joinRoom', safe((data, cb) => {
+  const joinHandler = safe((data, cb) => {
     if (typeof cb !== 'function') return;
     data = data || {};
-    const code = normCode(data.code);
+    const code = normCode(data.code || data.roomId);
     if (!CODE_RE.test(code)) return cb({ ok: false, error: 'bad_code' });
     const room = rooms.get(code);
     if (!room) return cb({ ok: false, error: 'not_found' });
@@ -1632,6 +1636,25 @@ io.on('connection', (socket) => {
     cb({ ok: true, id: pid, code, spectating: room.phase !== 'lobby' });
     if (room.game) socket.emit('gameStart', gameInfo(room));
     pushRoom(room);
+  });
+  socket.on('joinRoom', joinHandler);
+  socket.on('join_room', joinHandler);
+
+  // Lobi sohbeti: yalnızca odada olmayan (lobideki) oyuncular arasında
+  socket.on('lobby_chat', safe((data) => {
+    if (curRoom() || !data || typeof data.text !== 'string') return;
+    const now = Date.now();
+    if (now - (socket.data.lastChat || 0) < 700) return;
+    const text = escapeHtml(data.text.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 100));
+    if (!text) return;
+    socket.data.lastChat = now;
+    const acc = socket.data.uid ? auth.getUser(socket.data.uid) : null;
+    const sender = acc ? acc.display : cleanName(data.user);
+    const country = acc && acc.country ? acc.country : (COUNTRY_CODES.has(data.country) ? data.country : '');
+    const msg = { sender, text, time: now, country };
+    lobbyChat.push(msg);
+    if (lobbyChat.length > 40) lobbyChat.shift();
+    io.to('browse').emit('lobby_chat', msg);
   }));
 
   socket.on('setProfile', safe((data) => {
