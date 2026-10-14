@@ -2,6 +2,7 @@
 
 const DICT = {
   tr: {
+    emote_title: 'HIZLI TEPKİ', keys_title: 'KONTROLLER', keys_move: 'hareket', keys_dash: 'dash', keys_emote: 'tepki', live_board: 'CANLI SIRALAMA', lb_out: 'elendi',
     title: 'SON KALAN KAZANIR!', subtitle: 'Hangi ülke hayatta kalacak?',
     'mode.RACE': 'ELIMINATION RACE',
     'modedesc.RACE': 'Plinko yarışı: çivilerin arasından aşağı kay! Kırmızı çizgiye en son varan her turda elenir.',
@@ -86,6 +87,7 @@ const DICT = {
     feed_out: 'elendi', eliminated: 'ELENENLER', goals: 'GOLLER', round_lbl: 'RAUNT'
   },
   en: {
+    emote_title: 'QUICK EMOTES', keys_title: 'CONTROLS', keys_move: 'move', keys_dash: 'dash', keys_emote: 'emote', live_board: 'LIVE RANKING', lb_out: 'out',
     title: 'LAST ONE WINS!', subtitle: 'Which country survives?',
     'mode.RACE': 'ELIMINATION RACE',
     'modedesc.RACE': 'Plinko race: slide down through the pegs! The last to reach the red line is eliminated every round.',

@@ -510,3 +510,51 @@ html[lang="tr"] .subtitle { font-size: calc(var(--u) * 5.2); }
 .chk { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-weight: 800; font-size: 13px; cursor: pointer; }
 .chk input { width: 18px; height: 18px; accent-color: var(--pink); }
 .auto-msg { color: var(--yellow); font-weight: 800; }
+
+/* ============ MASAÜSTÜ TAM EKRAN DÜZEN (>= 900px) ============ */
+.dpanel { display: none; }
+html, body { width: 100%; }
+#game {
+  background:
+    linear-gradient(rgba(120, 120, 255, 0.07) 2px, transparent 2px) 0 0 / 60px 60px,
+    linear-gradient(90deg, rgba(120, 120, 255, 0.07) 2px, transparent 2px) 0 0 / 60px 60px,
+    radial-gradient(ellipse at 50% 0%, rgba(255, 45, 133, 0.22), transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(34, 211, 238, 0.14), transparent 55%),
+    #05050f;
+}
+@media (min-width: 900px) {
+  #game.desk { display: grid; grid-template-columns: minmax(260px, 1fr) auto minmax(260px, 1fr); align-items: stretch; justify-items: center; gap: 0; }
+  #game.desk .stage { align-self: center; box-shadow: 0 0 60px rgba(255, 45, 133, 0.35), 0 0 0 2px #2d2d55; border-radius: 6px; }
+  #game.desk .dpanel {
+    --u: 5px; display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 380px; min-width: 0;
+    padding: 24px 22px; overflow-y: auto; align-self: stretch;
+  }
+  .dcard { background: rgba(14, 14, 31, 0.88); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; box-shadow: 0 0 24px rgba(255, 45, 133, 0.12); }
+  .dcard.grow { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .dtitle { font-size: 12px; font-weight: 900; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
+  .dbig { font-size: 28px; font-weight: 900; color: var(--cyan); letter-spacing: 1px; text-shadow: 0 0 14px rgba(34, 211, 238, 0.5); }
+  .dline { font-size: 14px; font-weight: 700; margin-top: 6px; color: var(--text); }
+  .keys { list-style: none; margin: 0; padding: 0; font-size: 14px; line-height: 2; }
+  kbd { font: inherit; font-size: 12px; font-weight: 900; background: #090916; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
+  .dpanel .emotes { position: static; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .dpanel .emotes button { width: 100%; height: 44px; font-size: 16px; border-radius: 12px; }
+  .stage.race .emotes, .dpanel .emotes { display: grid; }
+  .dpanel .elim-panel { position: static; height: auto; padding: 0; background: none; border: 0; pointer-events: auto; }
+  .dpanel .elim-title { font-size: 14px; letter-spacing: 2px; text-align: left; margin-bottom: 8px; }
+  .dpanel .elim-list { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: none; grid-auto-flow: row; grid-auto-columns: auto; height: auto; max-height: 30vh; overflow-y: auto; gap: 8px; }
+  .dpanel .el canvas { width: 28px; height: 28px; border-width: 2px; }
+  .dpanel .el span { font-size: 13px; }
+  .live { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+  .live li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 10px; background: #090916; border: 1px solid var(--line); font-weight: 800; font-size: 14px; }
+  .live li.me { border-color: var(--pink); }
+  .live li.out { opacity: 0.4; text-decoration: line-through; }
+  .live img { width: 26px; height: 26px; border-radius: 50%; }
+  .live .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .live .pt { color: var(--yellow); font-weight: 900; }
+}
+@media (max-width: 899px) {
+  .dpanel { display: none !important; }
+}
+.hud-top { top: calc(var(--u) * 9); }
+.title { font-size: calc(var(--u) * 9.5); }
+html[lang="tr"] .title { margin-top: 0; font-size: calc(var(--u) * 7); }

@@ -995,6 +995,10 @@ socket.on('gameStart', (g) => {
   $('results').classList.add('hidden');
   $('feed').innerHTML = '';
   S.raceInfo = null;
+  boardSig = '';
+  $('dRoom').textContent = S.room ? S.room.code : '-';
+  $('dMode').textContent = T('mode') + ': ' + (MODE_INFO[g.mode] || [g.mode])[0];
+  $('dMap').textContent = T('map') + ': ' + S.map.name;
   $('stage').classList.toggle('race', g.mode === 'RACE');
   keys.clear();
   lastSent = '';
@@ -1072,6 +1076,7 @@ function clientTick() {
 function vibrate(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* yok */ } }
 
 function onSnap(s) {
+  renderBoard(s);
   if (S.mode === 'SOCCER' && s.scr) {
     $('leftLbl').textContent = 'A';
     $('leftNum').textContent = `${s.scr[0]} : ${s.scr[1]} B`;
@@ -1519,6 +1524,47 @@ stage.addEventListener('touchend', endTouch);
 stage.addEventListener('touchcancel', endTouch);
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 
+/* ------------------------------ Masaüstü 3 sütun ------------------------------ */
+let deskMode = null;
+function layoutPanels(desk) {
+  if (deskMode === desk) return;
+  deskMode = desk;
+  gameEl.classList.toggle('desk', desk);
+  const em = $('emotes');
+  const el = document.querySelector('.elim-panel');
+  if (desk) { $('emoteSlot').appendChild(em); $('elimSlot').appendChild(el); }
+  else { stage.appendChild(em); stage.appendChild(el); }
+}
+
+const flagUrl = new Map();
+let boardSig = '';
+let boardAt = 0;
+function renderBoard(s) {
+  const now = performance.now();
+  if (now - boardAt < 250 || !deskMode) return;
+  boardAt = now;
+  const scores = new Map((s.sc || []).map((x) => [x[0], x[1]]));
+  const rows = [...S.roster.values()].map((p) => ({ p, alive: s.m.has(p.id), sc: scores.get(p.id) }));
+  rows.sort((a, b) => (b.alive - a.alive) || ((b.sc || 0) - (a.sc || 0)));
+  const sig = rows.map((r) => r.p.id + (r.alive ? 1 : 0) + (r.sc ?? '')).join(',') + getLang();
+  if (sig === boardSig) return;
+  boardSig = sig;
+  const ul = $('liveBoard');
+  ul.innerHTML = '';
+  rows.forEach((r, i) => {
+    let url = flagUrl.get(r.p.country);
+    if (!url) { url = flagIcon(r.p.country, 48).toDataURL(); flagUrl.set(r.p.country, url); }
+    const li = document.createElement('li');
+    li.className = (r.alive ? '' : 'out ') + (r.p.id === PID ? 'me' : '');
+    const img = document.createElement('img'); img.src = url; img.alt = '';
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = (i + 1) + '. ' + (r.p.name || CNAME[r.p.country]);
+    const pt = document.createElement('span'); pt.className = 'pt';
+    pt.textContent = r.sc !== undefined ? String(Math.round(r.sc)) : r.alive ? '' : T('lb_out');
+    li.append(img, nm, pt);
+    ul.appendChild(li);
+  });
+}
+
 /* ------------------------------ Boyutlandırma ------------------------------ */
 function resize() {
   const vv = window.visualViewport;
@@ -1526,7 +1572,9 @@ function resize() {
   const H = Math.floor(vv ? vv.height : window.innerHeight);
   gameEl.style.width = W + 'px';
   gameEl.style.height = H + 'px';
-  const w = Math.floor(Math.min(W, (H * 9) / 16));
+  const desk = W >= 900;
+  layoutPanels(desk);
+  const w = Math.floor(Math.min(desk ? W - 560 : W, (H * 9) / 16));
   const h = Math.floor((w * 16) / 9);
   stage.style.width = w + 'px';
   stage.style.height = h + 'px';

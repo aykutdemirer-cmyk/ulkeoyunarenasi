@@ -139,6 +139,27 @@
 
   <!-- ===================== OYUN ===================== -->
   <div id="game" class="screen hidden">
+    <aside id="panelL" class="dpanel left">
+      <div class="dcard">
+        <div class="dtitle" data-i18n="room_code">ODA KODU</div>
+        <div id="dRoom" class="dbig">-</div>
+        <div id="dMode" class="dline"></div>
+        <div id="dMap" class="dline"></div>
+      </div>
+      <div class="dcard">
+        <div class="dtitle" data-i18n="emote_title">HIZLI TEPKİ</div>
+        <div id="emoteSlot"></div>
+      </div>
+      <div class="dcard">
+        <div class="dtitle" data-i18n="keys_title">KONTROLLER</div>
+        <ul class="keys">
+          <li><kbd>W A S D</kbd> / <kbd>&larr;&uarr;&darr;&rarr;</kbd> <span data-i18n="keys_move">hareket</span></li>
+          <li><kbd>SPACE</kbd> <span data-i18n="keys_dash">dash</span></li>
+          <li><kbd>1</kbd>-<kbd>4</kbd> <span data-i18n="keys_emote">tepki</span></li>
+        </ul>
+      </div>
+    </aside>
+
     <div id="stage" class="stage">
       <canvas id="cv" width="1080" height="1920"></canvas>
 
@@ -169,6 +190,14 @@
       <div id="joyBase" class="joy-base hidden"><div id="joyKnob" class="joy-knob"></div></div>
       <button id="dashBtn" class="dash-btn hidden">DASH</button>
     </div>
+
+    <aside id="panelR" class="dpanel right">
+      <div class="dcard grow">
+        <div class="dtitle" data-i18n="live_board">CANLI SIRALAMA</div>
+        <ul id="liveBoard" class="live"></ul>
+      </div>
+      <div id="elimSlot" class="dcard"></div>
+    </aside>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
