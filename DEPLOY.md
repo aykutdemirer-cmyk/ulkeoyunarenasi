@@ -110,7 +110,7 @@ curl -fsSL https://raw.githubusercontent.com/aykutdemirer-cmyk/ulkeoyunarenasi/m
 (`deploy_key.pub` içeriğini komuta yapıştır; ABD için `--domain "us.alanadin.com" --region us`, Asya için `ap`.)
 Betik: Docker, güvenlik duvarı, fail2ban, otomatik güncelleme, `deploy` kullanıcısı, kilitli CI anahtarı kurar ve oyunu başlatır.
 
-Sonra `/opt/last-one-wins/regions.json` dosyasını gerçek adreslerinle düzenle (üç sunucuda da aynı olsun):
+**Çok bölgeye geçince** `/opt/last-one-wins/regions.json` dosyasını gerçek adreslerinle düzenle (tüm sunucularda aynı olsun):
 
 ```json
 [
@@ -120,7 +120,7 @@ Sonra `/opt/last-one-wins/regions.json` dosyasını gerçek adreslerinle düzenl
 ]
 ```
 
-Tek bölge yeterliyse bu dosyayı boş (`[]`) bırak; bölge seçici otomatik gizlenir.
+Tek bölgeyle başlıyorsan dosya varsayılan olarak boş (`[]`) gelir; bölge seçici otomatik gizlenir, hiçbir şey yapman gerekmez.
 
 İsteğe bağlı: anahtarla girişin çalıştığını **doğruladıktan sonra** `--harden-ssh` ile parola girişini kapat.
 
