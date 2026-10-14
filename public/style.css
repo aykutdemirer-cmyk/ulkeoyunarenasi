@@ -805,3 +805,5 @@ html[data-theme="royal"] { --pink: #facc15; --pink-rgb: 250, 204, 21; --cyan: #a
 .banner small.mut-tag { color: #fb7185; margin-top: 4px; }
 
 #cv { will-change: transform; transform: translateZ(0); backface-visibility: hidden; image-rendering: auto; }
+
+#cv { will-change: transform; transform: translate3d(0, 0, 0); image-rendering: -webkit-optimize-contrast; }
