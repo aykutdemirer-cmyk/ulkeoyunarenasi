@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import {
-  DT, SUB, ARMOR_T, GHOST_T, SUPER_T, PU_R, PU_TYPES, MODES, BOMB_TIME, HILL_R, HILL_TIME,
+  DT, SUB, ARMOR_T, GHOST_T, SUPER_T, PU_R, PU_TYPES, MODES, SIZES, RACE, BOMB_TIME, HILL_R, HILL_TIME,
   SOCCER_R, SOCCER_TIME, GOAL_TARGET, COINS_TIME, gapInfo as gapInfoSoccer, lavaCycle, lavaAt, LAVA_SECTORS,
   MAPS, MAP_KEYS, mapFor, bumpers, newEnv, advanceEnv, gapInfo, ballR, ballMass,
   applyControl, moveSub
@@ -131,7 +131,8 @@ function newRoom(hostPid) {
   return {
     code: makeCode(), mode: 'FFA', map: 'classic', diff: 'normal', phase: 'lobby',
     players: new Map(), host: hostPid, game: null, wins: new Map(), quick: false,
-    rounds: 1, series: { round: 0, wins: new Map() }, lastBots: 0, botEntries: null
+    rounds: 1, series: { round: 0, wins: new Map() }, lastBots: 0, botEntries: null,
+    manual: true, size: 'standard', autoAt: 0, autoTimer: null
   };
 }
 
@@ -165,6 +166,9 @@ function roomState(room) {
     map: room.map,
     diff: room.diff,
     rounds: room.rounds,
+    manual: room.manual,
+    size: room.size,
+    autoLeft: room.autoAt ? Math.max(0, Math.ceil((room.autoAt - Date.now()) / 1000)) : 0,
     phase: room.phase,
     host: room.host,
     max: MAX_PLAYERS,
@@ -210,6 +214,7 @@ function gameInfo(room) {
     mode: room.mode,
     map: g.mapKey,
     mapName: MAPS[g.mapKey].name,
+    size: room.size,
     total: g.total,
     round: g.round,
     rounds: room.rounds,
@@ -219,7 +224,27 @@ function gameInfo(room) {
   };
 }
 
+/* Otomatik başlatma (yalnızca oda sahibi "manuel başlatma"yı kapatırsa) */
+function cancelAuto(room) {
+  if (room.autoTimer) clearTimeout(room.autoTimer);
+  room.autoTimer = null;
+  room.autoAt = 0;
+}
+function scheduleAuto(room, ms) {
+  cancelAuto(room);
+  room.autoAt = Date.now() + ms;
+  room.autoTimer = setTimeout(() => {
+    room.autoTimer = null;
+    room.autoAt = 0;
+    if (rooms.get(room.code) !== room || room.phase !== 'lobby' || room.manual) { if (rooms.get(room.code) === room) pushRoom(room); return; }
+    const humans = [...room.players.values()].filter((p) => p.dcAt === 0).length;
+    const err = startGame(room, Math.max(1, 8 - humans));
+    if (err) pushRoom(room);
+  }, ms);
+}
+
 function startGame(room, botCount, continuing = false) {
+  cancelAuto(room);
   const humans = [...room.players.values()].filter((p) => p.dcAt === 0);
   const bots = Math.max(0, Math.min(MAX_PLAYERS - humans.length, Math.floor(botCount) || 0));
   const used = new Set(humans.map((h) => h.country));
@@ -253,14 +278,15 @@ function startGame(room, botCount, continuing = false) {
   else shuffle(entries);
 
   const mapKey = room.map === 'random' ? MAP_KEYS[Math.floor(Math.random() * MAP_KEYS.length)] : room.map;
-  const map = mapFor(mapKey, room.mode);
+  const map = mapFor(mapKey, room.mode, room.size);
   const n = entries.length;
+  const spawnR = map.R0 * 0.78;
   const dr = DIFFS[room.diff] || DIFFS.normal;
   const balls = entries.map((e, i) => {
     const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
     return {
       id: e.id, name: e.name, country: e.country, team: e.team, bot: e.bot,
-      x: Math.cos(ang) * SPAWN_R, y: Math.sin(ang) * SPAWN_R, vx: 0, vy: 0, f: ang + Math.PI,
+      x: Math.cos(ang) * spawnR, y: Math.sin(ang) * spawnR, vx: 0, vy: 0, f: ang + Math.PI, fin: false, finOrder: 0,
       cd: 0, dashT: 0, armorT: 0, ghostT: 0, superT: 0,
       ix: 0, iy: 0, dashQ: false, inQ: [], ack: 0,
       alive: true, rank: 0, target: null, retarget: 0, noise: 0, kills: 0, lastHit: null, by: null,
@@ -292,6 +318,7 @@ function startGame(room, botCount, continuing = false) {
     total: n
   };
   if (room.mode === 'SOCCER') initSoccer(room.game);
+  if (room.mode === 'RACE') initRace(room.game);
   room.phase = 'playing';
   io.to(room.code).emit('gameStart', gameInfo(room));
   pushRoom(room);
@@ -871,6 +898,130 @@ function botHill(g, b, d, R) {
 }
 
 /* ------------------------------ Fizik ------------------------------ */
+/* ------------------------------ ELIMINATION RACE (Plinko) ------------------------------ */
+const RACE_GATE_T = 1.6;   // huni kapağı açılmadan önceki bekleme
+const RACE_BREAK_T = 2.4;  // turlar arası mola
+const RACE_TIMEOUT = 40;   // tur zaman aşımı (en yukarıdaki top elenir)
+const RACE_ROWS = (() => {
+  const rows = new Map();
+  for (const p of RACE.pegs) { if (!rows.has(p.y)) rows.set(p.y, []); rows.get(p.y).push(p.x); }
+  return [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([y, xs]) => ({ y, xs: xs.sort((a, b) => a - b) }));
+})();
+
+function placeRaceBalls(g) {
+  const order = shuffle(g.balls.filter((b) => b.alive));
+  let y = RACE.topY + 50;
+  let idx = 0;
+  while (idx < order.length) {
+    const t = (y - RACE.topY) / (RACE.funnelY - RACE.topY);
+    const half = RACE.halfW - (RACE.halfW - RACE.exitHalf) * t - 54;
+    const n = Math.max(1, Math.floor((half * 2) / 62));
+    for (let k = 0; k < n && idx < order.length; k++) {
+      const b = order[idx++];
+      b.x = -half + (k + 0.5) * ((half * 2) / n) + (Math.random() - 0.5) * 6;
+      b.y = y; b.vx = 0; b.vy = 0; b.f = Math.PI / 2;
+      b.fin = false; b.finOrder = 0; b.cd = 0; b.dashT = 0; b.inQ.length = 0;
+    }
+    y += 58;
+  }
+}
+
+function initRace(g) {
+  g.race = { round: 1, phase: 1, t: 0, finCount: 0 };
+  g.env.gate = 1;
+  placeRaceBalls(g);
+}
+
+function startRaceRound(room, g) {
+  g.race.round++;
+  g.race.phase = 1;
+  g.race.t = 0;
+  g.race.finCount = 0;
+  g.env.gate = 1;
+  placeRaceBalls(g);
+  g.ev.push({ k: 'roundStart', round: g.race.round });
+}
+
+function botRace(g, b) {
+  b.ix = 0; b.iy = 0; b.dashQ = false;
+  if (g.race.phase !== 2) return;
+  const row = RACE_ROWS.find((r) => r.y > b.y - 12);
+  if (row) {
+    const need = 2 * ballR(b) + 2 * RACE.pegR + 6;
+    let best = null;
+    let bd = Infinity;
+    for (let i = 0; i < row.xs.length - 1; i++) {
+      if (row.xs[i + 1] - row.xs[i] - 2 * RACE.pegR < need - 2 * RACE.pegR) continue;
+      const c = (row.xs[i] + row.xs[i + 1]) / 2;
+      const d = Math.abs(c - b.x);
+      if (d < bd) { bd = d; best = c; }
+    }
+    if (best !== null) {
+      const dx = best - b.x;
+      b.ix = Math.max(-1, Math.min(1, dx / 40)) * (0.5 + 0.5 * b.skill);
+      if (Math.abs(dx) < 24 && b.cd <= 0 && b.y < RACE.redY - 170 && Math.random() < 0.015 + 0.05 * b.skill) b.dashQ = true;
+    }
+  }
+  if (b.y > RACE.redY - 170 && b.cd <= 0) b.dashQ = true; // finiş sprinti
+}
+
+function stepRace(room, g) {
+  const env = g.env;
+  const R = g.race;
+  if (g.freeze > 0) {
+    g.freeze -= DT;
+    if (g.freeze <= 0) startRaceRound(room, g);
+    return;
+  }
+  advanceEnv(env);
+  R.t += DT;
+  if (R.phase === 1 && R.t >= RACE_GATE_T) { R.phase = 2; R.t = 0; env.gate = 0; g.ev.push({ k: 'gate' }); }
+
+  const run = g.balls.filter((b) => b.alive && !b.fin);
+  for (const b of run) {
+    if (b.bot) {
+      botRace(g, b);
+    } else {
+      const p = room.players.get(b.id);
+      if (!p || p.dcAt > 0) { b.ix = 0; b.iy = 0; b.dashQ = false; b.inQ.length = 0; }
+      else {
+        const i = b.inQ.shift();
+        if (i) { b.ix = i.x; b.iy = i.y; b.dashQ = i.d; b.ack = i.s; } else b.dashQ = false;
+      }
+    }
+    applyControl(b, b.ix, b.iy, b.dashQ, g.ev, env);
+    b.dashQ = false;
+  }
+
+  const sdt = DT / SUB;
+  for (let s = 0; s < SUB; s++) {
+    for (const b of run) moveSub(b, env, sdt, Math.random, g.ev);
+    for (let i = 0; i < run.length; i++) {
+      for (let j = i + 1; j < run.length; j++) collide(room, g, run[i], run[j]);
+    }
+  }
+
+  // kırmızı çizgiyi geçenler
+  for (const b of run) {
+    if (b.fin || b.y < RACE.redY) continue;
+    R.finCount++;
+    b.fin = true;
+    b.finOrder = R.finCount;
+    b.vx = 0; b.vy = 0;
+    b.y = RACE.redY + 46;
+    g.ev.push({ k: 'cross', id: b.id, order: b.finOrder, x: +b.x.toFixed(1) });
+  }
+
+  if (R.phase !== 2) return;
+  const unfinished = g.balls.filter((b) => b.alive && !b.fin);
+  if (unfinished.length > 1 && R.t < RACE_TIMEOUT) return;
+  // tur bitti: çizgiye en son varan (ya da zaman aşımında en yukarıdaki) elenir
+  let loser = unfinished[0];
+  for (const b of unfinished) if (b.y < loser.y) loser = b;
+  if (loser) { loser.lastHit = null; eliminate(room, loser, false); }
+  if (g.phase === 'play' && aliveBalls(g).length > 1) { g.freeze = RACE_BREAK_T; R.phase = 0; }
+}
+
 function collide(room, g, a, b) {
   let dx = b.x - a.x;
   let dy = b.y - a.y;
@@ -934,9 +1085,11 @@ function stepGame(room) {
     env.rot += map.rot * DT;
     g.balls.forEach((b) => { b.inQ.length = 0; });
     g.countdown -= DT;
-    if (g.countdown <= 0) { g.phase = 'play'; g.ev.push({ k: 'go' }); }
+    if (g.countdown <= 0) { g.phase = 'play'; g.ev.push({ k: 'go' }); if (g.race) { g.race.phase = 1; g.race.t = 0; g.env.gate = 1; } }
     return;
   }
+
+  if (room.mode === 'RACE') { stepRace(room, g); return; }
 
   if (g.freeze > 0) {
     g.freeze -= DT;
@@ -1003,10 +1156,16 @@ function sendSnapshot(room) {
     left: alive.length,
     sp: spec,
     ak,
-    b: alive.map((b) => [
-      b.id, r1(b.x), r1(b.y), Math.round(b.vx), Math.round(b.vy), r2(b.f),
-      r2(b.cd), r2(b.armorT), r2(b.ghostT), r2(b.superT), r2(b.dashT)
-    ]),
+    gt: g.env.gate ? 1 : 0,
+    rc: g.race ? [g.race.round, g.race.phase, g.race.finCount, alive.length, alive.filter((b) => !b.fin).length] : null,
+    b: alive.map((b) => {
+      const row = [
+        b.id, r1(b.x), r1(b.y), Math.round(b.vx), Math.round(b.vy), r2(b.f),
+        r2(b.cd), r2(b.armorT), r2(b.ghostT), r2(b.superT), r2(b.dashT)
+      ];
+      if (g.race) row.push(b.fin ? 1 : 0, b.finOrder || 0);
+      return row;
+    }),
     sb: g.ball ? [Math.round(g.ball.x * 10) / 10, Math.round(g.ball.y * 10) / 10, Math.round(g.ball.vx), Math.round(g.ball.vy)] : null,
     scr: g.ball ? [g.score.A, g.score.B] : null,
     tl: g.ball ? Math.ceil(g.timeLeft) : 0,
@@ -1035,6 +1194,7 @@ function endGame(room) {
   if (again && !startGame(room, room.lastBots, true)) return; // seri: sıradaki raunt
   room.series = { round: 0, wins: new Map() };
   io.to(room.code).emit('toLobby');
+  if (!room.manual) scheduleAuto(room, 10000);
   pushRoom(room);
 }
 
@@ -1207,6 +1367,20 @@ io.on('connection', (socket) => {
     if (MAP_CHOICES.has(key)) { room.map = key; pushRoom(room); }
   }));
 
+  socket.on('setManual', safe((v) => {
+    const room = curRoom();
+    if (!room || room.host !== pid || room.phase !== 'lobby') return;
+    room.manual = !!v;
+    if (room.manual) cancelAuto(room); else scheduleAuto(room, 10000);
+    pushRoom(room);
+  }));
+
+  socket.on('setSize', safe((key) => {
+    const room = curRoom();
+    if (!room || room.host !== pid || room.phase !== 'lobby') return;
+    if (SIZES.includes(key)) { room.size = key; pushRoom(room); }
+  }));
+
   socket.on('setDiff', safe((key) => {
     const room = curRoom();
     if (!room || room.host !== pid || room.phase !== 'lobby') return;
@@ -1229,15 +1403,12 @@ io.on('connection', (socket) => {
     if (rooms.size >= MAX_ROOMS) return cb({ ok: false, error: 'server_full' });
     const room = newRoom(pid);
     room.quick = true;
+    room.manual = false; // hızlı oyun: 10 sn sonra otomatik başlar; oda sahibi lobide "manuel"i açıp iptal edebilir
     rooms.set(room.code, room);
     enter(room, data);
     cb({ ok: true, id: pid, code: room.code, quick: true });
+    scheduleAuto(room, 10000);
     pushRoom(room);
-    setTimeout(() => {
-      if (rooms.get(room.code) !== room || room.phase !== 'lobby' || !room.quick) return;
-      const humans = [...room.players.values()].filter((p) => p.dcAt === 0).length;
-      startGame(room, Math.max(1, 8 - humans));
-    }, 8000);
   }));
 
   socket.on('setRounds', safe((n) => {

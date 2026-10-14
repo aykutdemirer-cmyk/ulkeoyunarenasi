@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#05050f">
-  <title>LAST ONE WINS! - Which country survives?</title>
+  <title>SON KALAN KAZANIR! - Hangi ülke hayatta kalacak?</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -16,8 +16,8 @@
   <main id="lobby" class="screen">
     <header class="lobby-head">
       <div class="lang-sw"><button data-lang="tr">TR</button><button data-lang="en">EN</button></div>
-      <h1>LAST ONE WINS!</h1>
-      <h2>Which country survives?</h2>
+      <h1 data-i18n="title">SON KALAN KAZANIR!</h1>
+      <h2 data-i18n="subtitle">Hangi ülke hayatta kalacak?</h2>
     </header>
 
     <section class="card">
@@ -65,12 +65,20 @@
         <button class="btn map-btn" data-mode="HILL" data-i18n="mode.HILL">KING OF THE HILL</button>
         <button class="btn map-btn" data-mode="SOCCER" data-i18n="mode.SOCCER">FUTBOL</button>
         <button class="btn map-btn" data-mode="COINS" data-i18n="mode.COINS">COIN RUSH</button>
+        <button class="btn map-btn" data-mode="RACE" data-i18n="mode.RACE">ELIMINATION RACE</button>
       </div>
       <p id="modeDesc" class="mapdesc"></p>
 
       <span class="lbl" data-i18n="map">HARİTA</span>
       <div id="mapGrid" class="map-grid"></div>
       <p id="mapDesc" class="mapdesc"></p>
+
+      <span class="lbl" data-i18n="arena_size">ARENA BOYUTU</span>
+      <div class="seg" id="sizeSeg">
+        <button class="btn seg-btn" data-size="small" data-i18n="size_small">KÜÇÜK</button>
+        <button class="btn seg-btn" data-size="standard" data-i18n="size_standard">STANDART</button>
+        <button class="btn seg-btn" data-size="large" data-i18n="size_large">BÜYÜK</button>
+      </div>
 
       <span class="lbl" data-i18n="bot_diff">BOT ZORLUĞU</span>
       <div class="seg" id="diffSeg">
@@ -100,9 +108,11 @@
       <div id="hostControls" class="hidden">
         <label class="lbl" for="botCount"><span data-i18n="bots">BOT SAYISI</span>: <b id="botVal">0</b></label>
         <input id="botCount" type="range" min="0" max="15" value="5">
+        <label class="chk"><input id="manualChk" type="checkbox" checked> <span data-i18n="manual_start">Oda Sahibi Manuel Başlatsın</span></label>
         <button id="startBtn" class="btn primary" data-i18n="start">OYUNU BAŞLAT</button>
       </div>
       <p id="waitMsg" class="msg hidden" data-i18n="wait_host">Oda sahibinin oyunu başlatması bekleniyor...</p>
+      <p id="autoMsg" class="msg auto-msg hidden"></p>
       <p id="roomMsg" class="msg"></p>
     </section>
 
@@ -133,12 +143,13 @@
       <canvas id="cv" width="1080" height="1920"></canvas>
 
       <div class="hud-top">
-        <div class="title">LAST ONE WINS!</div>
-        <div class="subtitle">Which country survives?</div>
+        <div class="title" data-i18n="title">SON KALAN KAZANIR!</div>
+        <div class="subtitle" data-i18n="subtitle">Hangi ülke hayatta kalacak?</div>
         <div class="left-badge"><span id="leftLbl">LEFT</span>: <span id="leftNum">0</span></div>
         <div id="specLine" class="spec-line">Spectating: 0</div>
       </div>
 
+      <div class="lang-sw game-lang"><button data-lang="tr">TR</button><button data-lang="en">EN</button></div>
       <button id="exitBtn" class="exit-btn" aria-label="Odadan ayrıl" data-i18n-aria="exit_aria">&#10005;</button>
       <button id="muteBtn" class="mute-btn" aria-label="Ses">&#9835;</button>
       <div id="pingTag" class="ping-tag"></div>
@@ -146,7 +157,6 @@
       <div id="emotes" class="emotes">
         <button data-i="0">GG</button><button data-i="1">LOL</button><button data-i="2">OOPS</button><button data-i="3">!!!</button>
       </div>
-      <div id="hint" class="hint-box hidden"></div>
       <div id="netLine" class="net-line hidden" data-i18n="net_lost">Bağlantı koptu - yeniden bağlanılıyor...</div>
       <div id="banner" class="banner hidden"></div>
       <div id="results" class="results hidden"></div>

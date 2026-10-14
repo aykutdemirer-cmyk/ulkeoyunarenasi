@@ -452,14 +452,6 @@ html.ingame, html.ingame body { overflow: hidden; height: 100%; overscroll-behav
 .feed .arrow { color: var(--pink); }
 @keyframes feedin { from { transform: translateX(-30%); opacity: 0; } to { transform: none; opacity: 1; } }
 
-.hint-box {
-  position: absolute; left: calc(var(--u) * 4); right: calc(var(--u) * 4); top: calc(var(--u) * 43);
-  text-align: center; padding: calc(var(--u) * 1.2); border-radius: calc(var(--u) * 3);
-  background: rgba(0, 0, 0, 0.7); border: calc(var(--u) * 0.4) solid var(--cyan);
-  font-size: calc(var(--u) * 3); font-weight: 800; line-height: 1.5; z-index: 4; pointer-events: none;
-}
-.hint-box b { color: var(--yellow); }
-
 .banner.over { top: 38%; }
 .results {
   position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 8); top: calc(var(--u) * 99);
@@ -496,3 +488,25 @@ html.ingame, html.ingame body { overflow: hidden; height: 100%; overscroll-behav
   background: #090916; border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; cursor: pointer;
 }
 .lang-sw button.on { color: #fff; border-color: var(--pink); background: rgba(255, 45, 133, 0.2); }
+
+/* ---- geri sayım hedef kartı ---- */
+.banner.card { top: 56%; padding: 0 calc(var(--u) * 5); z-index: 6; }
+.banner.card .cd { font-size: calc(var(--u) * 20); line-height: 1; }
+.banner .goal {
+  margin: calc(var(--u) * 2) auto 0; max-width: calc(var(--u) * 88); padding: calc(var(--u) * 2.4) calc(var(--u) * 3);
+  font-size: calc(var(--u) * 4.6); line-height: 1.25; color: #fff;
+  background: rgba(5, 5, 20, 0.88); border: calc(var(--u) * 0.6) solid var(--cyan); border-radius: calc(var(--u) * 3);
+  box-shadow: 0 0 calc(var(--u) * 4) rgba(34, 211, 238, 0.45); text-shadow: 0 calc(var(--u) * 0.4) 0 #000;
+}
+.banner .ctrl { margin-top: calc(var(--u) * 2); font-size: calc(var(--u) * 2.8); font-weight: 800; color: #d1d5db; text-shadow: 0 1px 0 #000; }
+.banner.card small { font-size: calc(var(--u) * 3.4); }
+html[lang="tr"] .title { font-size: calc(var(--u) * 7); white-space: nowrap; margin-top: calc(var(--u) * 5); }
+html[lang="tr"] .lobby-head h1 { font-size: clamp(26px, 7vw, 44px); white-space: nowrap; }
+.stage.race .emotes { display: none; }
+html[lang="tr"] .subtitle { font-size: calc(var(--u) * 5.2); }
+.lang-sw.game-lang { position: absolute; top: calc(var(--u) * 2); right: calc(var(--u) * 12); z-index: 5; gap: calc(var(--u) * 0.8); }
+.lang-sw.game-lang button { font-size: calc(var(--u) * 2.4); padding: calc(var(--u) * 1.2) calc(var(--u) * 1.8); }
+.lobby-head h1 { overflow-wrap: anywhere; }
+.chk { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-weight: 800; font-size: 13px; cursor: pointer; }
+.chk input { width: 18px; height: 18px; accent-color: var(--pink); }
+.auto-msg { color: var(--yellow); font-weight: 800; }

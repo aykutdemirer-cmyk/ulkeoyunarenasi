@@ -18,7 +18,9 @@ export const ARMOR_MASS = 6;
 export const BUMP_R = 64;
 export const ORB_R = 34;
 export const ORB_DIST = 190;
-export const MODES = ['FFA', 'TEAM', 'BOMB', 'HILL', 'SOCCER', 'COINS'];
+export const MODES = ['FFA', 'TEAM', 'BOMB', 'HILL', 'SOCCER', 'COINS', 'RACE'];
+export const SIZES = ['small', 'standard', 'large'];
+export const SIZE_K = { small: 0.8, standard: 1, large: 1.25 };
 export const COINS_TIME = 60;
 export const SOCCER_R = 20;
 export const SOCCER_TIME = 120;
@@ -28,6 +30,17 @@ export const HILL_R = 110;
 export const HILL_TIME = 60;
 export const PU_R = 24;
 export const PU_TYPES = ['armor', 'super', 'ghost'];
+
+/* ELIMINATION RACE (Plinko): dikey çivili tahta. Orijin = tuval merkezi; y aşağı doğru artar. */
+export const RACE = (() => {
+  const halfW = 420;
+  const pegs = [];
+  [-210, -130, -50, 30, 110, 190, 270, 350].forEach((y, i) => {
+    const off = i % 2 ? 50 : 0;
+    for (let x = -350 + off; x <= 350; x += 100) pegs.push({ x, y });
+  });
+  return { halfW, topY: -470, funnelY: -290, exitHalf: 130, redY: 470, pegR: 9, pegs, gravity: 1100, dashY: 520, bottomY: 560 };
+})();
 
 const deg = (d) => (d * Math.PI) / 180;
 
@@ -82,9 +95,14 @@ export const MAPS = {
 };
 export const MAP_KEYS = Object.keys(MAPS);
 
-/* Oyun moduna göre harita kopyası: BOMB/HILL'de halka kapalıdır */
-export function mapFor(key, mode) {
+/* Oyun moduna ve arena boyutuna göre harita kopyası: BOMB/HILL/COINS'te halka kapalıdır */
+export function mapFor(key, mode, size = 'standard') {
   const m = Object.assign({}, MAPS[key] || MAPS.classic);
+  const k = SIZE_K[size] || 1;
+  if (k !== 1) {
+    m.R0 *= k; m.Rmin *= k; m.pulseAmp *= k;
+    m.bumpers = m.bumpers.map((bm) => (bm.t === 'orbit' ? { ...bm, dist: bm.dist * k } : { ...bm, x: bm.x * k, y: bm.y * k }));
+  }
   if (mode === 'BOMB' || mode === 'HILL' || mode === 'COINS') { m.gapHalf = 0; m.gapMax = 0; m.grow = 0; }
   if (mode === 'SOCCER') {
     Object.assign(m, {
@@ -94,6 +112,13 @@ export function mapFor(key, mode) {
   }
   if (mode === 'HILL' || mode === 'COINS' || mode === 'SOCCER') m.lava = null;
   if (mode === 'HILL' || mode === 'COINS') { m.hole = 0; m.gravity = 0; m.shrink = 0; m.Rmin = m.R0; }
+  if (mode === 'RACE') {
+    Object.assign(m, {
+      key: 'race', name: 'ELIMINATION RACE', desc: 'Çivili yarış.', col: '#ff2d85', race: true, closed: true,
+      R0: 600, Rmin: 600, shrink: 0, rot: 0, gaps: 2, gapHalf: 0, gapMax: 0, grow: 0, pulseAmp: 0, hole: 0, gravity: 0,
+      swirl: 0, bumpers: [], lava: null, friction: 0.985, accMul: 0.9, maxSpeed: 1000
+    });
+  }
   return m;
 }
 
@@ -104,7 +129,7 @@ export function wrapAngle(a) {
 }
 
 export function newEnv(map, rot0) {
-  return { map, t: 0, rot: rot0, R: map.R0, gh: map.gapHalf };
+  return { map, t: 0, rot: rot0, R: map.R0, gh: map.gapHalf, gate: 0 };
 }
 
 export function advanceEnv(env) {
@@ -183,6 +208,27 @@ export function ballMass(b) {
   return b.dashT > 0 ? 1.8 : 1;
 }
 
+/* Yarış modu: yerçekimi + hafif yatay ivme; dash = hızlı aşağı dalış */
+function raceControl(b, ix, iy, dash, ev, m) {
+  const ixr = Math.max(-1, Math.min(1, ix));
+  b.vx += ixr * ACC * m.accMul * DT;
+  if (iy > 0) b.vy += Math.min(1, iy) * ACC * 0.5 * DT;
+  b.vy += RACE.gravity * DT;
+  if (dash && b.cd <= 0) {
+    b.vx += ixr * 140;
+    b.vy += RACE.dashY;
+    b.cd = DASH_CD;
+    b.dashT = DASH_TIME;
+    if (ev) ev.push({ k: 'dash', id: b.id, x: +b.x.toFixed(1), y: +b.y.toFixed(1), s: 1 });
+  }
+  b.vx *= m.friction;
+  b.vy *= m.friction;
+  const sp = Math.hypot(b.vx, b.vy);
+  const mx = m.maxSpeed || MAX_SPEED;
+  if (sp > mx) { b.vx = (b.vx / sp) * mx; b.vy = (b.vy / sp) * mx; }
+  b.f = sp > 40 ? Math.atan2(b.vy, b.vx) : Math.PI / 2;
+}
+
 /* Girdi + sürtünme (tick başına bir kez) */
 export function applyControl(b, ix, iy, dash, ev, env) {
   b.cd = Math.max(0, b.cd - DT);
@@ -191,9 +237,10 @@ export function applyControl(b, ix, iy, dash, ev, env) {
   b.ghostT = Math.max(0, b.ghostT - DT);
   b.superT = Math.max(0, b.superT - DT);
 
+  const m = env.map;
+  if (m.race) return raceControl(b, ix, iy, dash, ev, m);
   const il = Math.hypot(ix, iy);
   if (il > 1) { ix /= il; iy /= il; }
-  const m = env.map;
   const acc = ACC * m.accMul;
   b.vx += ix * acc * DT;
   b.vy += iy * acc * DT;
@@ -226,10 +273,65 @@ export function applyControl(b, ix, iy, dash, ev, env) {
 }
 
 /* Konum + bumper + halka. true döner: top arenadan çıktı (elenmeli) */
+function segCollide(b, r, ax, ay, bx, by, rest) {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const t = Math.max(0, Math.min(1, ((b.x - ax) * abx + (b.y - ay) * aby) / (abx * abx + aby * aby)));
+  const cx = ax + abx * t;
+  const cy = ay + aby * t;
+  let dx = b.x - cx;
+  let dy = b.y - cy;
+  let d = Math.hypot(dx, dy);
+  if (d >= r) return false;
+  if (d < 1e-6) { dx = -aby; dy = abx; d = Math.hypot(dx, dy) || 1; }
+  const nx = dx / d;
+  const ny = dy / d;
+  b.x = cx + nx * r;
+  b.y = cy + ny * r;
+  const vn = b.vx * nx + b.vy * ny;
+  if (vn < 0) { b.vx -= (1 + rest) * vn * nx; b.vy -= (1 + rest) * vn * ny; }
+  return true;
+}
+
+function raceMove(b, env, r, rnd, ev) {
+  const hw = RACE.halfW;
+  if (b.x < -hw + r) { b.x = -hw + r; if (b.vx < 0) b.vx *= -0.45; }
+  if (b.x > hw - r) { b.x = hw - r; if (b.vx > 0) b.vx *= -0.45; }
+  segCollide(b, r, -hw, RACE.topY, -RACE.exitHalf, RACE.funnelY, 0.35);
+  segCollide(b, r, hw, RACE.topY, RACE.exitHalf, RACE.funnelY, 0.35);
+  if (env.gate) segCollide(b, r, -RACE.exitHalf - 12, RACE.funnelY, RACE.exitHalf + 12, RACE.funnelY, 0.25);
+  const lim = r + RACE.pegR;
+  for (let i = 0; i < RACE.pegs.length; i++) {
+    const p = RACE.pegs[i];
+    const dx = b.x - p.x;
+    const dy = b.y - p.y;
+    if (dx > lim || dx < -lim || dy > lim || dy < -lim) continue;
+    const d = Math.hypot(dx, dy) || 0.001;
+    if (d >= lim) continue;
+    const nx = dx / d;
+    const ny = dy / d;
+    b.x = p.x + nx * lim;
+    b.y = p.y + ny * lim;
+    const vn = b.vx * nx + b.vy * ny;
+    if (vn < 0) {
+      const j = (rnd() - 0.5) * 0.3; // tepeye tam oturmayı engelleyen küçük sapma
+      const c = Math.cos(j);
+      const sn = Math.sin(j);
+      const rx = nx * c - ny * sn;
+      const ry = nx * sn + ny * c;
+      b.vx -= 1.6 * vn * rx;
+      b.vy -= 1.6 * vn * ry;
+      if (ev && -vn > 220) ev.push({ k: 'peg', x: +p.x.toFixed(0), y: +p.y.toFixed(0), s: +Math.min(1, -vn / 800).toFixed(2) });
+    }
+  }
+  return false;
+}
+
 export function moveSub(b, env, sdt, rnd, ev) {
   b.x += b.vx * sdt;
   b.y += b.vy * sdt;
   const r = ballR(b);
+  if (env.map.race) return raceMove(b, env, r, rnd, ev);
 
   if (env.map.bumpers.length) {
     const list = bumpers(env);
