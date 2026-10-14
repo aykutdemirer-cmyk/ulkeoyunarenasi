@@ -67,7 +67,7 @@ const DICT = {
     sound_on: 'SES: AÇIK', sound_off: 'SES: KAPALI', leave: 'AYRIL', mode: 'MOD', map: 'HARİTA', bot_diff: 'BOT ZORLUĞU',
     easy: 'KOLAY', normal: 'NORMAL', hard: 'ZOR', series: 'SERİ', series1: 'TEK MAÇ', series3: "İLK 2'YE", series5: "İLK 3'E",
     your_team: 'TAKIMIN', team_a: 'TAKIM A', team_b: 'TAKIM B', players: 'OYUNCULAR', bots: 'BOT SAYISI', start: 'OYUNU BAŞLAT',
-    wait_host: 'Oda sahibinin oyunu başlatması bekleniyor...',
+    wait_host: 'Liderin başlatması bekleniyor...',
     controls_hint: 'WASD / Yön tuşları: hareket • SPACE: dash • 1-4: tepki • Mobil: sol yarı joystick, sağ alt dash',
     side_map: 'HARİTA', side_mode: 'MOD', exit_aria: 'Odadan ayrıl', net_lost: 'Bağlantı koptu - yeniden bağlanılıyor...',
     random: 'RASTGELE', random_title: 'RASTGELE HARİTA', random_sub: 'Sürpriz harita.', difficulty: 'Zorluk: ', tip_lbl: 'İpucu: ',
