@@ -1,7 +1,23 @@
-/* Çok dilli arayüz (TR / EN). Marka başlığı ("LAST ONE WINS!") her dilde aynı kalır. */
+/* Çok dilli arayüz (TR / EN). Başlık ve alt başlık seçili dile göre değişir. */
 
 const DICT = {
   tr: {
+    title: 'SON KALAN KAZANIR!', subtitle: 'Hangi ülke hayatta kalacak?',
+    'mode.RACE': 'ELIMINATION RACE',
+    'modedesc.RACE': 'Plinko yarışı: çivilerin arasından aşağı kay! Kırmızı çizgiye en son varan her turda elenir.',
+    'modewin.RACE': 'Son kalan ülke', 'modetip.RACE': 'Boşluklara yönel, sona yaklaşınca DASH ile dal.',
+    'moderules.RACE': 'Kapı açılınca herkes yerçekimiyle düşer|Sol/sağ ile yönlen, DASH = hızlı dalış|Kırmızı çizgiye en son varan elenir|Tek kişi kalana kadar tur tekrarlanır|Harita sabit',
+    'goal.FFA': 'Düşmanları deliklerden dışarı it, ayakta kal!',
+    'goal.TEAM': 'Rakip takımı deliklerden dışarı it, takımınla ayakta kal!',
+    'goal.BOMB': 'Bomba sende patlarsa elenirsin! Başkasına çarparak bombayı devret!',
+    'goal.HILL': 'Tepede tek başına kal, puan topla!',
+    'goal.SOCCER': 'Topu rakip kaleye sok!',
+    'goal.COINS': 'En çok altını topla!',
+    'goal.RACE': 'Çivilerin arasından aşağı kay! Kırmızı çizgiye en son varan elenir!',
+    ctrl_touch: 'Sürükle: hareket · DASH: sağ alt düğme', ctrl_kb: 'WASD / OK: hareket · SPACE: dash',
+    manual_start: 'Oda Sahibi Manuel Başlatsın', auto_msg: 'Oyun {s} sn içinde otomatik başlıyor...', manual_msg: 'Oyun, oda sahibi OYUNU BAŞLAT\'a basınca başlar.',
+    arena_size: 'ARENA BOYUTU', size_small: 'KÜÇÜK', size_standard: 'STANDART', size_large: 'BÜYÜK',
+    race_round: 'TUR {n}', race_fin: 'Geçen: {f}/{t}', race_go: 'BIRAKIN!', race_cut: 'ELENDİ: {name}', race_line: 'ELEME ÇİZGİSİ', race_safe: 'GEÇTİ!',
     region: 'SUNUCU BÖLGESİ', name_lbl: 'İSMİN', name_ph: 'Oyuncu adı', pick_country: 'ÜLKENİ SEÇ', quick: 'HIZLI OYNA', create: 'ODA KUR',
     or_join: 'veya kodla katıl', join: 'KATIL', open_rooms: 'AÇIK ODALAR', room_code: 'ODA KODU', copy_title: 'Kopyala',
     sound_on: 'SES: AÇIK', sound_off: 'SES: KAPALI', leave: 'AYRIL', mode: 'MOD', map: 'HARİTA', bot_diff: 'BOT ZORLUĞU',
@@ -70,6 +86,22 @@ const DICT = {
     feed_out: 'elendi', eliminated: 'ELENENLER', goals: 'GOLLER', round_lbl: 'RAUNT'
   },
   en: {
+    title: 'LAST ONE WINS!', subtitle: 'Which country survives?',
+    'mode.RACE': 'ELIMINATION RACE',
+    'modedesc.RACE': 'Plinko race: slide down through the pegs! The last to reach the red line is eliminated every round.',
+    'modewin.RACE': 'Last country standing', 'modetip.RACE': 'Aim for the gaps and DASH when near the line.',
+    'moderules.RACE': 'When the gate opens everyone falls by gravity|Steer left/right, DASH = fast dive|Last across the red line is eliminated|Rounds repeat until one is left|Fixed map',
+    'goal.FFA': 'Push enemies out through the holes and stay alive!',
+    'goal.TEAM': 'Push the other team out through the holes and stay alive!',
+    'goal.BOMB': 'If the bomb explodes on you, you are out! Bump someone to pass it on!',
+    'goal.HILL': 'Stay alone on the hill and collect points!',
+    'goal.SOCCER': 'Put the ball in the opponent goal!',
+    'goal.COINS': 'Collect the most coins!',
+    'goal.RACE': 'Slide down through the pegs! The last to reach the red line is eliminated!',
+    ctrl_touch: 'Drag: move · DASH: bottom-right button', ctrl_kb: 'WASD / ARROWS: move · SPACE: dash',
+    manual_start: 'Host starts manually', auto_msg: 'Game starts automatically in {s} s...', manual_msg: 'The game starts when the host presses START GAME.',
+    arena_size: 'ARENA SIZE', size_small: 'SMALL', size_standard: 'STANDARD', size_large: 'LARGE',
+    race_round: 'ROUND {n}', race_fin: 'Across: {f}/{t}', race_go: 'DROP!', race_cut: 'ELIMINATED: {name}', race_line: 'ELIMINATION LINE', race_safe: 'SAFE!',
     region: 'SERVER REGION', name_lbl: 'YOUR NAME', name_ph: 'Player name', pick_country: 'PICK YOUR COUNTRY', quick: 'QUICK PLAY', create: 'CREATE ROOM',
     or_join: 'or join with a code', join: 'JOIN', open_rooms: 'OPEN ROOMS', room_code: 'ROOM CODE', copy_title: 'Copy',
     sound_on: 'SOUND: ON', sound_off: 'SOUND: OFF', leave: 'LEAVE', mode: 'MODE', map: 'MAP', bot_diff: 'BOT DIFFICULTY',
@@ -164,6 +196,7 @@ export const onLang = (fn) => listeners.push(fn);
 
 export function applyStatic() {
   document.documentElement.lang = lang;
+  document.title = t('title') + ' - ' + t('subtitle');
   document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
   document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); });
