@@ -2,6 +2,25 @@
 
 const DICT = {
   tr: {
+    ready: 'HAZIRIM', not_ready: 'HAZIR DEĞİLİM', ready_tag: 'HAZIR', kick: 'AT', kicked_msg: 'Oda lideri seni odadan çıkardı.',
+    leave_menu: 'Ayrıl / Menüye Dön', room_lbl: 'ODA', host_badge: '\u{1F451} Oda Lideri / Host', profile: 'PROFİL', wins_lbl: 'Zafer', score_lbl: 'Skor',
+    keys_short: 'hareket / dash', copy_link: '\u{1F517} Oda Linkini Kopyala', lb_title: 'SIRALAMA / LİDERLİK TABLOSU',
+    play_again: '\u{1F504} YENİDEN OYNA', to_menu: '\u{1F6AA} MENÜYE DÖN', game_over: 'MAÇ SONU', winner_lbl: '\u{1F3C6} KAZANAN!', team_winner: 'TAKIM {t} KAZANDI!',
+    your_rank: 'Sıralaman: {r}. / {n}', xp_gained: '+{x} XP Kazanıldı!', level_up: 'SEVİYE ATLADIN! Lv.{l}', xp_total: 'Toplam XP: {x} / {y}',
+    xp_cur: 'Toplam XP: {x} / {y}', again_wait: 'Lider oyunu başlatınca devam edersin.', draw_lbl: 'BERABERE',
+    'mode.RUSH': 'SURVIVOR RUSH', 'mode.RUSHT': 'SURVIVOR RUSH (TAKIM)',
+    'modedesc.RUSH': 'Soldan sağa engelli parkur! Geride kalıp kırmızı bariyere yakalanan elenir; bitişe ilk varan kazanır.',
+    'modedesc.RUSHT': 'Kırmızı vs Mavi parkur yarışı: takım üyelerinin bitiş sırasına göre puan toplanır.',
+    'modewin.RUSH': 'Bitişe ilk varan', 'modewin.RUSHT': 'Bitiş puanı en yüksek takım',
+    'modetip.RUSH': 'Hızlandırma bantlarını kullan, pervanelerin ritmini bekle.', 'modetip.RUSHT': 'Takımını bitişe taşı; geride kalma.',
+    'moderules.RUSH': 'Pist 6000 px, soldan sağa|Sol kenarın gerisinde kalan elenir|Pervane, tampon, hız bandı, dar geçit|W / SPACE = ileri atılma',
+    'moderules.RUSHT': 'Takım A (turkuaz) vs Takım B (turuncu)|Bitiş sırasına göre puan|Geride kalan elenir|Dar geçitlerde takım arkadaşını it',
+    'goal.RUSH': 'Engelleri aş, kırmızı bariyere yakalanma! Bitişe ilk varan kazanır!', 'goal.RUSHT': 'Takımınla bitişe koş! Bitiş sırası puan getirir, geride kalan elenir!',
+    rush_prog: 'İLERLEME %{p}', rush_finish: 'BİTİŞ', rush_wall: 'BARİYER',
+    'mapdesc.greenring': 'Zümrüt halka, tek dar kapı: herkes aynı çıkışa itişir.', 'mapdesc.arenashrinks': 'Altın halka, tek kapı; saniyede 1 px daralır.',
+    'maptips.greenring': 'Tek kapı: kalabalık orada toplanır|Kapıdan uzak dur, rakibi kapıya it|Yeni başlayanlar için bile zor!',
+    'maptips.arenashrinks': 'Halka maç boyunca yavaşça daralır|Tek dar kapı|İtişme gitgide kaotikleşir',
+    emote_title: 'HIZLI TEPKİ', keys_title: 'KONTROLLER', keys_move: 'hareket', keys_dash: 'dash', keys_emote: 'tepki', live_board: 'CANLI SIRALAMA', lb_out: 'elendi',
     title: 'SON KALAN KAZANIR!', subtitle: 'Hangi ülke hayatta kalacak?',
     'mode.RACE': 'ELIMINATION RACE',
     'modedesc.RACE': 'Plinko yarışı: çivilerin arasından aşağı kay! Kırmızı çizgiye en son varan her turda elenir.',
@@ -68,7 +87,7 @@ const DICT = {
     err_server_full: 'Sunucu şu an dolu, biraz sonra tekrar dene.', err_too_fast: 'Çok hızlı! Birkaç saniye bekle.',
     err_connect: 'Bağlanılamadı.', err_start: 'Başlatılamadı.',
     stats_line: 'Oyun: {games} · Galibiyet: {wins} · Eleme: {kills}', stats_first: 'İlk maçını oyna, istatistiklerin burada görünsün!',
-    quick_search: 'Rakip aranıyor... 8 sn içinde botlarla başlayacak.', enter_code: 'Oda kodunu gir.', copied: 'Davet bağlantısı kopyalandı: {code}',
+    quick_search: 'Odaya girildi. Oda lideri oyunu başlatır.', enter_code: 'Oda kodunu gir.', copied: 'Davet bağlantısı kopyalandı: {code}',
     no_rooms: 'Şu an açık oda yok. Bir tane kur!', st_lobby: 'LOBİ', st_full: 'DOLU', st_playing: 'OYNANIYOR', watch: 'İZLE', join_btn: 'KATIL',
     offline: ' (bağlantı yok)', reconnecting: 'Bağlantı koptu, yeniden bağlanılıyor...',
     dropped: 'Odadan düşüldün (bağlantı çok uzun süre koptu).', disconnected: 'Sunucu bağlantısı koptu.',
@@ -86,6 +105,25 @@ const DICT = {
     feed_out: 'elendi', eliminated: 'ELENENLER', goals: 'GOLLER', round_lbl: 'RAUNT'
   },
   en: {
+    ready: 'READY', not_ready: 'NOT READY', ready_tag: 'READY', kick: 'KICK', kicked_msg: 'The host removed you from the room.',
+    leave_menu: 'Leave / Back to Menu', room_lbl: 'ROOM', host_badge: '\u{1F451} Room Leader / Host', profile: 'PROFILE', wins_lbl: 'Wins', score_lbl: 'Score',
+    keys_short: 'move / dash', copy_link: '\u{1F517} Copy Room Link', lb_title: 'RANKING / LEADERBOARD',
+    play_again: '\u{1F504} PLAY AGAIN', to_menu: '\u{1F6AA} BACK TO MENU', game_over: 'GAME OVER', winner_lbl: '\u{1F3C6} WINNER!', team_winner: 'TEAM {t} WINS!',
+    your_rank: 'Your rank: {r} / {n}', xp_gained: '+{x} XP earned!', level_up: 'LEVEL UP! Lv.{l}', xp_total: 'Total XP: {x} / {y}',
+    xp_cur: 'Total XP: {x} / {y}', again_wait: 'You continue when the host starts the game.', draw_lbl: 'DRAW',
+    'mode.RUSH': 'SURVIVOR RUSH', 'mode.RUSHT': 'SURVIVOR RUSH (TEAM)',
+    'modedesc.RUSH': 'Left-to-right obstacle course! Fall behind and the red barrier eliminates you; first to the finish wins.',
+    'modedesc.RUSHT': 'Red vs Blue course race: team members score by finishing order.',
+    'modewin.RUSH': 'First to the finish', 'modewin.RUSHT': 'Team with the highest finish points',
+    'modetip.RUSH': 'Use boost pads and time the propellers.', 'modetip.RUSHT': 'Carry your team to the finish; do not fall behind.',
+    'moderules.RUSH': '6000 px track, left to right|Anyone behind the left edge is eliminated|Propellers, bumpers, boost pads, narrow gates|W / SPACE = dash forward',
+    'moderules.RUSHT': 'Team A (cyan) vs Team B (orange)|Points by finishing order|Stragglers are eliminated|Shove teammates through narrow gates',
+    'goal.RUSH': 'Beat the obstacles, avoid the red barrier! First to the finish wins!', 'goal.RUSHT': 'Run to the finish with your team! Finishing order scores, stragglers are out!',
+    rush_prog: 'PROGRESS {p}%', rush_finish: 'FINISH', rush_wall: 'BARRIER',
+    'mapdesc.greenring': 'An emerald ring with a single narrow gate: everyone fights for one exit.', 'mapdesc.arenashrinks': 'A golden ring with one gate; shrinks 1 px per second.',
+    'maptips.greenring': 'One gate: the crowd gathers there|Stay away from the gate, push rivals into it|Hard even for veterans!',
+    'maptips.arenashrinks': 'The ring slowly shrinks all match|A single narrow gate|The shoving gets more chaotic',
+    emote_title: 'QUICK EMOTES', keys_title: 'CONTROLS', keys_move: 'move', keys_dash: 'dash', keys_emote: 'emote', live_board: 'LIVE RANKING', lb_out: 'out',
     title: 'LAST ONE WINS!', subtitle: 'Which country survives?',
     'mode.RACE': 'ELIMINATION RACE',
     'modedesc.RACE': 'Plinko race: slide down through the pegs! The last to reach the red line is eliminated every round.',
@@ -152,7 +190,7 @@ const DICT = {
     err_server_full: 'The server is full right now, try again shortly.', err_too_fast: 'Too fast! Wait a few seconds.',
     err_connect: 'Could not connect.', err_start: 'Could not start.',
     stats_line: 'Games: {games} · Wins: {wins} · Eliminations: {kills}', stats_first: 'Play your first match to see your stats here!',
-    quick_search: 'Looking for opponents... starting with bots in 8 s.', enter_code: 'Enter a room code.', copied: 'Invite link copied: {code}',
+    quick_search: 'Joined a room. The host starts the game.', enter_code: 'Enter a room code.', copied: 'Invite link copied: {code}',
     no_rooms: 'No open rooms right now. Create one!', st_lobby: 'LOBBY', st_full: 'FULL', st_playing: 'IN GAME', watch: 'WATCH', join_btn: 'JOIN',
     offline: ' (offline)', reconnecting: 'Connection lost, reconnecting...',
     dropped: 'You were dropped from the room (disconnected too long).', disconnected: 'Server connection lost.',
@@ -194,9 +232,13 @@ export const tl = (key) => String(t(key)).split('|'); // '|' ile ayrılmış lis
 export const countryName = (code) => (COUNTRY_NAMES[lang] || COUNTRY_NAMES.en)[code] || code;
 export const onLang = (fn) => listeners.push(fn);
 
+export function refreshTitle() {
+  document.title = document.hidden ? '\u26A0\uFE0F Hey, come back! Your country needs you!' : 'PLAY BALL WAR \u2694\uFE0F | Last One Wins!';
+}
+
 export function applyStatic() {
   document.documentElement.lang = lang;
-  document.title = t('title') + ' - ' + t('subtitle');
+  refreshTitle();
   document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
   document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); });
