@@ -1,0 +1,19 @@
+# Render "Blueprint": GitHub deposunu bağlayınca oyunu otomatik kurar.
+# Kullanım: https://render.com/deploy?repo=https://github.com/aykutdemirer-cmyk/ulkeoyunarenasi
+services:
+  - type: web
+    name: playballwar
+    runtime: node
+    region: frankfurt
+    plan: starter            # ücretsiz denemek için panelden "free" seçilebilir (uyur, odalar silinir)
+    buildCommand: npm ci --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: REGION
+        value: eu

@@ -4,6 +4,17 @@ Bu belge, oyunu **gerçek oyunculara açmak** için önerilen mimariyi ve adım 
 Kodun tek doğru kaynağı GitHub'dır; sunucuya elle dosya kopyalamazsın, **main'e birleşen her değişiklik otomatik test edilir,
 paketlenir ve sunuculara güvenli şekilde dağıtılır**.
 
+## En kolay yol: Render (sunucu yönetimi yok)
+
+GitHub deposunu bağlayıp birkaç tıklamayla kurulur (`render.yaml` hazır):
+
+1. [render.com/deploy?repo=https://github.com/aykutdemirer-cmyk/ulkeoyunarenasi](https://render.com/deploy?repo=https://github.com/aykutdemirer-cmyk/ulkeoyunarenasi) adresini aç, GitHub ile giriş yap ve **Apply** de.
+2. Build bitince `https://playballwar-xxxx.onrender.com` adresi çalışır.
+3. Render panelinde servis > **Settings > Custom Domains**: `playballwar.com` ve `www.playballwar.com` ekle; Render'ın gösterdiği DNS kayıtlarını alan adı panelinde gir. HTTPS otomatik gelir.
+
+Notlar: `starter` plan ücretlidir (kaynaklara göre ~7 $/ay) ve sürekli açıktır. `free` plan 15 dk trafiksiz kalınca uyur ve odalar silinir;
+yalnızca deneme içindir. Gerçek trafik/bant genişliği kotasını Render'ın güncel fiyat sayfasından kontrol et.
+
 ## Önerilen mimari
 
 ```
