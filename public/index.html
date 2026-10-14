@@ -39,7 +39,7 @@
         <span class="lbl" data-i18n="region">SUNUCU BÖLGESİ</span>
         <div id="regionList" class="seg region-list"></div>
       </div>
-      <button id="quickBtn" class="btn primary" data-i18n="quick">HIZLI OYNA</button>
+      <button id="quickBtn" class="btn primary quick-glow" data-i18n="quick">&#9876;&#65039; HEMEN OYNA</button>
       <button id="createBtn" class="btn wide" data-i18n="create">ODA KUR</button>
       <div class="or" data-i18n="or_join">veya kodla katıl</div>
       <div class="join-row">
@@ -50,6 +50,12 @@
 
       <span class="lbl" data-i18n="open_rooms">AÇIK ODALAR</span>
       <ul id="roomList" class="rooms"></ul>
+    </section>
+
+    <section id="lbCard" class="card">
+      <span class="lbl" data-i18n="lb_top">&#127942; EN İYİLER (TOP 10)</span>
+      <ol id="lbList" class="lb-list"></ol>
+      <p id="lbEmpty" class="msg hidden" data-i18n="lb_empty">Henüz sıralama yok. İlk sen ol!</p>
     </section>
 
     <section id="roomCard" class="card hidden">
@@ -120,6 +126,7 @@
         <button id="readyBtn" class="btn primary" data-i18n="ready">HAZIRIM</button>
       </div>
       <p id="waitMsg" class="msg hidden" data-i18n="wait_host">Oda sahibinin oyunu başlatması bekleniyor...</p>
+      <p id="autoMsg" class="msg auto-msg hidden"></p>
       <p id="roomMsg" class="msg"></p>
     </section>
 
@@ -296,6 +303,7 @@
       <div class="xpbar big"><i id="mBar"></i></div>
       <div id="mXpTxt" class="m-xptxt"></div>
       <div class="m-btns">
+        <button id="shareBtn" class="btn hidden" data-i18n="share_win">&#128226; Zaferini Paylaş</button>
         <button id="againBtn" class="btn primary" data-i18n="play_again">&#128260; YENİDEN OYNA</button>
         <button id="menuBtn" class="btn" data-i18n="to_menu">&#128682; MENÜYE DÖN</button>
       </div>

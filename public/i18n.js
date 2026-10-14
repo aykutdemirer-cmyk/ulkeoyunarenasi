@@ -2,6 +2,10 @@
 
 const DICT = {
   tr: {
+    lb_top: '\u{1F3C6} EN İYİLER (TOP 10)', lb_empty: 'Henüz sıralama yok. İlk sen ol!', lb_wins: 'galibiyet',
+    share_win: '\u{1F4E2} Zaferini Paylaş', share_done: '\u2714 Panoya kopyalandı!',
+    share_text: 'PlayBallWar arenasında 1. oldum! \u{1F3C6} Gel ve bayrağını savun: https://playballwar.com',
+    auto_start: 'Maç {s} sn içinde otomatik başlıyor...',
     auth_btn: 'Giriş Yap / Profilim', auth_login: 'GİRİŞ YAP', auth_register: 'KAYIT OL', auth_create: 'HESAP OLUŞTUR', auth_guest: 'MİSAFİR OLARAK OYNA', auth_or: 'veya',
     auth_id: 'Kullanıcı adı veya e-posta', auth_pw: 'Şifre', auth_user: 'Kullanıcı adı', auth_email: 'E-posta',
     auth_err_bad_username: 'Kullanıcı adı 3-16 karakter olmalı (harf, rakam, _).', auth_err_bad_email: 'Geçerli bir e-posta gir.', auth_err_bad_password: 'Şifre 6-72 karakter olmalı.',
@@ -50,7 +54,7 @@ const DICT = {
     manual_start: 'Oda Sahibi Manuel Başlatsın', auto_msg: 'Oyun {s} sn içinde otomatik başlıyor...', manual_msg: 'Oyun, oda sahibi OYUNU BAŞLAT\'a basınca başlar.',
     arena_size: 'ARENA BOYUTU', size_small: 'KÜÇÜK', size_standard: 'STANDART', size_large: 'BÜYÜK',
     race_round: 'TUR {n}', race_fin: 'Geçen: {f}/{t}', race_go: 'BIRAKIN!', race_cut: 'ELENDİ: {name}', race_line: 'ELEME ÇİZGİSİ', race_safe: 'GEÇTİ!',
-    region: 'SUNUCU BÖLGESİ', name_lbl: 'İSMİN', name_ph: 'Oyuncu adı', pick_country: 'ÜLKENİ SEÇ', quick: 'HIZLI OYNA', create: 'ODA KUR',
+    region: 'SUNUCU BÖLGESİ', name_lbl: 'İSMİN', name_ph: 'Oyuncu adı', pick_country: 'ÜLKENİ SEÇ', quick: '\u2694\uFE0F HEMEN OYNA', create: 'ODA KUR',
     or_join: 'veya kodla katıl', join: 'KATIL', open_rooms: 'AÇIK ODALAR', room_code: 'ODA KODU', copy_title: 'Kopyala',
     sound_on: 'SES: AÇIK', sound_off: 'SES: KAPALI', leave: 'AYRIL', mode: 'MOD', map: 'HARİTA', bot_diff: 'BOT ZORLUĞU',
     easy: 'KOLAY', normal: 'NORMAL', hard: 'ZOR', series: 'SERİ', series1: 'TEK MAÇ', series3: "İLK 2'YE", series5: "İLK 3'E",
@@ -100,7 +104,7 @@ const DICT = {
     err_server_full: 'Sunucu şu an dolu, biraz sonra tekrar dene.', err_too_fast: 'Çok hızlı! Birkaç saniye bekle.',
     err_connect: 'Bağlanılamadı.', err_start: 'Başlatılamadı.',
     stats_line: 'Oyun: {games} · Galibiyet: {wins} · Eleme: {kills}', stats_first: 'İlk maçını oyna, istatistiklerin burada görünsün!',
-    quick_search: 'Odaya girildi. Oda lideri oyunu başlatır.', enter_code: 'Oda kodunu gir.', copied: 'Davet bağlantısı kopyalandı: {code}',
+    quick_search: 'Rakipler aranıyor, oda dolduruluyor...', enter_code: 'Oda kodunu gir.', copied: 'Davet bağlantısı kopyalandı: {code}',
     no_rooms: 'Şu an açık oda yok. Bir tane kur!', st_lobby: 'LOBİ', st_full: 'DOLU', st_playing: 'OYNANIYOR', watch: 'İZLE', join_btn: 'KATIL',
     offline: ' (bağlantı yok)', reconnecting: 'Bağlantı koptu, yeniden bağlanılıyor...',
     dropped: 'Odadan düşüldün (bağlantı çok uzun süre koptu).', disconnected: 'Sunucu bağlantısı koptu.',
@@ -118,6 +122,10 @@ const DICT = {
     feed_out: 'elendi', eliminated: 'ELENENLER', goals: 'GOLLER', round_lbl: 'RAUNT'
   },
   en: {
+    lb_top: '\u{1F3C6} TOP 10 PLAYERS', lb_empty: 'No ranking yet. Be the first!', lb_wins: 'wins',
+    share_win: '\u{1F4E2} Share Your Victory', share_done: '\u2714 Copied to clipboard!',
+    share_text: 'I came 1st in the PlayBallWar arena! \u{1F3C6} Come defend your flag: https://playballwar.com',
+    auto_start: 'Match starts automatically in {s} s...',
     auth_btn: 'Log in / My profile', auth_login: 'LOG IN', auth_register: 'SIGN UP', auth_create: 'CREATE ACCOUNT', auth_guest: 'PLAY AS GUEST', auth_or: 'or',
     auth_id: 'Username or e-mail', auth_pw: 'Password', auth_user: 'Username', auth_email: 'E-mail',
     auth_err_bad_username: 'Username must be 3-16 characters (letters, digits, _).', auth_err_bad_email: 'Enter a valid e-mail.', auth_err_bad_password: 'Password must be 6-72 characters.',
@@ -166,7 +174,7 @@ const DICT = {
     manual_start: 'Host starts manually', auto_msg: 'Game starts automatically in {s} s...', manual_msg: 'The game starts when the host presses START GAME.',
     arena_size: 'ARENA SIZE', size_small: 'SMALL', size_standard: 'STANDARD', size_large: 'LARGE',
     race_round: 'ROUND {n}', race_fin: 'Across: {f}/{t}', race_go: 'DROP!', race_cut: 'ELIMINATED: {name}', race_line: 'ELIMINATION LINE', race_safe: 'SAFE!',
-    region: 'SERVER REGION', name_lbl: 'YOUR NAME', name_ph: 'Player name', pick_country: 'PICK YOUR COUNTRY', quick: 'QUICK PLAY', create: 'CREATE ROOM',
+    region: 'SERVER REGION', name_lbl: 'YOUR NAME', name_ph: 'Player name', pick_country: 'PICK YOUR COUNTRY', quick: '\u2694\uFE0F QUICK PLAY', create: 'CREATE ROOM',
     or_join: 'or join with a code', join: 'JOIN', open_rooms: 'OPEN ROOMS', room_code: 'ROOM CODE', copy_title: 'Copy',
     sound_on: 'SOUND: ON', sound_off: 'SOUND: OFF', leave: 'LEAVE', mode: 'MODE', map: 'MAP', bot_diff: 'BOT DIFFICULTY',
     easy: 'EASY', normal: 'NORMAL', hard: 'HARD', series: 'SERIES', series1: 'SINGLE MATCH', series3: 'FIRST TO 2', series5: 'FIRST TO 3',
@@ -216,7 +224,7 @@ const DICT = {
     err_server_full: 'The server is full right now, try again shortly.', err_too_fast: 'Too fast! Wait a few seconds.',
     err_connect: 'Could not connect.', err_start: 'Could not start.',
     stats_line: 'Games: {games} · Wins: {wins} · Eliminations: {kills}', stats_first: 'Play your first match to see your stats here!',
-    quick_search: 'Joined a room. The host starts the game.', enter_code: 'Enter a room code.', copied: 'Invite link copied: {code}',
+    quick_search: 'Finding opponents, filling the room...', enter_code: 'Enter a room code.', copied: 'Invite link copied: {code}',
     no_rooms: 'No open rooms right now. Create one!', st_lobby: 'LOBBY', st_full: 'FULL', st_playing: 'IN GAME', watch: 'WATCH', join_btn: 'JOIN',
     offline: ' (offline)', reconnecting: 'Connection lost, reconnecting...',
     dropped: 'You were dropped from the room (disconnected too long).', disconnected: 'Server connection lost.',
