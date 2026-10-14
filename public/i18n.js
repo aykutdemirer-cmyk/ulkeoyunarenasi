@@ -2,7 +2,8 @@
 
 const DICT = {
   tr: {
-    how_title: '\u{1F3AE} NASIL OYNANIR', how_move: 'Hareket', how_dash: 'Dash (ivme)', how_emote: 'Hızlı tepki', how_goal: 'Diğer ülkeleri halkadan dışarı it, yarışta sona kalma!',
+    chat_title: '\u{1F4AC} LOBİ SOHBETİ', chat_ph: 'Mesaj yaz...', chat_send: 'GÖNDER', chat_empty: 'Henüz mesaj yok. Selam ver!', room_cap: 'Oda',
+    how_title: '\u{1F3AE} KONTROLLER', how_move: 'Hareket', how_dash: 'Dash (ivme)', how_emote: 'Hızlı tepki', how_goal: 'Diğer ülkeleri halkadan dışarı it, yarışta sona kalma!',
     quests_title: '\u26A1 GÜNLÜK GÖREVLER', quest_win1: 'Bugün 1 maç kazan', quest_kill3: '3 rakip düşür', quest_play3: '3 maç oyna',
     social_title: 'TOPLULUK', soon: 'Yakında',
     lb_top: '\u{1F3C6} EN İYİLER (TOP 10)', lb_empty: 'Henüz sıralama yok. İlk sen ol!', lb_wins: 'galibiyet',
@@ -125,7 +126,8 @@ const DICT = {
     feed_out: 'elendi', eliminated: 'ELENENLER', goals: 'GOLLER', round_lbl: 'RAUNT'
   },
   en: {
-    how_title: '\u{1F3AE} HOW TO PLAY', how_move: 'Move', how_dash: 'Dash (boost)', how_emote: 'Quick emotes', how_goal: 'Push the other countries out of the ring, never finish last in a race!',
+    chat_title: '\u{1F4AC} LOBBY CHAT', chat_ph: 'Type a message...', chat_send: 'SEND', chat_empty: 'No messages yet. Say hi!', room_cap: 'Room',
+    how_title: '\u{1F3AE} CONTROLS', how_move: 'Move', how_dash: 'Dash (boost)', how_emote: 'Quick emotes', how_goal: 'Push the other countries out of the ring, never finish last in a race!',
     quests_title: '\u26A1 DAILY QUESTS', quest_win1: 'Win 1 match today', quest_kill3: 'Knock out 3 rivals', quest_play3: 'Play 3 matches',
     social_title: 'COMMUNITY', soon: 'Coming soon',
     lb_top: '\u{1F3C6} TOP 10 PLAYERS', lb_empty: 'No ranking yet. Be the first!', lb_wins: 'wins',

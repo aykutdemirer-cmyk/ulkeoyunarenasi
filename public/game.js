@@ -603,6 +603,11 @@ renderMute();
 renderStats();
 $('joinBtn').addEventListener('click', () => joinCode($('codeInput').value));
 $('codeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinCode($('codeInput').value); });
+function joinRoomById(roomId) {
+  initAudio();
+  $('entryMsg').textContent = '';
+  socket.emit('join_room', { roomId, name: myName(), country: S.myCountry, lvl: myLvl() }, onEnter);
+}
 function joinCode(raw) {
   initAudio();
   const code = String(raw || '').trim();
@@ -660,26 +665,19 @@ function renderRooms(list) {
   }
   list.forEach((r) => {
     const li = document.createElement('li');
-    const info = document.createElement('div');
-    info.className = 'info';
-    info.innerHTML = '';
-    const b = document.createElement('b');
-    b.textContent = r.code;
-    const sm = document.createElement('small');
-    sm.textContent = `${r.host} · ${(MODE_INFO[r.mode] || [r.mode])[0]} · ${mapTitle(r.map)} · ${r.count}/${r.max}`;
-    info.appendChild(b);
-    info.appendChild(sm);
-    const st = document.createElement('span');
-    st.className = 'st ' + r.status;
+    li.className = 'room-card ' + r.status;
+    const code = document.createElement('b'); code.className = 'rc-code'; code.textContent = '#' + r.code;
+    const map = document.createElement('span'); map.className = 'rc-map'; map.textContent = (MODE_INFO[r.mode] || [r.mode])[0] + ' · ' + mapTitle(r.map);
+    const occ = document.createElement('span'); occ.className = 'rc-occ';
+    occ.textContent = (r.status === 'full' ? '\u{1F534} ' : '\u{1F7E2} ') + r.count + '/' + r.max + ' · ' + r.host;
+    const st = document.createElement('span'); st.className = 'st ' + r.status;
     st.textContent = r.status === 'lobby' ? T('st_lobby') : r.status === 'full' ? T('st_full') : T('st_playing');
     const btn = document.createElement('button');
-    btn.className = 'btn small';
+    btn.className = 'btn small primary';
     btn.textContent = r.status === 'playing' ? T('watch') : T('join_btn');
     btn.disabled = r.status === 'full';
-    btn.addEventListener('click', () => joinCode(r.code));
-    li.appendChild(info);
-    li.appendChild(st);
-    li.appendChild(btn);
+    btn.addEventListener('click', () => joinRoomById(r.code));
+    li.append(code, map, occ, st, btn);
     ul.appendChild(li);
   });
 }
@@ -2884,6 +2882,39 @@ Object.entries(SOCIAL).forEach(([id, url]) => {
   if (!a) return;
   if (url) a.href = url; else { a.classList.add('off'); a.title = T('soon'); a.addEventListener('click', (e) => e.preventDefault()); }
 });
+
+/* ------------------------------ Lobi sohbeti ------------------------------ */
+function addChat(m) {
+  const log = $('chatLog');
+  const empty = log.querySelector('.chat-empty');
+  if (empty) empty.remove();
+  const row = document.createElement('div');
+  row.className = 'chat-row';
+  if (m.country && CNAME[m.country]) { const im = document.createElement('img'); im.src = flagDataUrl(m.country); im.alt = ''; row.appendChild(im); }
+  const who = document.createElement('b'); who.textContent = m.sender;
+  const tx = document.createElement('span');
+  // sunucu HTML-escape eder; textContent ile gösterirken gerçek karakterlere çevir
+  const d = document.createElement('textarea'); d.innerHTML = m.text;
+  tx.textContent = d.value;
+  row.append(who, tx);
+  log.appendChild(row);
+  while (log.children.length > 60) log.firstChild.remove();
+  log.scrollTop = log.scrollHeight;
+}
+function resetChatEmpty() {
+  const log = $('chatLog');
+  if (!log.children.length) { const e = document.createElement('div'); e.className = 'chat-empty'; e.textContent = T('chat_empty'); log.appendChild(e); }
+}
+socket.on('lobby_chat', addChat);
+socket.on('lobby_chat_history', (list) => { $('chatLog').innerHTML = ''; (list || []).forEach(addChat); resetChatEmpty(); });
+$('chatForm').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const text = $('chatInput').value.trim().slice(0, 100);
+  if (!text) return;
+  socket.emit('lobby_chat', { text, user: myName(), country: S.myCountry });
+  $('chatInput').value = '';
+});
+resetChatEmpty();
 
 /* ------------------------------ Küresel liderlik tablosu ------------------------------ */
 var lbAt = 0;
