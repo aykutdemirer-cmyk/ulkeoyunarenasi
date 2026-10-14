@@ -654,3 +654,85 @@ html[lang="tr"] .title { font-size: calc(var(--u) * 7); white-space: nowrap; mar
 .lb-list .wn { font-size: 13px; color: #4ade80; min-width: 44px; text-align: right; }
 .m-btns { flex-wrap: wrap; }
 @media (max-width: 760px) { .lobby-head { padding-top: 40px; } }
+
+/* ============ LOBİ PORTALI ============ */
+.col { display: block; min-width: 0; }
+.col-left, .col-right { display: contents; }   /* mobilde kartlar tek sütunda akar */
+.col-mid { display: contents; }
+.key-cards { display: grid; gap: 8px; margin-top: 8px; }
+.key-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(9, 9, 22, 0.7); border: 1px solid var(--line); }
+.key-card b { font-size: 13px; color: var(--cyan); text-align: right; }
+.kbds { display: inline-flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+.kbds i { color: var(--muted); font-style: normal; margin: 0 3px; }
+.kbds kbd, .key-card kbd { font: inherit; font-size: 12px; font-weight: 900; color: #fff; background: #1a1a38; border: 1px solid #3b3b6b; border-bottom-width: 3px; border-radius: 7px; padding: 3px 7px; }
+.goal-text { margin: 12px 0 0; font-size: 14px; font-weight: 800; line-height: 1.5; color: var(--yellow); }
+.quests { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.quests li { padding: 9px 11px; border-radius: 12px; background: rgba(9, 9, 22, 0.7); border: 1px solid var(--line); }
+.quests li.done { border-color: #22c55e; background: rgba(34, 197, 94, 0.1); }
+.q-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 800; }
+.q-top b { color: var(--yellow); white-space: nowrap; }
+.q-bar { height: 7px; border-radius: 999px; background: #05050f; overflow: hidden; margin: 7px 0 3px; }
+.q-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--pink)); }
+.quests small { color: var(--muted); font-size: 11px; font-weight: 700; }
+.social-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-top: 8px; }
+.soc { text-align: center; text-decoration: none; font-size: 12px; font-weight: 900; color: #fff; padding: 10px 8px; border-radius: 12px; background: rgba(56, 189, 248, 0.14); border: 1px solid #38bdf8; }
+.soc:hover { background: rgba(56, 189, 248, 0.3); }
+.soc.off { opacity: 0.45; cursor: default; border-color: var(--line); background: rgba(9, 9, 22, 0.7); }
+#lobby.in-room .guide-card, #lobby.in-room .quest-card, #lobby.in-room .social-card, #lobby.in-room .lb-card, #lobby.in-room .rooms-card { display: none; }
+#lobby .card.rooms-card .rooms { max-height: 60vh; overflow-y: auto; }
+
+@media (min-width: 900px) {
+  #lobby:not(.in-room) {
+    max-width: none;
+    width: min(94vw, 1760px);
+    margin: 0 auto;
+    padding: 22px 0 40px;
+    display: grid;
+    grid-template-columns: minmax(270px, 0.85fr) minmax(520px, 1.4fr) minmax(300px, 1fr);
+    gap: 22px;
+    align-items: start;
+  }
+  #lobby:not(.in-room) .lobby-head { grid-column: 1 / -1; margin-bottom: 4px; }
+  #lobby:not(.in-room) .lobby-head h1 { font-size: clamp(46px, 5.2vw, 84px); letter-spacing: 3px; text-shadow: 0 0 26px rgba(255, 45, 133, 0.85), 0 0 60px rgba(255, 45, 133, 0.4); }
+  #lobby:not(.in-room) .lobby-head h2 { font-size: clamp(20px, 2vw, 32px); }
+  #lobby:not(.in-room) .col { display: flex; flex-direction: column; gap: 18px; }
+  #lobby:not(.in-room) .hint { grid-column: 1 / -1; }
+  #lobby:not(.in-room) .card {
+    background: rgba(14, 14, 31, 0.62);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 45, 133, 0.55);
+    box-shadow: 0 0 24px rgba(255, 45, 133, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+    border-radius: 20px;
+  }
+  #lobby:not(.in-room) .col-left .card, #lobby:not(.in-room) .col-right .card { border-color: rgba(56, 189, 248, 0.55); box-shadow: 0 0 24px rgba(56, 189, 248, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.03); }
+  #lobby:not(.in-room) .name-card { border-color: rgba(255, 45, 133, 0.7); }
+  #lobby:not(.in-room) #nameInput { font-size: 18px; padding: 14px 16px; border: 2px solid rgba(255, 45, 133, 0.7); box-shadow: 0 0 16px rgba(255, 45, 133, 0.3); }
+  #lobby:not(.in-room) .country-grid { grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  #lobby:not(.in-room) #quickBtn { font-size: clamp(22px, 1.9vw, 30px); padding: 22px 16px; letter-spacing: 4px; animation: qpulse 1.6s ease-in-out infinite; }
+  #lobby:not(.in-room) .lb-list li { padding: 9px 12px; font-size: 15px; }
+  #lobby:not(.in-room) .lb-list { max-height: none; }
+  #lobby:not(.in-room) .rooms-card .rooms { max-height: 46vh; }
+}
+@keyframes qpulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 18px rgba(255, 45, 133, 0.6), 0 0 0 0 rgba(255, 45, 133, 0.5); }
+  50% { transform: scale(1.025); box-shadow: 0 0 46px rgba(255, 45, 133, 1), 0 0 0 10px rgba(255, 45, 133, 0.1); }
+}
+
+/* mobil / tablet: tek sütun, yatay taşma yok */
+@media (max-width: 899px) {
+  #lobby { display: flex; flex-direction: column; overflow-x: hidden; }
+  #lobby > .lobby-head { order: 0; }
+  #lobby .name-card { order: 1; }
+  #lobby #entryCard, #lobby #roomCard { order: 2; }
+  #lobby .lb-card { order: 3; }
+  #lobby .rooms-card { order: 4; }
+  #lobby .guide-card { order: 5; }
+  #lobby .quest-card { order: 6; }
+  #lobby .social-card { order: 7; }
+  #lobby > .hint { order: 8; }
+  .guide-card .key-card { flex-wrap: wrap; }
+}
+@media (min-width: 900px) { #lobby:not(.in-room) .card { margin-bottom: 0; } }
+html, body { overflow-x: hidden; }
+html { min-height: 100%; background: #07040f; } body { min-height: 100vh; }

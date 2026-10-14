@@ -347,9 +347,9 @@ function endMatch(room, winners, res) {
     if (!au) continue;
     const isWin = winIds.has(b.id);
     const gain = b.xp + (isWin ? 250 : 0);
-    auth.award(au, { xp: gain, win: isWin });
+    const bonus = auth.award(au, { xp: gain, win: isWin, kills: b.kills });
     pl.lvl = auth.levelOf(au.xp);
-    sendTo(pl, 'acct', { ...auth.publicUser(au), gained: gain });
+    sendTo(pl, 'acct', { ...auth.publicUser(au), gained: gain + bonus });
   }
   const team = teamMode(room) && winners.length ? winners[0].team : null;
   const sr = room.series;

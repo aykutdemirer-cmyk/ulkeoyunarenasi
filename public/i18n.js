@@ -2,6 +2,9 @@
 
 const DICT = {
   tr: {
+    how_title: '\u{1F3AE} NASIL OYNANIR', how_move: 'Hareket', how_dash: 'Dash (ivme)', how_emote: 'Hızlı tepki', how_goal: 'Diğer ülkeleri halkadan dışarı it, yarışta sona kalma!',
+    quests_title: '\u26A1 GÜNLÜK GÖREVLER', quest_win1: 'Bugün 1 maç kazan', quest_kill3: '3 rakip düşür', quest_play3: '3 maç oyna',
+    social_title: 'TOPLULUK', soon: 'Yakında',
     lb_top: '\u{1F3C6} EN İYİLER (TOP 10)', lb_empty: 'Henüz sıralama yok. İlk sen ol!', lb_wins: 'galibiyet',
     share_win: '\u{1F4E2} Zaferini Paylaş', share_done: '\u2714 Panoya kopyalandı!',
     share_text: 'PlayBallWar arenasında 1. oldum! \u{1F3C6} Gel ve bayrağını savun: https://playballwar.com',
@@ -55,7 +58,7 @@ const DICT = {
     arena_size: 'ARENA BOYUTU', size_small: 'KÜÇÜK', size_standard: 'STANDART', size_large: 'BÜYÜK',
     race_round: 'TUR {n}', race_fin: 'Geçen: {f}/{t}', race_go: 'BIRAKIN!', race_cut: 'ELENDİ: {name}', race_line: 'ELEME ÇİZGİSİ', race_safe: 'GEÇTİ!',
     region: 'SUNUCU BÖLGESİ', name_lbl: 'İSMİN', name_ph: 'Oyuncu adı', pick_country: 'ÜLKENİ SEÇ', quick: '\u2694\uFE0F HEMEN OYNA', create: 'ODA KUR',
-    or_join: 'veya kodla katıl', join: 'KATIL', open_rooms: 'AÇIK ODALAR', room_code: 'ODA KODU', copy_title: 'Kopyala',
+    or_join: 'veya kodla katıl', join: 'KATIL', open_rooms: '\u{1F310} AÇIK ODALAR', room_code: 'ODA KODU', copy_title: 'Kopyala',
     sound_on: 'SES: AÇIK', sound_off: 'SES: KAPALI', leave: 'AYRIL', mode: 'MOD', map: 'HARİTA', bot_diff: 'BOT ZORLUĞU',
     easy: 'KOLAY', normal: 'NORMAL', hard: 'ZOR', series: 'SERİ', series1: 'TEK MAÇ', series3: "İLK 2'YE", series5: "İLK 3'E",
     your_team: 'TAKIMIN', team_a: 'TAKIM A', team_b: 'TAKIM B', players: 'OYUNCULAR', bots: 'BOT SAYISI', start: 'OYUNU BAŞLAT',
@@ -122,6 +125,9 @@ const DICT = {
     feed_out: 'elendi', eliminated: 'ELENENLER', goals: 'GOLLER', round_lbl: 'RAUNT'
   },
   en: {
+    how_title: '\u{1F3AE} HOW TO PLAY', how_move: 'Move', how_dash: 'Dash (boost)', how_emote: 'Quick emotes', how_goal: 'Push the other countries out of the ring, never finish last in a race!',
+    quests_title: '\u26A1 DAILY QUESTS', quest_win1: 'Win 1 match today', quest_kill3: 'Knock out 3 rivals', quest_play3: 'Play 3 matches',
+    social_title: 'COMMUNITY', soon: 'Coming soon',
     lb_top: '\u{1F3C6} TOP 10 PLAYERS', lb_empty: 'No ranking yet. Be the first!', lb_wins: 'wins',
     share_win: '\u{1F4E2} Share Your Victory', share_done: '\u2714 Copied to clipboard!',
     share_text: 'I came 1st in the PlayBallWar arena! \u{1F3C6} Come defend your flag: https://playballwar.com',
@@ -175,7 +181,7 @@ const DICT = {
     arena_size: 'ARENA SIZE', size_small: 'SMALL', size_standard: 'STANDARD', size_large: 'LARGE',
     race_round: 'ROUND {n}', race_fin: 'Across: {f}/{t}', race_go: 'DROP!', race_cut: 'ELIMINATED: {name}', race_line: 'ELIMINATION LINE', race_safe: 'SAFE!',
     region: 'SERVER REGION', name_lbl: 'YOUR NAME', name_ph: 'Player name', pick_country: 'PICK YOUR COUNTRY', quick: '\u2694\uFE0F QUICK PLAY', create: 'CREATE ROOM',
-    or_join: 'or join with a code', join: 'JOIN', open_rooms: 'OPEN ROOMS', room_code: 'ROOM CODE', copy_title: 'Copy',
+    or_join: 'or join with a code', join: 'JOIN', open_rooms: '\u{1F310} OPEN ROOMS', room_code: 'ROOM CODE', copy_title: 'Copy',
     sound_on: 'SOUND: ON', sound_off: 'SOUND: OFF', leave: 'LEAVE', mode: 'MODE', map: 'MAP', bot_diff: 'BOT DIFFICULTY',
     easy: 'EASY', normal: 'NORMAL', hard: 'HARD', series: 'SERIES', series1: 'SINGLE MATCH', series3: 'FIRST TO 2', series5: 'FIRST TO 3',
     your_team: 'YOUR TEAM', team_a: 'TEAM A', team_b: 'TEAM B', players: 'PLAYERS', bots: 'BOT COUNT', start: 'START GAME',
