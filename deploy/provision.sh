@@ -38,6 +38,16 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ufw fail2ban unattend
 systemctl enable --now fail2ban
 dpkg-reconfigure -f noninteractive unattended-upgrades || true
 
+MEM_MB="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)"
+if [ "$MEM_MB" -lt 1900 ] && [ -z "$(swapon --show --noheadings)" ]; then
+  echo "==> Düşük RAM ($MEM_MB MB): 2 GB takas (swap) dosyası ekleniyor (imaj derlemesi için)"
+  fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048
+  chmod 600 /swapfile
+  mkswap /swapfile >/dev/null
+  swapon /swapfile
+  grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "==> Docker"
   curl -fsSL https://get.docker.com | sh
