@@ -10,7 +10,7 @@
 # --region      bu sunucunun bölge kimliği (eu, us, ap ...)
 # --origins     socket bağlantısına izin verilen sayfa adresleri (virgülle)
 # --deploy-key  GitHub Actions'ın kullanacağı SSH PUBLIC anahtarı (yalnız deploy betiğini çalıştırabilir)
-# --regions     bölge listesi JSON dosyasının URL'i (isteğe bağlı; yoksa deploy/regions.example.json kopyalanır)
+# --regions     bölge listesi JSON dosyasının URL'i (isteğe bağlı; yoksa tek bölge: boş liste)
 # --harden-ssh  parola ile SSH girişini kapatır (ÖNCE anahtarla girişin çalıştığını doğrula!)
 set -euo pipefail
 
@@ -63,7 +63,7 @@ cd "$DIR"
 if [ -n "$REGIONS_URL" ]; then
   curl -fsSL "$REGIONS_URL" -o regions.json
 elif [ ! -f regions.json ]; then
-  cp deploy/regions.example.json regions.json
+  echo '[]' > regions.json   # tek bölge: bölge seçici gizli kalır. Çok bölge için DEPLOY.md'ye bak
 fi
 cat > .env <<ENV
 DOMAIN=$DOMAIN
