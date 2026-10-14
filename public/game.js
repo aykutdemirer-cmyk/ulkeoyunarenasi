@@ -1,6 +1,6 @@
 /* LAST ONE WINS! - istemci (ES module) */
 import {
-  DT, SUB, BALL_R, RUSH, isRush, ARMOR_R, DASH_CD, PU_R, MAPS, MAP_KEYS,
+  DT, SUB, BALL_R, RUSH, isRush, RUSH_TRACK_KEYS, RUSH_TRACK_NAMES, RUSH_TRACKS, rushTrack, laserOn, pistonLen, ARMOR_R, DASH_CD, PU_R, MAPS, MAP_KEYS,
   advanceEnv, applyControl, moveSub, RACE, gapInfo, bumpers, mapFor, HILL_R, lavaCycle, lavaAt, LAVA_SECTORS
 } from './shared.js';
 import { t as T, tl as TL, countryName, setLang, applyStatic, onLang, getLang, refreshTitle } from './i18n.js';
@@ -549,6 +549,21 @@ const mapBtns = {};
   mapBtns[k] = b;
 });
 
+const rushGrid = document.createElement('div');
+rushGrid.className = 'map-grid hidden';
+rushGrid.id = 'rushGrid';
+const rushBtns = {};
+RUSH_TRACK_KEYS.forEach((k) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn map-btn';
+  b.textContent = RUSH_TRACK_NAMES[k];
+  b.addEventListener('click', () => socket.emit('setMap', k));
+  rushGrid.appendChild(b);
+  rushBtns[k] = b;
+});
+mapGrid.parentNode.insertBefore(rushGrid, mapGrid.nextSibling);
+
 nameInput.addEventListener('change', () => {
   const n = myName();
   if (S.room) socket.emit('setProfile', { name: n });
@@ -620,7 +635,7 @@ $('startBtn').addEventListener('click', () => {
 
 function errText(code, fallbackKey) { return code ? T('err_' + code) : T(fallbackKey); }
 
-function mapTitle(k) { return k === 'random' ? T('random') : (MAPS[k] ? MAPS[k].name : k); }
+function mapTitle(k) { return k === 'random' ? T('random') : (MAPS[k] ? MAPS[k].name : (RUSH_TRACK_NAMES[k] || k)); }
 
 function renderRooms(list) {
   const ul = $('roomList');
@@ -675,11 +690,15 @@ function renderLobby() {
   $('modeSel').disabled = !isHost;
   $('modeDesc').textContent = (MODE_INFO[r.mode] || ['', ''])[1];
   Object.entries(mapBtns).forEach(([k, b]) => { b.classList.toggle('on', r.map === k); b.disabled = !isHost; });
-  const fixedMap = r.mode === 'SOCCER' || r.mode === 'RACE' || isRush(r.mode);
-  $('mapGrid').style.opacity = fixedMap ? '0.35' : '1';
+  const rush = isRush(r.mode);
+  const fixedMap = r.mode === 'SOCCER' || r.mode === 'RACE' || rush;
+  mapGrid.classList.toggle('hidden', rush);
+  rushGrid.classList.toggle('hidden', !rush);
+  Object.entries(rushBtns).forEach(([k, b]) => { b.classList.toggle('on', r.map === k); b.disabled = !isHost; });
+  $('mapGrid').style.opacity = r.mode === 'SOCCER' || r.mode === 'RACE' ? '0.35' : '1';
   document.querySelectorAll('#sizeSeg button').forEach((b) => { b.classList.toggle('on', b.dataset.size === r.size); b.disabled = !isHost; });
   $('sizeSeg').style.opacity = fixedMap ? '0.35' : '1';
-  $('mapDesc').textContent = fixedMap ? T('map_fixed_soccer') : r.map === 'random' ? T('map_random_desc') : (MAPS[r.map] ? T('mapdesc.' + r.map) : '');
+  $('mapDesc').textContent = rush ? T('mapdesc.' + (RUSH_TRACK_KEYS.includes(r.map) ? r.map : 'r1')) : fixedMap ? T('map_fixed_soccer') : r.map === 'random' ? T('map_random_desc') : (MAPS[r.map] ? T('mapdesc.' + r.map) : '');
   document.querySelectorAll('#diffSeg button').forEach((b) => { b.classList.toggle('on', b.dataset.diff === r.diff); b.disabled = !isHost; });
   document.querySelectorAll('#roundSeg button').forEach((b) => { b.classList.toggle('on', Number(b.dataset.r) === r.rounds); b.disabled = !isHost; });
   $('teamPick').classList.toggle('hidden', !team);
@@ -751,7 +770,7 @@ function updateSides() {
   if (side.shownMap !== mk) {
     side.shownMap = mk;
     const d = MAP_DETAIL[mk] || { stars: 0, tips: [] };
-    const m = MAPS[mk];
+    const m = MAPS[mk] || { name: RUSH_TRACK_NAMES[mk] || mk };
     fillSide(sideMapEl, mk === 'random' ? T('random_title') : m.name, mk === 'random' ? T('random_sub') : T('mapdesc.' + mk), d.tips);
     sideMapEl.querySelector('.side-stars').textContent = d.stars ? T('difficulty') + '★'.repeat(d.stars) + '☆'.repeat(4 - d.stars) : '';
   }
@@ -813,6 +832,23 @@ function drawMapPreview(g, key, time) {
     g.font = '900 220px "Segoe UI", Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = 'rgba(255,45,133,0.9)'; g.shadowColor = '#ff2d85'; g.shadowBlur = 30; g.fillText('?', 0, 12); g.shadowBlur = 0;
     pvRing(g, 360, time * 0.7, 0.3, 2, '#22d3ee', k);
+    return;
+  }
+  if (RUSH_TRACK_NAMES[key]) {
+    const tk = RUSH_TRACKS[key];
+    g.save();
+    g.scale(0.07, 0.07);
+    g.translate(-3000, 0);
+    g.strokeStyle = '#22d3ee'; g.lineWidth = 60;
+    g.beginPath(); g.moveTo(0, -RUSH.halfH); g.lineTo(6000, -RUSH.halfH); g.moveTo(0, RUSH.halfH); g.lineTo(6000, RUSH.halfH); g.stroke();
+    g.fillStyle = 'rgba(74,222,128,0.5)'; tk.pads.forEach((p) => { g.fillStyle = (p.dir || 1) > 0 ? 'rgba(74,222,128,0.5)' : 'rgba(248,113,113,0.6)'; g.fillRect(p.x - p.w / 2, -RUSH.halfH, p.w, RUSH.halfH * 2); });
+    g.fillStyle = '#a78bfa'; tk.bumps.forEach((b2) => { g.beginPath(); g.arc(b2.x, b2.y, b2.r, 0, Math.PI * 2); g.fill(); });
+    g.strokeStyle = '#fb923c'; g.lineWidth = 40; tk.props.forEach((p) => { const a = time * p.s; g.beginPath(); g.moveTo(p.x - Math.cos(a) * p.L, p.y - Math.sin(a) * p.L); g.lineTo(p.x + Math.cos(a) * p.L, p.y + Math.sin(a) * p.L); g.stroke(); });
+    g.strokeStyle = '#fb7185'; g.lineWidth = 36; tk.lasers.forEach((l) => { g.beginPath(); g.moveTo(l.x, l.y0); g.lineTo(l.x, l.y1); g.stroke(); });
+    g.strokeStyle = '#94a3b8'; g.lineWidth = 60; tk.pistons.forEach((p) => { g.beginPath(); g.moveTo(p.x, p.side * RUSH.halfH); g.lineTo(p.x, p.side * (RUSH.halfH - 260)); g.stroke(); });
+    g.strokeStyle = '#a78bfa'; g.lineWidth = 40; tk.funnels.forEach((f) => { [-1, 1].forEach((sg) => { g.beginPath(); g.moveTo(f.x - 300, sg * RUSH.halfH); g.lineTo(f.x, sg * f.gap / 2); g.lineTo(f.x + 140, sg * f.gap / 2); g.stroke(); }); });
+    tk.gates.forEach((q) => { g.beginPath(); g.moveTo(q.x, -RUSH.halfH); g.lineTo(q.x, q.gy - q.gap / 2); g.moveTo(q.x, q.gy + q.gap / 2); g.lineTo(q.x, RUSH.halfH); g.stroke(); });
+    g.restore();
     return;
   }
   const m = MAPS[key];
@@ -1829,6 +1865,7 @@ function drawRace(st, time) {
 
 function drawRush(st, time) {
   const hh = RUSH.halfH;
+  const TR = rushTrack(S.map);
   const x0 = S.camX - 640;
   const x1 = S.camX + 640;
   ctx.save();
@@ -1841,29 +1878,31 @@ function drawRush(st, time) {
   ctx.strokeStyle = 'rgba(120,120,255,0.12)'; ctx.lineWidth = 2;
   for (let x = Math.floor(x0 / 80) * 80; x < x1; x += 80) { ctx.beginPath(); ctx.moveTo(x, -hh); ctx.lineTo(x, hh); ctx.stroke(); }
   // hızlandırma bantları
-  for (const p of RUSH.pads) {
+  for (const p of TR.pads) {
     if (p.x + p.w / 2 < x0 || p.x - p.w / 2 > x1) continue;
-    ctx.fillStyle = 'rgba(74,222,128,0.18)';
+    const dir = p.dir || 1;
+    const pc = dir > 0 ? '#4ade80' : '#f87171';
+    ctx.fillStyle = dir > 0 ? 'rgba(74,222,128,0.18)' : 'rgba(248,113,113,0.2)';
     ctx.fillRect(p.x - p.w / 2, -hh, p.w, hh * 2);
-    ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.shadowColor = '#4ade80'; ctx.shadowBlur = 16;
-    const off = (time * 120) % 60;
+    ctx.strokeStyle = pc; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.shadowColor = pc; ctx.shadowBlur = 16;
+    const off = (time * 120 * dir + 600) % 60;
     for (let k = -1; k < 4; k++) {
       const cx = p.x - p.w / 2 + 20 + k * 60 + off;
       if (cx < p.x - p.w / 2 || cx > p.x + p.w / 2 - 20) continue;
-      for (const yy of [-240, -80, 80, 240]) { ctx.beginPath(); ctx.moveTo(cx, yy - 34); ctx.lineTo(cx + 24, yy); ctx.lineTo(cx, yy + 34); ctx.stroke(); }
+      for (const yy of [-240, -80, 80, 240]) { ctx.beginPath(); ctx.moveTo(cx, yy - 34); ctx.lineTo(cx + 24 * dir, yy); ctx.lineTo(cx, yy + 34); ctx.stroke(); }
     }
     ctx.shadowBlur = 0;
   }
   // dar geçit duvarları
   ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 28; ctx.lineCap = 'round';
   ctx.shadowColor = '#8b5cf6'; ctx.shadowBlur = 20;
-  for (const g of RUSH.gates) {
+  for (const g of TR.gates) {
     if (g.x < x0 - 40 || g.x > x1 + 40) continue;
     ctx.beginPath(); ctx.moveTo(g.x, -hh); ctx.lineTo(g.x, g.gy - g.gap / 2); ctx.moveTo(g.x, g.gy + g.gap / 2); ctx.lineTo(g.x, hh); ctx.stroke();
   }
   // tamponlar
-  for (const bm of RUSH.bumps) {
+  for (const bm of TR.bumps) {
     if (bm.x < x0 - 60 || bm.x > x1 + 60) continue;
     const g2 = ctx.createRadialGradient(bm.x - 10, bm.y - 10, 4, bm.x, bm.y, bm.r);
     g2.addColorStop(0, '#f5f3ff'); g2.addColorStop(0.5, '#8b5cf6'); g2.addColorStop(1, '#4c1d95');
@@ -1872,7 +1911,42 @@ function drawRush(st, time) {
   }
   // pervaneler
   ctx.lineWidth = 22; ctx.lineCap = 'round';
-  for (const p of RUSH.props) {
+  // huni boğazlar
+  ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 20; ctx.lineJoin = 'round'; ctx.shadowColor = '#8b5cf6'; ctx.shadowBlur = 20;
+  for (const f of TR.funnels) {
+    if (f.x < x0 - 200 || f.x - 300 > x1) continue;
+    const h = f.gap / 2;
+    for (const sg of [-1, 1]) { ctx.beginPath(); ctx.moveTo(f.x - 300, sg * hh); ctx.lineTo(f.x, sg * h); ctx.lineTo(f.x + 140, sg * h); ctx.stroke(); }
+  }
+  // pistonlar
+  for (const p of TR.pistons) {
+    if (p.x < x0 - 100 || p.x > x1 + 100) continue;
+    const len = pistonLen(p, st.t);
+    ctx.fillStyle = '#334155'; ctx.fillRect(p.x - p.w / 2 - 6, p.side * hh - (p.side > 0 ? 18 : 0), p.w + 12, 18);
+    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = p.w; ctx.lineCap = 'butt'; ctx.shadowColor = '#67e8f9'; ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.moveTo(p.x, p.side * hh); ctx.lineTo(p.x, p.side * (hh - len)); ctx.stroke();
+    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(p.x - p.w / 2 - 8, p.side * (hh - len) - (p.side > 0 ? 0 : 0) - 6, p.w + 16, 12);
+  }
+  // lazerler
+  for (const l of TR.lasers) {
+    if (l.x < x0 - 40 || l.x > x1 + 40) continue;
+    const on = laserOn(l, st.t);
+    const warn = !on && laserOn(l, st.t + 0.45);
+    ctx.lineCap = 'round';
+    if (on) {
+      ctx.strokeStyle = '#fb7185'; ctx.lineWidth = 16 + Math.sin(time * 40) * 3; ctx.shadowColor = '#f43f5e'; ctx.shadowBlur = 30;
+      ctx.beginPath(); ctx.moveTo(l.x, l.y0); ctx.lineTo(l.x, l.y1); ctx.stroke();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 5; ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.moveTo(l.x, l.y0); ctx.lineTo(l.x, l.y1); ctx.stroke();
+    } else {
+      ctx.strokeStyle = warn ? 'rgba(251,113,133,0.55)' : 'rgba(251,113,133,0.15)'; ctx.lineWidth = warn ? 8 : 4; ctx.setLineDash([14, 14]); ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.moveTo(l.x, l.y0); ctx.lineTo(l.x, l.y1); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.fillStyle = '#475569'; ctx.shadowBlur = 0;
+    ctx.fillRect(l.x - 18, l.y0 - 8, 36, 16); ctx.fillRect(l.x - 18, l.y1 - 8, 36, 16);
+  }
+  ctx.shadowBlur = 0;
+  for (const p of TR.props) {
     if (p.x < x0 - 240 || p.x > x1 + 240) continue;
     const a = p.s * st.t;
     const c = Math.cos(a) * p.L;
@@ -1926,12 +2000,33 @@ function drawRushHud(st, time) {
     const p = S.roster.get(b.id);
     if (!p) continue;
     const x = bx + Math.max(0, Math.min(1, b.x / RUSH.finishX)) * bw;
-    ctx.fillStyle = p.team === 'A' ? '#22d3ee' : p.team === 'B' ? '#fb923c' : '#facc15';
+    ctx.fillStyle = b.id === PID ? '#facc15' : p.team === 'A' ? '#22d3ee' : p.team === 'B' ? '#fb923c' : '#e5e7eb';
     ctx.strokeStyle = b.id === PID ? '#fff' : '#000'; ctx.lineWidth = b.id === PID ? 4 : 2;
-    ctx.beginPath(); ctx.arc(x, by, b.id === PID ? 13 : 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    if (b.id === PID) { ctx.shadowColor = '#facc15'; ctx.shadowBlur = 16; }
+    ctx.beginPath(); ctx.arc(x, by, b.id === PID ? 14 : 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
   }
   ctx.fillStyle = '#fff'; ctx.font = '900 26px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'right';
   ctx.fillText('\u{1F3C1}', bx + bw + 6, by - 26);
+  // lider göstergesi: lider ekranın sağında görünmüyorsa sağ kenarda ok
+  const ld = S.rushLead;
+  if (ld && ld.id !== PID) {
+    const sx = CX + ld.x - S.camX;
+    if (sx > CW - 30) {
+      const lp = S.roster.get(ld.id);
+      const pct = Math.min(100, Math.round((ld.x / RUSH.finishX) * 100));
+      const ty = Math.max(CY - RUSH.halfH + 40, Math.min(CY + RUSH.halfH - 40, CY + ld.y));
+      const txt = '\u{1F451} ' + T('rush_leader') + ' ' + (lp ? CNAME[lp.country] : '') + ' (%' + pct + ')';
+      ctx.font = '900 24px "Segoe UI", Arial, sans-serif';
+      const w = ctx.measureText(txt).width + 50;
+      ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.strokeStyle = '#facc15'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.roundRect(CW - w - 14, ty - 22, w, 44, 12); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath(); ctx.moveTo(CW - 8, ty); ctx.lineTo(CW - 30, ty - 14); ctx.lineTo(CW - 30, ty + 14); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+      ctx.fillText(txt, CW - w + 2, ty + 8);
+    }
+  }
   ctx.restore();
 }
 
@@ -2228,13 +2323,23 @@ function drawBall(b, time) {
   });
 
   if (mine) {
+    // altın parıltılı çember + SEN / YOU işareti
+    ctx.save();
+    ctx.shadowColor = '#facc15'; ctx.shadowBlur = 26 + Math.sin(time * 6) * 8;
+    ctx.strokeStyle = 'rgba(250,204,21,0.95)'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(0, 0, R + 19, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
     ctx.lineWidth = 4;
     ctx.strokeStyle = b.cd > 0 ? 'rgba(250,204,21,0.9)' : 'rgba(80,255,160,0.9)';
     ctx.beginPath();
     ctx.arc(0, 0, R + 11, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - Math.min(1, b.cd / DASH_CD)));
     ctx.stroke();
     ctx.fillStyle = '#facc15';
-    ctx.beginPath(); ctx.moveTo(0, -R - 16); ctx.lineTo(-8, -R - 30); ctx.lineTo(8, -R - 30); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, -R - 24); ctx.lineTo(-10, -R - 42); ctx.lineTo(10, -R - 42); ctx.closePath(); ctx.fill();
+    ctx.font = '900 20px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center';
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.strokeText(T('you_lbl'), 0, -R - 48);
+    ctx.fillStyle = '#facc15'; ctx.fillText(T('you_lbl'), 0, -R - 48);
   }
 
   ctx.font = '800 22px "Segoe UI", Arial, sans-serif';
@@ -2383,11 +2488,15 @@ function frame(now) {
   let me = null;
   if (st) {
     if (isRush(S.mode)) {
-      let lead = 0;
-      for (const bb of st.balls) if (!bb.fin && bb.x > lead) lead = bb.x;
-      if (!lead) for (const bb of st.balls) lead = Math.max(lead, bb.x);
-      const want = Math.max(st.R + 600, Math.min(RUSH.finishX + 200, lead - 260), 420);
-      S.camX += (want - S.camX) * Math.min(1, dt * 6);
+      // Kamera: yerel oyuncu hayattaysa onu (ekranın %35'inde) takip eder; elenince lideri izler
+      const meB = st.balls.find((bb) => bb.id === PID);
+      let lead = null;
+      for (const bb of st.balls) if (!bb.fin && (!lead || bb.x > lead.x)) lead = bb;
+      if (!lead) for (const bb of st.balls) if (!lead || bb.x > lead.x) lead = bb;
+      S.rushLead = lead;
+      const target = meB || lead;
+      const want = target ? target.x + (CX - CW * 0.35) : S.camX;
+      S.camX += (Math.max(300, Math.min(RUSH.finishX + 300, want)) - S.camX) * Math.min(1, dt * 10);
       ctx.save();
       ctx.translate(-S.camX, 0);
       camOn = true;

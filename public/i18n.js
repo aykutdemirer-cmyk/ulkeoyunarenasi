@@ -2,6 +2,9 @@
 
 const DICT = {
   tr: {
+    you_lbl: 'SEN', rush_leader: 'Lider',
+    'mapdesc.r1': 'Dönen pervaneler, fırlatan tamponlar ve yeşil hız bantları.', 'mapdesc.r2': 'Yanıp sönen lazerler ve topların tek tek sığdığı huni boğazlar.', 'mapdesc.r3': 'Aşırı kaygan buz, devasa pistonlar ve çift yönlü hız bantları.',
+    'maptips.r1': 'Pervanenin ritmini bekle|Yeşil bantlar seni hızlandırır|Tamponlar rastgele fırlatır', 'maptips.r2': 'Lazer yanıyorken geçme, geri püskürtür|Huni boğazda sıra bekle|Kesikli çizgi = lazer yakında açılır', 'maptips.r3': 'Zemin çok kaygan: erken fren yap|Kırmızı bant seni geri iter|Pistonlar kapanmadan geç',
     ready: 'HAZIRIM', not_ready: 'HAZIR DEĞİLİM', ready_tag: 'HAZIR', kick: 'AT', kicked_msg: 'Oda lideri seni odadan çıkardı.',
     leave_menu: 'Ayrıl / Menüye Dön', room_lbl: 'ODA', host_badge: '\u{1F451} Oda Lideri / Host', profile: 'PROFİL', wins_lbl: 'Zafer', score_lbl: 'Skor',
     keys_short: 'hareket / dash', copy_link: '\u{1F517} Oda Linkini Kopyala', lb_title: 'SIRALAMA / LİDERLİK TABLOSU',
@@ -105,6 +108,9 @@ const DICT = {
     feed_out: 'elendi', eliminated: 'ELENENLER', goals: 'GOLLER', round_lbl: 'RAUNT'
   },
   en: {
+    you_lbl: 'YOU', rush_leader: 'Leader',
+    'mapdesc.r1': 'Spinning propellers, launching bumpers and green boost pads.', 'mapdesc.r2': 'Blinking lasers and funnel chokepoints that fit one ball at a time.', 'mapdesc.r3': 'Ultra-slippery ice, huge pistons and two-way boost pads.',
+    'maptips.r1': 'Wait for the propeller rhythm|Green pads speed you up|Bumpers launch you randomly', 'maptips.r2': 'Never cross an active laser, it blasts you back|Queue up at the funnel|Dashed line = laser about to fire', 'maptips.r3': 'The floor is very slippery: brake early|Red pads push you backwards|Pass the pistons before they close',
     ready: 'READY', not_ready: 'NOT READY', ready_tag: 'READY', kick: 'KICK', kicked_msg: 'The host removed you from the room.',
     leave_menu: 'Leave / Back to Menu', room_lbl: 'ROOM', host_badge: '\u{1F451} Room Leader / Host', profile: 'PROFILE', wins_lbl: 'Wins', score_lbl: 'Score',
     keys_short: 'move / dash', copy_link: '\u{1F517} Copy Room Link', lb_title: 'RANKING / LEADERBOARD',

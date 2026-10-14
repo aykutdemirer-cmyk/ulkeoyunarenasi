@@ -44,20 +44,61 @@ export const RACE = (() => {
 })();
 
 /* SURVIVOR OBSTACLE RUSH: soldan sağa uzun koridor. Orijin = koridor orta çizgisi (y), x = pist boyunca */
-export const RUSH = {
-  len: 6000, halfH: 360, startX: 150, finishX: 5800, padAcc: 2200,
-  props: [
-    { x: 1000, y: 0, L: 200, s: 2.1 }, { x: 2300, y: -130, L: 165, s: -2.6 }, { x: 2300, y: 150, L: 165, s: 2.6 },
-    { x: 3700, y: 0, L: 215, s: 2.4 }, { x: 4900, y: -110, L: 170, s: -2.8 }, { x: 4900, y: 140, L: 170, s: 2.8 }
-  ],
-  pads: [{ x: 1500, w: 240 }, { x: 3000, w: 240 }, { x: 5200, w: 240 }],
-  bumps: [
-    { x: 1900, y: -190, r: 46 }, { x: 1900, y: 0, r: 46 }, { x: 1900, y: 190, r: 46 },
-    { x: 3400, y: -210, r: 46 }, { x: 3400, y: 210, r: 46 },
-    { x: 4400, y: -230, r: 46 }, { x: 4400, y: 0, r: 46 }, { x: 4400, y: 230, r: 46 }
-  ],
-  gates: [{ x: 2700, gy: -120, gap: 200 }, { x: 4100, gy: 130, gap: 190 }, { x: 5500, gy: 0, gap: 210 }]
+export const RUSH = { len: 6000, halfH: 360, startX: 150, finishX: 5800, padAcc: 2200 };
+
+/* 3 parkur: r1 Gauntlet, r2 Laser Runway, r3 Gravity Slide */
+export const RUSH_TRACK_KEYS = ['r1', 'r2', 'r3'];
+export const RUSH_TRACK_NAMES = { r1: 'SURVIVOR: THE GAUNTLET', r2: 'SURVIVOR: LASER RUNWAY', r3: 'SURVIVOR: GRAVITY SLIDE' };
+const NONE = { props: [], pads: [], bumps: [], gates: [], lasers: [], funnels: [], pistons: [] };
+export const RUSH_TRACKS = {
+  r1: {
+    ...NONE,
+    props: [
+      { x: 1000, y: 0, L: 200, s: 2.1 }, { x: 2300, y: -130, L: 165, s: -2.6 }, { x: 2300, y: 150, L: 165, s: 2.6 },
+      { x: 3700, y: 0, L: 215, s: 2.4 }, { x: 4900, y: -110, L: 170, s: -2.8 }, { x: 4900, y: 140, L: 170, s: 2.8 }
+    ],
+    pads: [{ x: 1500, w: 240, dir: 1 }, { x: 3000, w: 240, dir: 1 }, { x: 5200, w: 240, dir: 1 }],
+    bumps: [
+      { x: 1900, y: -190, r: 46 }, { x: 1900, y: 0, r: 46 }, { x: 1900, y: 190, r: 46 },
+      { x: 3400, y: -210, r: 46 }, { x: 3400, y: 210, r: 46 },
+      { x: 4400, y: -230, r: 46 }, { x: 4400, y: 0, r: 46 }, { x: 4400, y: 230, r: 46 }
+    ],
+    gates: [{ x: 2700, gy: -120, gap: 200 }, { x: 4100, gy: 130, gap: 190 }, { x: 5500, gy: 0, gap: 210 }]
+  },
+  r2: {
+    ...NONE,
+    // y0..y1: lazerin kapladığı aralık; per: periyot, on: açık kalma süresi, ph: faz
+    lasers: [
+      { x: 1000, y0: -360, y1: 360, per: 2.6, on: 1.0, ph: 0 },
+      { x: 2500, y0: -360, y1: 0, per: 2.2, on: 1.1, ph: 0 }, { x: 2700, y0: 0, y1: 360, per: 2.2, on: 1.1, ph: 1.1 },
+      { x: 4200, y0: -360, y1: 40, per: 2.4, on: 1.2, ph: 0 }, { x: 4400, y0: -40, y1: 360, per: 2.4, on: 1.2, ph: 1.2 }, { x: 4600, y0: -360, y1: 40, per: 2.4, on: 1.2, ph: 0.6 },
+      { x: 5500, y0: -360, y1: 360, per: 2.6, on: 1.0, ph: 1.3 }
+    ],
+    funnels: [{ x: 1800, gap: 92 }, { x: 3400, gap: 88 }, { x: 5000, gap: 84 }],
+    pads: [{ x: 1300, w: 220, dir: 1 }, { x: 3000, w: 220, dir: 1 }, { x: 3900, w: 220, dir: 1 }],
+    bumps: [{ x: 2100, y: -240, r: 40 }, { x: 2100, y: 240, r: 40 }]
+  },
+  r3: {
+    ...NONE,
+    pads: [
+      { x: 800, w: 220, dir: 1 }, { x: 1050, w: 220, dir: 1 },
+      { x: 2350, w: 220, dir: 1 }, { x: 2650, w: 260, dir: -1 }, { x: 2950, w: 220, dir: 1 },
+      { x: 4350, w: 220, dir: 1 }, { x: 4600, w: 220, dir: 1 }, { x: 5300, w: 220, dir: 1 }
+    ],
+    // side: -1 üst duvardan, 1 alt duvardan uzanır; maxLen: tam uzunluk; w: kalınlık
+    pistons: [
+      { x: 1600, side: -1, maxLen: 520, w: 70, per: 2.8, ph: 0 }, { x: 1800, side: 1, maxLen: 520, w: 70, per: 2.8, ph: 0.5 },
+      { x: 2000, side: -1, maxLen: 520, w: 70, per: 2.8, ph: 0.25 },
+      { x: 3300, side: -1, maxLen: 540, w: 80, per: 2.4, ph: 0 }, { x: 3300, side: 1, maxLen: 540, w: 80, per: 2.4, ph: 0.5 },
+      { x: 3600, side: -1, maxLen: 540, w: 80, per: 2.4, ph: 0.5 }, { x: 3600, side: 1, maxLen: 540, w: 80, per: 2.4, ph: 0 },
+      { x: 5000, side: -1, maxLen: 520, w: 70, per: 2.6, ph: 0.1 }, { x: 5000, side: 1, maxLen: 520, w: 70, per: 2.6, ph: 0.6 }
+    ],
+    bumps: [{ x: 3950, y: -150, r: 46 }, { x: 3950, y: 150, r: 46 }]
+  }
 };
+export const rushTrack = (map) => RUSH_TRACKS[(map && map.track) || 'r1'] || RUSH_TRACKS.r1;
+export const laserOn = (l, t) => ((t + l.ph) % l.per) < l.on;
+export const pistonLen = (p, t) => p.maxLen * (0.5 - 0.5 * Math.cos((Math.PI * 2 * (t / p.per + p.ph))));
 
 const deg = (d) => (d * Math.PI) / 180;
 
@@ -141,6 +182,10 @@ export function mapFor(key, mode, size = 'standard') {
       R0: 600, Rmin: 600, shrink: 0, rot: 0, gaps: 2, gapHalf: 0, gapMax: 0, grow: 0, pulseAmp: 0, hole: 0, gravity: 0,
       swirl: 0, bumpers: [], lava: null, friction: 0.985, accMul: 1, wallX0: -520, wallV: 100, wallA: 0.9
     });
+    m.track = RUSH_TRACK_KEYS.includes(key) ? key : 'r1';
+    m.name = RUSH_TRACK_NAMES[m.track];
+    if (m.track === 'r3') { m.friction = 0.99; m.accMul = 0.5; m.maxSpeed = 1100; m.col = '#67e8f9'; }
+    if (m.track === 'r2') m.col = '#f43f5e';
   }
   if (mode === 'RACE') {
     Object.assign(m, {
@@ -298,7 +343,8 @@ export function applyControl(b, ix, iy, dash, ev, env) {
   b.vx *= m.friction;
   b.vy *= m.friction;
   const sp = Math.hypot(b.vx, b.vy);
-  if (sp > MAX_SPEED) { b.vx = (b.vx / sp) * MAX_SPEED; b.vy = (b.vy / sp) * MAX_SPEED; }
+  const msp = m.maxSpeed || MAX_SPEED;
+  if (sp > msp) { b.vx = (b.vx / sp) * msp; b.vy = (b.vy / sp) * msp; }
   if (il > 0.1) b.f = Math.atan2(iy, ix);
   else if (sp > 30) b.f = Math.atan2(b.vy, b.vx);
 }
@@ -307,7 +353,8 @@ export function applyControl(b, ix, iy, dash, ev, env) {
 function segCollide(b, r, ax, ay, bx, by, rest) {
   const abx = bx - ax;
   const aby = by - ay;
-  const t = Math.max(0, Math.min(1, ((b.x - ax) * abx + (b.y - ay) * aby) / (abx * abx + aby * aby)));
+  const l2 = abx * abx + aby * aby;
+  const t = l2 < 1e-9 ? 0 : Math.max(0, Math.min(1, ((b.x - ax) * abx + (b.y - ay) * aby) / l2));
   const cx = ax + abx * t;
   const cy = ay + aby * t;
   let dx = b.x - cx;
@@ -360,12 +407,13 @@ function raceMove(b, env, r, rnd, ev) {
 
 function rushMove(b, env, r, rnd, ev) {
   const hh = RUSH.halfH;
+  const T = rushTrack(env.map);
   if (b.y < -hh + r) { b.y = -hh + r; if (b.vy < 0) b.vy *= -0.5; }
   if (b.y > hh - r) { b.y = hh - r; if (b.vy > 0) b.vy *= -0.5; }
-  // hızlandırma bantları
-  for (const p of RUSH.pads) if (b.x > p.x - p.w / 2 && b.x < p.x + p.w / 2) b.vx += RUSH.padAcc * (DT / SUB);
+  // hızlandırma bantları (dir: +1 ileri, -1 geri)
+  for (const p of T.pads) if (b.x > p.x - p.w / 2 && b.x < p.x + p.w / 2) b.vx += (p.dir || 1) * RUSH.padAcc * (DT / SUB);
   // dönen pervaneler
-  for (const p of RUSH.props) {
+  for (const p of T.props) {
     if (b.x < p.x - p.L - 60 || b.x > p.x + p.L + 60) continue;
     const a = p.s * env.t;
     const c = Math.cos(a) * p.L;
@@ -377,8 +425,29 @@ function rushMove(b, env, r, rnd, ev) {
       if (ev) ev.push({ k: 'rushHit', x: +b.x.toFixed(0), y: +b.y.toFixed(0) });
     }
   }
+  // lazerler: aktifken çarpanı sertçe geri püskürtür
+  for (const l of T.lasers) {
+    if (b.x < l.x - r - 14 || b.x > l.x + r + 14 || b.y < l.y0 - r || b.y > l.y1 + r) continue;
+    if (!laserOn(l, env.t)) continue;
+    const side = b.x >= l.x ? 1 : -1;
+    b.x = l.x + side * (r + 16);
+    b.vx = side * 700 - 650;
+    b.vy += (rnd() - 0.5) * 300;
+    if (ev) ev.push({ k: 'rushHit', x: +l.x.toFixed(0), y: +b.y.toFixed(0) });
+  }
+  // pistonlar
+  for (const p of T.pistons) {
+    if (b.x < p.x - p.w - r - 20 || b.x > p.x + p.w + r + 20) continue;
+    const len = pistonLen(p, env.t);
+    const y0 = p.side * hh;
+    const y1 = p.side * (hh - len);
+    if (segCollide(b, r + p.w / 2, p.x, y0, p.x, y1, 1.1)) {
+      b.vy += p.side * -120;
+      if (ev && len > 20) ev.push({ k: 'rushHit', x: +p.x.toFixed(0), y: +y1.toFixed(0) });
+    }
+  }
   // tamponlar
-  for (const bm of RUSH.bumps) {
+  for (const bm of T.bumps) {
     const dx = b.x - bm.x;
     const dy = b.y - bm.y;
     if (dx > 140 || dx < -140) continue;
@@ -396,10 +465,19 @@ function rushMove(b, env, r, rnd, ev) {
     }
   }
   // dar geçitler
-  for (const g of RUSH.gates) {
+  for (const g of T.gates) {
     if (b.x < g.x - 60 || b.x > g.x + 60) continue;
     segCollide(b, r + 14, g.x, -hh, g.x, g.gy - g.gap / 2, 0.4);
     segCollide(b, r + 14, g.x, g.gy + g.gap / 2, g.x, hh, 0.4);
+  }
+  // huni şeklinde dar boğazlar: topların tek tek sığdığı boyun
+  for (const f of T.funnels) {
+    if (b.x < f.x - 330 || b.x > f.x + 170) continue;
+    const h = f.gap / 2;
+    for (const sg of [-1, 1]) {
+      segCollide(b, r + 4, f.x - 300, sg * hh, f.x, sg * h, 0.3);
+      segCollide(b, r + 4, f.x, sg * h, f.x + 140, sg * h, 0.3);
+    }
   }
   return false;
 }
