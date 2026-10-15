@@ -1282,6 +1282,16 @@ function onSnap(s) {
     if (k > ck) { ck = k; cid = s.b[i][0]; tie = false; } else if (k === ck && k > 0) tie = true;
   }
   SS.crownId = ck >= 1 && !tie && S.roster.size > 2 && !isRush(S.mode) && S.mode !== 'RACE' ? cid : null;
+  if (!SS.crownId && ck < 1 && S.roster.size > 2 && !isRush(S.mode) && S.mode !== 'RACE') {
+    // henüz nakavt yoksa en yüksek seviyeli (tek) top şampiyon tacını taşır
+    let bl = 0; let bid = null; let bt = false;
+    for (let i = 0; i < s.b.length; i++) {
+      const p = S.roster.get(s.b[i][0]);
+      const l = p ? lvlOf(p) : 0;
+      if (l > bl) { bl = l; bid = s.b[i][0]; bt = false; } else if (l === bl) bt = true;
+    }
+    if (bl >= 2 && !bt) SS.crownId = bid;
+  }
   if (s.sd && !S.sd) {
     S.sd = true;
     $('stage').classList.add('sd');
@@ -2694,6 +2704,14 @@ function drawBall(b, time) {
     ctx.beginPath(); ctx.moveTo(0, -R - 24 - cu); ctx.lineTo(-10, -R - 42 - cu); ctx.lineTo(10, -R - 42 - cu); ctx.closePath(); ctx.fill();
     const ys = textSprite(T('you_lbl'), '900 20px "Segoe UI", Arial, sans-serif', '#facc15');
     ctx.drawImage(ys, -ys.width / 2, -R - 48 - cu - ys.baseY);
+  }
+  if (lvlOf(p) >= 5) {
+    // seviye rozeti: 5+ için küçük yıldız (sağ üst)
+    const bx = R * 0.78; const by = -R * 0.78;
+    ctx.fillStyle = '#facc15'; ctx.strokeStyle = '#a16207'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5; const rr = i % 2 ? 5 : 11; ctx.lineTo(bx + Math.cos(a) * rr, by + Math.sin(a) * rr); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
   }
   if (crown) {
     // altın taç: 5 sivri uçlu yol çizimi
