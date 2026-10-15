@@ -8,7 +8,7 @@ import { Server } from 'socket.io';
 import {
   DT, SUB, ARMOR_T, GHOST_T, SUPER_T, PU_R, PU_TYPES, MODES, SIZES, MUTATORS, SKINS, RACE, RUSH, isRush, RUSH_TRACK_KEYS, RUSH_TRACK_NAMES, rushTrack, laserOn, pistonLen, BOMB_TIME, HILL_R, HILL_TIME,
   SOCCER_R, SOCCER_TIME, GOAL_TARGET, COINS_TIME, gapInfo as gapInfoSoccer, lavaCycle, lavaAt, LAVA_SECTORS,
-  MAPS, MAP_KEYS, mapFor, bumpers, newEnv, advanceEnv, gapInfo, ballR, ballMass,
+  MAPS, MAP_KEYS, mapFor, bumpers, newEnv, advanceEnv, gapInfo, ballR, ballMass, BIG_MAX,
   applyControl, moveSub
 } from './public/shared.js';
 
@@ -294,7 +294,7 @@ function startGame(room, botCount, continuing = false) {
     return {
       id: e.id, name: e.name, country: e.country, team: e.team, bot: e.bot,
       x: Math.cos(ang) * spawnR, y: Math.sin(ang) * spawnR, vx: 0, vy: 0, f: ang + Math.PI, fin: false, finOrder: 0, dmg: 0, xp: 0, xpT: -9,
-      cd: 0, dashT: 0, armorT: 0, ghostT: 0, superT: 0,
+      cd: 0, dashT: 0, armorT: 0, ghostT: 0, superT: 0, big: 0, bigT: 0, ag: 0,
       ix: 0, iy: 0, dashQ: false, inQ: [], ack: 0,
       alive: true, rank: 0, target: null, retarget: 0, noise: 0, kills: 0, lastHit: null, by: null,
       skill: dr[0] + Math.random() * (dr[1] - dr[0])
@@ -335,7 +335,43 @@ function startGame(room, botCount, continuing = false) {
   return null;
 }
 
+/* Geri dönüş: küçük/hafif toplar çevik; son 2-3 kişi kalınca Ani Ölüm (alan hızla daralır) */
+function comebackTick(room, g, env, alive) {
+  let mx = 0;
+  for (const b of alive) {
+    if (b.big > 0) { b.bigT -= DT; if (b.bigT <= 0) { b.big--; b.bigT = 8; } }
+    if (b.big > mx) mx = b.big;
+  }
+  for (const b of alive) b.ag = (b.big < mx || b.dmg >= 70) ? 1 : 0;
+  if (!env.sd && !g.ball && (room.mode === 'FFA' || room.mode === 'TEAM') && g.balls.length >= 4 && alive.length <= 3 && alive.length >= 2) {
+    env.sd = true;
+    g.ev.push({ k: 'sd' });
+  }
+}
+
 function aliveBalls(g) { return g.balls.filter((b) => b.alive); }
+
+/* Günün en güçlü ülkesi: UTC günü başına ülke → puan (kalıcı) */
+const DAY_FILE = path.join(auth.DATA_DIR, 'daily_countries.json');
+let DAY = { day: '', pts: {} };
+try { const d = JSON.parse(fs.readFileSync(DAY_FILE, 'utf8')); if (d && d.pts) DAY = d; } catch (e) { /* ilk çalışma */ }
+const dayKey = () => new Date().toISOString().slice(0, 10);
+let dayDirty = false;
+function addCountryPts(code, pts) {
+  if (!code || !(pts > 0)) return;
+  if (DAY.day !== dayKey()) DAY = { day: dayKey(), pts: {} };
+  DAY.pts[code] = (DAY.pts[code] || 0) + Math.round(pts);
+  dayDirty = true;
+}
+setInterval(() => {
+  if (!dayDirty) return;
+  dayDirty = false;
+  fs.writeFile(DAY_FILE, JSON.stringify(DAY), () => {});
+}, 15000).unref();
+function countryDay() {
+  if (DAY.day !== dayKey()) DAY = { day: dayKey(), pts: {} };
+  return Object.entries(DAY.pts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([c, p]) => ({ code: c, pts: p }));
+}
 
 function endMatch(room, winners, res) {
   const g = room.game;
@@ -346,6 +382,7 @@ function endMatch(room, winners, res) {
   const winIds = new Set(winners.map((w) => w.id));
   for (const b of g.balls) {
     if (b.bot) continue;
+    addCountryPts(b.country, b.xp + (winIds.has(b.id) ? 250 : 0) + 20);
     const pl = room.players.get(b.id);
     const au = pl && pl.uid ? auth.getUser(pl.uid) : null;
     if (!au) continue;
@@ -497,6 +534,13 @@ function finishByScore(room, g) {
   endMatch(room, winners, results(g));
 }
 
+/* Kütle büyütme: her nakavt / power-up bir kademe (+%10 yarıçap, daha ağır); süre dolunca yavaşça küçülür */
+function growBall(b) {
+  if (!b || !b.alive) return;
+  b.big = Math.min(BIG_MAX, (b.big || 0) + 1);
+  b.bigT = 14;
+}
+
 function eliminate(room, b, quit) {
   const g = room.game;
   const aliveBefore = aliveBalls(g).length;
@@ -505,9 +549,9 @@ function eliminate(room, b, quit) {
   let by = null;
   if (!quit && b.lastHit && g.env.t - b.lastHit.t <= KILL_WINDOW) {
     const k = g.byId.get(b.lastHit.id);
-    if (k && k.id !== b.id && (!teamMode(room) || k.team !== b.team)) { by = k.id; k.kills++; b.by = by; if (!k.bot) k.xp += 50; }
+    if (k && k.id !== b.id && (!teamMode(room) || k.team !== b.team)) { by = k.id; k.kills++; b.by = by; if (!k.bot) k.xp += 50; growBall(k); }
   }
-  g.ev.push({ k: 'elim', id: b.id, rank: b.rank, by, x: +b.x.toFixed(1), y: +b.y.toFixed(1), q: quit ? 1 : 0 });
+  g.ev.push({ k: 'elim', id: b.id, rank: b.rank, by, kc: by ? (g.byId.get(by).kills) : 0, x: +b.x.toFixed(1), y: +b.y.toFixed(1), q: quit ? 1 : 0 });
   checkOver(room);
 }
 
@@ -559,6 +603,7 @@ function updatePowerups(g, alive) {
           }
           g.ev.push({ k: 'shock', id: b.id, x: +b.x.toFixed(1), y: +b.y.toFixed(1) });
         }
+        growBall(b);
         g.ev.push({ k: 'pickup', id: b.id, type: p.type, x: p.x, y: p.y });
         g.pus.splice(i, 1);
         break;
@@ -1273,6 +1318,7 @@ function stepGame(room) {
   }
   advanceEnv(env);
   const alive = aliveBalls(g);
+  comebackTick(room, g, env, alive);
 
   for (const b of alive) {
     if (b.bot) {
@@ -1332,6 +1378,7 @@ function sendSnapshot(room) {
     sp: spec,
     ak,
     gt: g.env.gate ? 1 : 0,
+    sd: g.env.sd ? Math.round(g.env.sdX || 0) + 1 : 0,
     rc: g.race ? [g.race.round, g.race.phase, g.race.finCount, alive.length, alive.filter((b) => !b.fin).length]
       : g.rush ? [g.rush.finCount, alive.length, alive.filter((b) => !b.fin).length, g.rush.pts.A, g.rush.pts.B] : null,
     b: alive.map((b) => {
@@ -1339,7 +1386,7 @@ function sendSnapshot(room) {
         b.id, r1(b.x), r1(b.y), Math.round(b.vx), Math.round(b.vy), r2(b.f),
         r2(b.cd), r2(b.armorT), r2(b.ghostT), r2(b.superT), r2(b.dashT)
       ];
-      row.push(b.fin ? 1 : 0, b.finOrder || 0, Math.round(b.dmg || 0));
+      row.push(b.fin ? 1 : 0, b.finOrder || 0, Math.round(b.dmg || 0), b.big || 0, b.kills || 0, b.ag || 0);
       return row;
     }),
     sb: g.ball ? [Math.round(g.ball.x * 10) / 10, Math.round(g.ball.y * 10) / 10, Math.round(g.ball.vx), Math.round(g.ball.vy)] : null,
@@ -1453,6 +1500,10 @@ app.post('/api/login', apiLimit('login', 12, 600000), jsonBody, (req, res) => {
   const r = auth.login(req.body || {});
   if (r.error) return res.status(r.error === 'banned' ? 403 : 401).json({ error: r.error });
   res.json({ token: auth.makeUserToken(r.user), user: auth.publicUser(r.user) });
+});
+app.get('/api/country-day', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ day: dayKey(), top: countryDay() });
 });
 let lbCache = { at: 0, data: [] };
 app.get('/api/leaderboard', (req, res) => {
@@ -1762,7 +1813,7 @@ io.on('connection', (socket) => {
     // Hemen oyna: başlamamış, boş yeri olan genel (public) odaya gir; yoksa yeni genel oda aç
     const open = [...rooms.values()].filter((r) => r.public && r.phase === 'lobby' && r.players.size < MAX_PLAYERS && [...r.players.values()].some((p) => p.dcAt === 0))
       .sort((a, b) => b.players.size - a.players.size)[0];
-    if (open) {
+    if (open && data.instant !== true) {
       enter(open, data);
       cb({ ok: true, id: pid, code: open.code, quick: true });
       pushRoom(open);
@@ -1777,6 +1828,7 @@ io.on('connection', (socket) => {
     enter(room, data);
     cb({ ok: true, id: pid, code: room.code, quick: true });
     pushRoom(room);
+    if (data.instant === true) startGame(room, 7); // oyuncunun açık isteği: "Hemen yeniden oyna" → lobisiz yeni tur
   }));
 
   socket.on('setRounds', safe((n) => {
