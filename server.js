@@ -64,7 +64,11 @@ app.get('/healthz', (req, res) => res.json({ ok: true, region: REGION, rooms: ro
 // Arama motoru dosyaları: doğru MIME türleriyle
 app.get('/robots.txt', (req, res) => { res.type('text/plain; charset=utf-8'); res.sendFile(path.join(__dirname, 'public', 'robots.txt')); });
 app.get('/sitemap.xml', (req, res) => { res.type('application/xml; charset=utf-8'); res.sendFile(path.join(__dirname, 'public', 'sitemap.xml')); });
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
+// js/css/html her istekte ETag ile doğrulanır (karışık eski/yeni modül sürümü olmasın); görseller 1 saat önbellekte
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1h',
+  setHeaders: (res, fp) => { if (/\.(js|css|html)$/.test(fp)) res.setHeader('Cache-Control', 'no-cache'); }
+}));
 
 /* ------------------------------ Sabitler ------------------------------ */
 const TICK = 30;
