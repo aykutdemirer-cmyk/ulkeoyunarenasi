@@ -357,7 +357,7 @@ function aliveBalls(g) { return g.balls.filter((b) => b.alive); }
 
 /* Günün en güçlü ülkesi: UTC günü başına ülke → puan (kalıcı) */
 const DAY_FILE = path.join(auth.DATA_DIR, 'daily_countries.json');
-let DAY = { day: '', pts: {} };
+let DAY = { day: '', pts: {} }; // countryDailyScores: UTC günü başına ülke → puan
 try { const d = JSON.parse(fs.readFileSync(DAY_FILE, 'utf8')); if (d && d.pts) DAY = d; } catch (e) { /* ilk çalışma */ }
 const dayKey = () => new Date().toISOString().slice(0, 10);
 let dayDirty = false;
@@ -396,6 +396,7 @@ function endMatch(room, winners, res) {
     pl.lvl = auth.levelOf(au.xp);
     sendTo(pl, 'acct', { ...auth.publicUser(au), gained: gain + bonus });
   }
+  winners.forEach((w) => addCountryPts(w.country, 100)); // maç sonu: kazanan ülkenin puanı artar
   const team = teamMode(room) && winners.length ? winners[0].team : null;
   const sr = room.series;
   sr.round++;
