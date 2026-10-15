@@ -226,6 +226,10 @@ export function advanceEnv(env) {
   env.R = Math.max(m.Rmin, m.R0 - m.shrink * env.t);
   if (m.pulseAmp) env.R -= m.pulseAmp * (0.5 - 0.5 * Math.cos((Math.PI * 2 * env.t) / m.pulsePeriod));
   env.gh = Math.min(m.gapMax, m.gapHalf + Math.max(0, env.t - m.sudden) * m.grow);
+  if (env.sd) {
+    env.sdX = (env.sdX || 0) + SD_V * DT; // ani ölüm: alan hızla daralır
+    env.R = Math.max(Math.min(env.R, m.R0 * 0.5), env.R - env.sdX);
+  }
   if (m.rush) env.R = m.wallX0 + m.wallV * env.t + m.wallA * env.t * env.t; // ölüm bariyerinin x konumu
 }
 
@@ -290,22 +294,26 @@ export function bumpers(env) {
   });
 }
 
-export function ballR(b) { return b.armorT > 0 ? ARMOR_R : BALL_R; }
+export const SD_V = 7; // ani ölüm daralma hızı (px/sn, ivmeli birikir)
+export const BIG_MAX = 3;
+export function ballR(b) { return (b.armorT > 0 ? ARMOR_R : BALL_R) * (1 + 0.1 * (b.big || 0)); }
 export function ballMass(b) {
-  if (b.armorT > 0) return ARMOR_MASS;
-  return b.dashT > 0 ? 1.8 : 1;
+  const g = 1 + 0.3 * (b.big || 0);
+  if (b.armorT > 0) return ARMOR_MASS * g;
+  return (b.dashT > 0 ? 1.8 : 1) * g;
 }
+export function dashCd(b) { return b.ag ? DASH_CD * 0.85 : DASH_CD; }
 
 /* Yarış modu: yerçekimi + hafif yatay ivme; dash = hızlı aşağı dalış */
 function raceControl(b, ix, iy, dash, ev, m) {
   const ixr = Math.max(-1, Math.min(1, ix));
-  b.vx += ixr * ACC * m.accMul * DT;
+  b.vx += ixr * ACC * m.accMul * (b.ag ? 1.15 : 1) * DT;
   if (iy > 0) b.vy += Math.min(1, iy) * ACC * 0.5 * DT;
   b.vy += RACE.gravity * DT;
   if (dash && b.cd <= 0) {
     b.vx += ixr * 140;
     b.vy += RACE.dashY;
-    b.cd = DASH_CD;
+    b.cd = dashCd(b);
     b.dashT = DASH_TIME;
     if (ev) ev.push({ k: 'dash', id: b.id, x: +b.x.toFixed(1), y: +b.y.toFixed(1), s: 1 });
   }
@@ -329,7 +337,7 @@ export function applyControl(b, ix, iy, dash, ev, env) {
   if (m.race) return raceControl(b, ix, iy, dash, ev, m);
   const il = Math.hypot(ix, iy);
   if (il > 1) { ix /= il; iy /= il; }
-  const acc = ACC * m.accMul;
+  const acc = ACC * m.accMul * (b.ag ? 1.15 : 1);
   b.vx += ix * acc * DT;
   b.vy += iy * acc * DT;
   if (m.gravity || m.swirl) {
@@ -346,7 +354,7 @@ export function applyControl(b, ix, iy, dash, ev, env) {
     const mult = b.superT > 0 ? 2 : 1;
     b.vx += (dx / dl) * DASH_SPEED * mult;
     b.vy += (dy / dl) * DASH_SPEED * mult;
-    b.cd = DASH_CD;
+    b.cd = dashCd(b);
     b.dashT = DASH_TIME;
     if (b.superT > 0) b.superT = 0;
     if (ev) ev.push({ k: 'dash', id: b.id, x: +b.x.toFixed(1), y: +b.y.toFixed(1), s: mult });

@@ -1120,6 +1120,11 @@ socket.on('gameStart', (g) => {
   S.mut = g.mut || 'none';
   S.streak = {};
   S.final2 = false;
+  S.sd = false;
+  $('stage').classList.remove('sd');
+  hideRespawn();
+  $('killTicker').textContent = '';
+  refreshDay();
   S.round = g.round || 1;
   S.rounds = g.rounds || 1;
   S.hillPos = null;
@@ -1189,6 +1194,9 @@ socket.on('acct', (u) => {
 });
 socket.on('announce', (a) => showAnnounce(a.text));
 socket.on('toLobby', () => {
+  hideRespawn();
+  $('stage').classList.remove('sd');
+  refreshDay(true);
   $('overModal').classList.add('hidden');
   S.over = false;
   $('results').classList.add('hidden');
@@ -1229,8 +1237,8 @@ function reconcile(s) {
   if (!a || s.ph !== 'play' || a[11]) { P.b = null; P.inputs.length = 0; return; }
   const ack = (s.ak && s.ak[PID]) || 0;
   const before = P.b ? { x: P.b.x + P.err.x, y: P.b.y + P.err.y } : null;
-  const b = { id: PID, x: a[1], y: a[2], vx: a[3], vy: a[4], f: a[5], cd: a[6], armorT: a[7], ghostT: a[8], superT: a[9], dashT: a[10] };
-  const env = { map: S.map, t: s.t, rot: s.rot, R: s.R, gh: s.gh, gate: s.gt || 0 };
+  const b = { id: PID, x: a[1], y: a[2], vx: a[3], vy: a[4], f: a[5], cd: a[6], armorT: a[7], ghostT: a[8], superT: a[9], dashT: a[10], big: a[14] || 0, ag: a[16] || 0 };
+  const env = { map: S.map, t: s.t, rot: s.rot, R: s.R, gh: s.gh, gate: s.gt || 0, sd: !!s.sd, sdX: s.sd ? s.sd - 1 : 0 };
   P.inputs = P.inputs.filter((i) => i.s > ack);
   for (const i of P.inputs) stepPredict(b, env, i.x, i.y, i.d);
   if (before) {
@@ -1267,6 +1275,20 @@ function vibrate(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } cat
 
 function onSnap(s) {
   renderBoard(s);
+  // taç: en çok nakavtı olan (tek) lider
+  let ck = 0; let cid = null; let tie = false;
+  for (let i = 0; i < s.b.length; i++) {
+    const k = s.b[i][15] || 0;
+    if (k > ck) { ck = k; cid = s.b[i][0]; tie = false; } else if (k === ck && k > 0) tie = true;
+  }
+  SS.crownId = ck >= 1 && !tie && S.roster.size > 2 && !isRush(S.mode) && S.mode !== 'RACE' ? cid : null;
+  if (s.sd && !S.sd) {
+    S.sd = true;
+    $('stage').classList.add('sd');
+    showBanner(T('sd_banner'));
+    sfx.elim();
+    setTimeout(() => { if (!S.over && S.latest && S.latest.ph === 'play') $('banner').classList.add('hidden'); }, 1400);
+  }
   if (!S.final2 && s.ph === 'play' && s.left === 2 && S.roster.size > 2 && !isRush(S.mode) && S.mode !== 'RACE' && S.mode !== 'SOCCER' && S.mode !== 'HILL' && S.mode !== 'COINS') {
     S.final2 = true;
     showBanner(T('final2'));
@@ -1443,10 +1465,7 @@ function feedRow(by, victim) {
   const row = document.createElement('div');
   row.className = 'row' + (by === PID || victim === PID ? ' me' : '');
   const k = by ? S.roster.get(by) : null;
-  if (k) {
-    row.appendChild(flagIcon(k.country, 40));
-    const a = document.createElement('span'); a.className = 'arrow'; a.textContent = '\u279C'; row.appendChild(a);
-  }
+  if (k) return; // nakavtlar üstteki ticker'da
   row.appendChild(flagIcon(v.country, 40));
   const t = document.createElement('span');
   t.textContent = k ? CNAME[v.country] : CNAME[v.country] + ' ' + T('feed_out');
@@ -1499,11 +1518,79 @@ function hitFx(e) {
   const sc = e.s * heavy;
   S.rings.push({ x: e.x, y: e.y, r: 14, max: 70 + 150 * sc, life: 0.4, max_life: 0.4, col: e.h ? '#fb923c' : '#22d3ee' });
   burst(e.x, e.y, Math.round(6 + 22 * sc), e.h ? '#fb923c' : '#fde047', 260 + 420 * sc);
-  if (sc > 0.45) {
+  if (sc > 0.3) {
     S.shake = Math.max(S.shake, 6 + 18 * Math.min(1, sc));
     vibrate(sc > 0.7 ? 30 : 12);
   }
 }
+
+function hideRespawn() { $('respawn').classList.add('hidden'); }
+function instantReplay() {
+  hideRespawn();
+  initAudio();
+  socket.emit('quickPlay', { name: myName(), country: S.myCountry, lvl: myLvl(), skin: S.skin, instant: true }, (res) => {
+    if (res && res.ok) onEnter(res); else $('banner').classList.add('hidden');
+  });
+}
+$('respawn').addEventListener('click', instantReplay);
+$('respawn').addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
+
+/* Kill ticker: bayraklı, isimli, seri vurgulu üst akış */
+function killTicker(e) {
+  if (!e.by) return;
+  const k = S.roster.get(e.by);
+  const v = S.roster.get(e.id);
+  if (!k || !v) return;
+  const nm = (p) => (p.bot || !p.name ? CNAME[p.country] : p.name);
+  const box = $('killTicker');
+  const row = document.createElement('div');
+  row.className = 'kt' + (e.by === PID || e.id === PID ? ' me' : '');
+  const i1 = document.createElement('img'); i1.src = flagDataUrl(k.country); i1.alt = '';
+  const i2 = document.createElement('img'); i2.src = flagDataUrl(v.country); i2.alt = '';
+  const txt = document.createElement('span');
+  txt.textContent = nm(k) + ' \u279C ';
+  const txt2 = document.createElement('span');
+  txt2.textContent = nm(v) + ' ' + T('kt_out');
+  row.append(i1, txt, i2, txt2);
+  const kc = e.kc || 0;
+  if (kc >= 2) { const em = document.createElement('em'); em.textContent = '(' + T(kc === 2 ? 'kt2' : kc === 3 ? 'kt3' : 'kt4') + ')'; row.appendChild(em); }
+  box.appendChild(row);
+  while (box.children.length > 3) box.removeChild(box.firstChild);
+  setTimeout(() => { if (row.parentNode) row.parentNode.removeChild(row); }, 4200);
+}
+
+/* Günün en güçlü ülkesi */
+let dayAt = 0;
+function renderDay(data) {
+  ['dayBody', 'dayBodyG'].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = '';
+    const top = data && data.top || [];
+    if (!top.length) { const d = document.createElement('div'); d.className = 'none'; d.textContent = T('day_none'); el.appendChild(d); return; }
+    const l = document.createElement('div'); l.className = 'lead';
+    const im = document.createElement('img'); im.src = flagDataUrl(top[0].code); im.alt = '';
+    const tx = document.createElement('span');
+    tx.textContent = T('day_lead', { name: CNAME[top[0].code] || top[0].code, pts: top[0].pts.toLocaleString(getLang() === 'tr' ? 'tr-TR' : 'en-US') });
+    l.append(im, tx); el.appendChild(l);
+    top.slice(1, 4).forEach((c, i) => {
+      const o = document.createElement('div'); o.className = 'oth';
+      const oi = document.createElement('img'); oi.src = flagDataUrl(c.code); oi.alt = '';
+      const on = document.createElement('span'); on.textContent = (i + 2) + '. ' + (CNAME[c.code] || c.code);
+      const ob = document.createElement('b'); ob.textContent = c.pts.toLocaleString('en-US');
+      o.append(oi, on, ob); el.appendChild(o);
+    });
+  });
+}
+function refreshDay(force) {
+  const now = Date.now();
+  if (!force && now - dayAt < 20000) return;
+  dayAt = now;
+  fetch('/api/country-day').then((r) => r.json()).then(renderDay).catch(() => {});
+}
+setInterval(() => refreshDay(), 30000);
+onLang(() => { dayAt = 0; refreshDay(true); });
+refreshDay(true);
 
 function showBanner(html) {
   const b = $('banner');
@@ -1560,6 +1647,7 @@ function onElim(e) {
   S.shake = Math.max(S.shake, 12);
   addElim(e.id, e.rank, true);
   feedRow(e.by, e.id);
+  killTicker(e);
   if (e.by) {
     const nowK = performance.now();
     const st = S.streak[e.by] || { n: 0, t: 0 };
@@ -1582,11 +1670,14 @@ function onElim(e) {
     P.inputs.length = 0;
     showBanner(`${T('out')}<small>${T('out_sub', { rank: e.rank })}</small>`);
     setTimeout(() => { if (!S.over) $('banner').classList.add('hidden'); }, 1800);
+    if (!S.over && !isRush(S.mode) && S.roster.size > 1) $('respawn').classList.remove('hidden');
   }
 }
 
 function onOver(e) {
   S.over = true;
+  hideRespawn();
+  $('stage').classList.remove('sd');
   const youWin = e.ids.includes(PID);
   const inGame = S.roster.has(PID);
   sfx.win();
@@ -1752,6 +1843,7 @@ window.addEventListener('keydown', (e) => {
   if (!S.inGame) return;
   const k = e.key.toLowerCase();
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
+  if (k === ' ' && !$('respawn').classList.contains('hidden')) { instantReplay(); return; }
   if (k === ' ') { if (!e.repeat) doDash(); return; }
   if (k >= '1' && k <= '4') { if (!e.repeat) socket.emit('emote', Number(k) - 1); return; }
   if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) keys.add(k);
@@ -1950,7 +2042,7 @@ function sampleState() {
     let cur = ballObjs.get(nb[0]);
     if (!cur) { cur = {}; ballObjs.set(nb[0], cur); }
     cur.id = nb[0]; cur.x = nb[1]; cur.y = nb[2]; cur.f = nb[5]; cur.cd = nb[6]; cur.arm = nb[7]; cur.gh = nb[8]; cur.sup = nb[9]; cur.dsh = nb[10];
-    cur.fin = !!nb[11]; cur.fo = nb[12] || 0; cur.dmg = nb[13] || 0; cur.sp = Math.hypot(nb[3], nb[4]);
+    cur.fin = !!nb[11]; cur.fo = nb[12] || 0; cur.big = nb[14] || 0; cur.kl = nb[15] || 0; cur.ag = nb[16] || 0; cur.dmg = nb[13] || 0; cur.sp = Math.hypot(nb[3], nb[4]);
     const pb = a !== b ? a.m.get(nb[0]) : null;
     if (pb) {
       cur.x = lerp(pb[1], nb[1], t);
@@ -2499,7 +2591,11 @@ function drawBall(b, time) {
   const p = S.roster.get(b.id);
   if (!p) return;
   const mine = b.id === PID;
-  const R = b.arm > 0 ? ARMOR_R : BALL_R;
+  const Rb = b.arm > 0 ? ARMOR_R : BALL_R;
+  const rt = Rb * (1 + 0.1 * (b.big || 0));
+  b.rv = b.rv ? b.rv + (rt - b.rv) * 0.25 : rt; // yumuşak büyüme
+  const R = b.rv;
+  const crown = SS.crownId === b.id;
   ctx.save();
   if (b.dsh > 0) {
     const tc = p.team === 'B' ? '#fb923c' : p.team === 'A' ? '#22d3ee' : (mine ? '#facc15' : '#ff2d85');
@@ -2521,6 +2617,16 @@ function drawBall(b, time) {
     ctx.beginPath(); ctx.arc(0, 0, R + 5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
   }
   if (b.fin) ctx.globalAlpha = 0.5;
+  if (b.big > 0) {
+    // kütle halesi: kademe başına daha geniş neon halka (shadowBlur yok)
+    const gc = isTeam(S.mode) ? TEAM_COL[p.team] : mine ? '#facc15' : '#ff2d85';
+    ctx.strokeStyle = gc;
+    ctx.globalAlpha = 0.18;
+    ctx.lineWidth = 10 + b.big * 8; ctx.beginPath(); ctx.arc(0, 0, R + 8 + b.big * 3, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = 4 + b.big * 2; ctx.beginPath(); ctx.arc(0, 0, R + 6, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = b.fin ? 0.5 : 1;
+  }
 
   // kalkan / ghost balonu
   if (b.gh > 0) {
@@ -2551,8 +2657,9 @@ function drawBall(b, time) {
     ctx.beginPath(); ctx.arc(0, 0, R + 3, 0, Math.PI * 2); ctx.stroke();
   }
 
-  const spr = ballSprite(p.country, R);
-  ctx.drawImage(spr, -R - 1, -R - 1);
+  const spr = ballSprite(p.country, Rb);
+  const ssc = R / Rb;
+  ctx.drawImage(spr, -(Rb + 1) * ssc, -(Rb + 1) * ssc, spr.width * ssc, spr.height * ssc);
 
   // gözler
   const k = R / BALL_R;
@@ -2582,10 +2689,21 @@ function drawBall(b, time) {
     ctx.beginPath();
     ctx.arc(0, 0, R + 11, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - Math.min(1, b.cd / DASH_CD)));
     ctx.stroke();
+    const cu = crown ? 30 : 0;
     ctx.fillStyle = '#facc15';
-    ctx.beginPath(); ctx.moveTo(0, -R - 24); ctx.lineTo(-10, -R - 42); ctx.lineTo(10, -R - 42); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, -R - 24 - cu); ctx.lineTo(-10, -R - 42 - cu); ctx.lineTo(10, -R - 42 - cu); ctx.closePath(); ctx.fill();
     const ys = textSprite(T('you_lbl'), '900 20px "Segoe UI", Arial, sans-serif', '#facc15');
-    ctx.drawImage(ys, -ys.width / 2, -R - 48 - ys.baseY);
+    ctx.drawImage(ys, -ys.width / 2, -R - 48 - cu - ys.baseY);
+  }
+  if (crown) {
+    // altın taç: 5 sivri uçlu yol çizimi
+    const cy = -R - 4 + Math.sin(time * 4) * 2;
+    ctx.fillStyle = '#facc15'; ctx.strokeStyle = '#a16207'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-17, cy); ctx.lineTo(-20, cy - 22); ctx.lineTo(-9, cy - 11); ctx.lineTo(0, cy - 26); ctx.lineTo(9, cy - 11); ctx.lineTo(20, cy - 22); ctx.lineTo(17, cy);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath(); ctx.arc(0, cy - 6, 3.2, 0, Math.PI * 2); ctx.fill();
   }
 
   const ls = textSprite('Lv.' + lvlOf(p) + ' ' + (p.bot || !p.name ? CNAME[p.country] : p.name), '800 22px "Segoe UI", Arial, sans-serif', '#fff');

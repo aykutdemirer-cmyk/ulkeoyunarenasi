@@ -207,6 +207,10 @@
     </div>
 
     <aside class="col col-right" id="colRight">
+      <section id="dayCard" class="card day-card">
+        <span class="lbl" data-i18n="day_title">&#127757; GÜNÜN EN GÜÇLÜ ÜLKESİ</span>
+        <div id="dayBody" class="day-body"></div>
+      </section>
       <section id="roomsCard" class="card rooms-card">
         <span class="lbl" data-i18n="open_rooms">&#127760; AÇIK ODALAR</span>
         <ul id="roomList" class="rooms"></ul>
@@ -278,6 +282,9 @@
       <button id="exitBtn" class="exit-btn" aria-label="Odadan ayrıl" data-i18n-aria="exit_aria">&#10005;</button>
       <button id="muteBtn" class="mute-btn" aria-label="Ses">&#9835;</button>
       <div id="pingTag" class="ping-tag"></div>
+      <div id="killTicker" class="kill-ticker"></div>
+      <div id="sdVig" class="sd-vig"></div>
+      <button id="respawn" class="respawn hidden" data-i18n="respawn">SPACE: HEMEN YENİDEN OYNA</button>
       <div id="feed" class="feed"></div>
       <div id="emotes" class="emotes">
         <button data-i="0">GG</button><button data-i="1">LOL</button><button data-i="2">OOPS</button><button data-i="3">!!!</button>
@@ -300,6 +307,10 @@
     </div>
 
     <aside id="panelR" class="dpanel right">
+      <div class="dcard">
+        <div class="dtitle" data-i18n="day_title">&#127757; GÜNÜN EN GÜÇLÜ ÜLKESİ</div>
+        <div id="dayBodyG" class="day-body"></div>
+      </div>
       <div class="dcard">
         <div class="dtitle" data-i18n="lb_title">SIRALAMA / LİDERLİK TABLOSU</div>
         <ul id="liveBoard" class="live"></ul>
