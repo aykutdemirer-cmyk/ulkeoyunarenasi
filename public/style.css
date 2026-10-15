@@ -843,3 +843,21 @@ html[data-theme="royal"] { --pink: #facc15; --pink-rgb: 250, 204, 21; --cyan: #a
 @keyframes rsPulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.08)}}
 .kill-ticker .kt{display:block;line-height:1.5}
 .kill-ticker .kt img{display:inline-block;vertical-align:middle;margin:0 3px}
+
+/* ---- Marka logosu (lobi) ---- */
+.lobby-head h1.brand, #lobby:not(.in-room) .lobby-head h1.brand {
+  font-family: "Orbitron", "Segoe UI Black", "Arial Black", Impact, system-ui, sans-serif;
+  font-weight: 900; font-style: italic; text-transform: uppercase; white-space: nowrap;
+  font-size: clamp(30px, 6.2vw, 62px); letter-spacing: 0.06em; line-height: 1; margin: 0 0 4px; overflow-wrap: normal;
+  text-shadow: none;
+}
+.lobby-head h1.brand .b-play { color: #e8fdff; text-shadow: 0 0 6px #22d3ee, 0 0 16px #22d3ee, 0 0 34px rgba(34,211,238,.7); }
+.lobby-head h1.brand .b-war { color: #ffd2c2; margin-left: .04em; text-shadow: 0 0 6px #ff3d2e, 0 0 16px #ff2d85, 0 0 34px rgba(255,61,46,.8), 0 -4px 18px rgba(251,146,60,.8); animation: warFlame 1.8s ease-in-out infinite; }
+@keyframes warFlame { 0%,100% { text-shadow: 0 0 6px #ff3d2e, 0 0 16px #ff2d85, 0 0 34px rgba(255,61,46,.8), 0 -4px 18px rgba(251,146,60,.8); } 50% { text-shadow: 0 0 8px #ff6a3d, 0 0 22px #ff2d85, 0 0 44px rgba(255,61,46,.95), 0 -7px 24px rgba(250,204,21,.8); } }
+.lobby-head h2.brand-sub, #lobby:not(.in-room) .lobby-head h2.brand-sub {
+  font-size: clamp(13px, 1.6vw, 20px); font-weight: 800; letter-spacing: 0.06em; margin: 0; color: #cbd5e1; text-transform: none;
+}
+html[lang="tr"] .lobby-head h1.brand { font-size: clamp(30px, 6.2vw, 62px); }
+@media (max-width: 640px) {
+  .lobby-head h1.brand, #lobby:not(.in-room) .lobby-head h1.brand { font-size: clamp(26px, 8.6vw, 40px); margin-top: 44px; }
+}
