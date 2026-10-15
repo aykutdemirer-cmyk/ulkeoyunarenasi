@@ -542,7 +542,6 @@ COUNTRIES.forEach((c) => {
   b.appendChild(s);
   b.addEventListener('click', () => {
     initAudio();
-    if (b.classList.contains('taken')) return;
     S.myCountry = c.code;
     refreshCountrySel();
     if (acct.on) apiCall('POST', '/api/profile', { country: c.code }).catch(() => {});
@@ -553,11 +552,8 @@ COUNTRIES.forEach((c) => {
 });
 
 function refreshCountrySel() {
-  const taken = new Set();
-  if (S.room) S.room.players.forEach((p) => { if (p.id !== S.id) taken.add(p.country); });
   COUNTRIES.forEach((c) => {
     countryEls[c.code].classList.toggle('sel', c.code === S.myCountry);
-    countryEls[c.code].classList.toggle('taken', taken.has(c.code));
   });
 }
 refreshCountrySel();
@@ -1814,7 +1810,7 @@ function renderBoard(s) {
     if (r.p.id === PID) li.classList.add('me');
     const img = document.createElement('img'); img.src = flagDataUrl(r.p.country); img.alt = '';
     const mid = document.createElement('div');
-    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = (i + 1) + '. ' + CNAME[r.p.country];
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = (i + 1) + '. ' + (r.p.bot || !r.p.name ? CNAME[r.p.country] : r.p.name);
     const hp = document.createElement('div'); hp.className = 'hp';
     const bar = document.createElement('i'); const prg = Math.min(100, Math.max(0, (r.x / RUSH.finishX) * 100));
     bar.style.width = (isRush(S.mode) ? prg : r.hp) + '%'; bar.style.background = isRush(S.mode) ? '#22d3ee' : r.hp > 55 ? '#22c55e' : r.hp > 28 ? '#facc15' : '#ef4444';
@@ -2535,7 +2531,7 @@ function drawBall(b, time) {
     ctx.drawImage(ys, -ys.width / 2, -R - 48 - ys.baseY);
   }
 
-  const ls = textSprite('Lv.' + lvlOf(p) + ' ' + CNAME[p.country], '800 22px "Segoe UI", Arial, sans-serif', '#fff');
+  const ls = textSprite('Lv.' + lvlOf(p) + ' ' + (p.bot || !p.name ? CNAME[p.country] : p.name), '800 22px "Segoe UI", Arial, sans-serif', '#fff');
   ctx.drawImage(ls, -ls.width / 2, R + 26 - ls.baseY);
   if (b.dmg > 0 && S.mode !== 'RACE') {
     const hp = Math.max(0, 100 - b.dmg);

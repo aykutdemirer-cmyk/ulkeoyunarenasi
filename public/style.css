@@ -113,7 +113,6 @@ input[type="range"] { width: 100%; accent-color: var(--pink); margin: 4px 0 12px
 }
 .country canvas { width: 44px; height: 44px; border-radius: 50%; display: block; }
 .country.sel { border-color: var(--pink); box-shadow: 0 0 14px rgba(var(--pink-rgb), 0.6); }
-.country.taken { opacity: 0.25; cursor: not-allowed; }
 
 .btn {
   font: inherit;

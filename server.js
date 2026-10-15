@@ -154,12 +154,9 @@ function safe(fn) {
   };
 }
 
-function freeCountry(room, wanted, selfId) {
-  const taken = new Set();
-  for (const p of room.players.values()) if (p.id !== selfId) taken.add(p.country);
-  if (COUNTRY_CODES.has(wanted) && !taken.has(wanted)) return wanted;
-  const free = COUNTRIES.find((c) => !taken.has(c.code));
-  return free ? free.code : COUNTRIES[0].code;
+// Aynı odada birden fazla oyuncu aynı bayrağı seçebilir; yalnızca geçerli bir ülke kodu olması gerekir
+function freeCountry(room, wanted) {
+  return COUNTRY_CODES.has(wanted) ? wanted : COUNTRIES[0].code;
 }
 
 function balancedTeam(room) {
@@ -1606,7 +1603,7 @@ io.on('connection', (socket) => {
   const enter = (room, data) => {
     const player = {
       id: pid, sid: socket.id, name: cleanName(data.name),
-      country: freeCountry(room, data.country, pid), team: balancedTeam(room), dcAt: 0, gone: false,
+      country: freeCountry(room, data.country), team: balancedTeam(room), dcAt: 0, gone: false,
       ready: false, lvl: Math.max(1, Math.min(999, Math.floor(Number(data.lvl)) || 1)), uid: null, skin: 'none'
     };
     const acc = socket.data.uid ? auth.getUser(socket.data.uid) : null;
@@ -1685,7 +1682,7 @@ io.on('connection', (socket) => {
     const p = me();
     if (!p || room.phase !== 'lobby' || !data) return;
     if (data.name !== undefined && !p.uid) p.name = cleanName(data.name);
-    if (data.country !== undefined) p.country = freeCountry(room, data.country, pid);
+    if (data.country !== undefined) p.country = freeCountry(room, data.country);
     if (data.team === 'A' || data.team === 'B') p.team = data.team;
     if (data.skin !== undefined) p.skin = validSkin(data.skin, p.lvl);
     if (data.lvl !== undefined && !p.uid) p.lvl = Math.max(1, Math.min(999, Math.floor(Number(data.lvl)) || 1));
