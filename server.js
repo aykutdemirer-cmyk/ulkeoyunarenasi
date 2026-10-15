@@ -1375,7 +1375,6 @@ function endGame(room) {
   room.series = { round: 0, wins: new Map() };
   io.to(room.code).emit('toLobby');
   room.players.forEach((p) => { p.ready = !!p.wantAgain && p.id !== room.host; p.wantAgain = false; });
-  if (room.public && !room.manual && room.players.size) scheduleAuto(room, 8000); // genel oda: bir sonraki maç otomatik gelir
   pushRoom(room);
 }
 
@@ -1769,7 +1768,6 @@ io.on('connection', (socket) => {
       .sort((a, b) => b.players.size - a.players.size)[0];
     if (open) {
       enter(open, data);
-      if (!open.autoTimer) scheduleAuto(open, 5000);
       cb({ ok: true, id: pid, code: open.code, quick: true });
       pushRoom(open);
       return;
@@ -1778,10 +1776,9 @@ io.on('connection', (socket) => {
     const room = newRoom(pid);
     room.quick = true;
     room.public = true;
-    room.manual = false; // genel oda: 5 sn sonra botlarla otomatik başlar
+    room.manual = true; // otomatik başlatma yok: maçı yalnızca oda lideri başlatır
     rooms.set(room.code, room);
     enter(room, data);
-    scheduleAuto(room, 5000);
     cb({ ok: true, id: pid, code: room.code, quick: true });
     pushRoom(room);
   }));
