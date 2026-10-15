@@ -60,7 +60,10 @@ app.get('/info', (req, res) => {
   res.json({ region: REGION, version: VERSION, rooms: rooms.size, players, tick: tickStats() });
 });
 app.get('/healthz', (req, res) => res.json({ ok: true, region: REGION, rooms: rooms.size, uptime: Math.round(process.uptime()), tick: tickStats() }));
-app.use(express.static(path.join(__dirname, 'public')));
+// Arama motoru dosyaları: doğru MIME türleriyle
+app.get('/robots.txt', (req, res) => { res.type('text/plain; charset=utf-8'); res.sendFile(path.join(__dirname, 'public', 'robots.txt')); });
+app.get('/sitemap.xml', (req, res) => { res.type('application/xml; charset=utf-8'); res.sendFile(path.join(__dirname, 'public', 'sitemap.xml')); });
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 
 /* ------------------------------ Sabitler ------------------------------ */
 const TICK = 30;
