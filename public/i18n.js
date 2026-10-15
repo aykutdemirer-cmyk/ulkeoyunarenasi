@@ -1,7 +1,9 @@
+import { COUNTRIES } from './countries.js';
 /* Çok dilli arayüz (TR / EN). Başlık ve alt başlık seçili dile göre değişir. */
 
 const DICT = {
   tr: {
+    flag_search: '\u{1F50D} Bayrak Ara / Search', flag_none: 'Sonuç yok',
     mut_title: 'MUTATÖR', 'mut.none': 'Normal', 'mut.random': 'Rastgele (her maç sürpriz)', 'mut.turbo': 'Turbo', 'mut.slippery': 'Kaygan', 'mut.magnet': 'Mıknatıs', 'mut.bumpy': 'Tamponlu',
     'mutdesc.none': 'Standart kurallar.', 'mutdesc.random': 'Her maç rastgele bir mutatör seçilir.', 'mutdesc.turbo': 'Toplar %50 daha çevik!', 'mutdesc.slippery': 'Zemin buz gibi: durmak zor.', 'mutdesc.magnet': 'Merkez seni çeker, kenara gitmek zor.', 'mutdesc.bumpy': 'Arenaya 3 fırlatıcı tampon eklenir.',
     mut_banner: 'MUTATÖR: {m}', shock: 'ŞOK DALGASI', streak2: 'ÇİFTE ELEME!', streak3: 'ÜÇLÜ ELEME!', streak4: 'DURDURULAMIYOR!', final2: 'FİNAL: 2 KİŞİ!',
@@ -130,6 +132,7 @@ const DICT = {
     feed_out: 'elendi', eliminated: 'ELENENLER', goals: 'GOLLER', round_lbl: 'RAUNT'
   },
   en: {
+    flag_search: '\u{1F50D} Search flag', flag_none: 'No results',
     mut_title: 'MUTATOR', 'mut.none': 'Normal', 'mut.random': 'Random (surprise every match)', 'mut.turbo': 'Turbo', 'mut.slippery': 'Slippery', 'mut.magnet': 'Magnet', 'mut.bumpy': 'Bumpy',
     'mutdesc.none': 'Standard rules.', 'mutdesc.random': 'A random mutator is picked every match.', 'mutdesc.turbo': 'Balls are 50% more agile!', 'mutdesc.slippery': 'Ice-slick floor: hard to stop.', 'mutdesc.magnet': 'The center pulls you in; edges are hard to reach.', 'mutdesc.bumpy': '3 launching bumpers are added to the arena.',
     mut_banner: 'MUTATOR: {m}', shock: 'SHOCKWAVE', streak2: 'DOUBLE KNOCKOUT!', streak3: 'TRIPLE KNOCKOUT!', streak4: 'UNSTOPPABLE!', final2: 'FINAL 2!',
@@ -259,8 +262,8 @@ const DICT = {
 };
 
 const COUNTRY_NAMES = {
-  tr: { TR: 'Türkiye', ZA: 'Güney Afrika', NO: 'Norveç', CN: 'Çin', PK: 'Pakistan', US: 'ABD', GB: 'İngiltere', DE: 'Almanya', FR: 'Fransa', JP: 'Japonya', BR: 'Brezilya', AR: 'Arjantin', IT: 'İtalya', ES: 'İspanya', KR: 'G. Kore', NL: 'Hollanda' },
-  en: { TR: 'Turkey', ZA: 'South Africa', NO: 'Norway', CN: 'China', PK: 'Pakistan', US: 'USA', GB: 'UK', DE: 'Germany', FR: 'France', JP: 'Japan', BR: 'Brazil', AR: 'Argentina', IT: 'Italy', ES: 'Spain', KR: 'S. Korea', NL: 'Netherlands' }
+  tr: {"TR": "Türkiye", "DE": "Almanya", "FR": "Fransa", "GB": "İngiltere", "IT": "İtalya", "ES": "İspanya", "NL": "Hollanda", "NO": "Norveç", "PT": "Portekiz", "GR": "Yunanistan", "PL": "Polonya", "SE": "İsveç", "FI": "Finlandiya", "DK": "Danimarka", "BE": "Belçika", "CH": "İsviçre", "AT": "Avusturya", "UA": "Ukrayna", "RO": "Romanya", "CZ": "Çekya", "RU": "Rusya", "IE": "İrlanda", "HU": "Macaristan", "US": "ABD", "BR": "Brezilya", "AR": "Arjantin", "CA": "Kanada", "MX": "Meksika", "CO": "Kolombiya", "CL": "Şili", "PE": "Peru", "UY": "Uruguay", "VE": "Venezuela", "JP": "Japonya", "KR": "G. Kore", "CN": "Çin", "PK": "Pakistan", "IN": "Hindistan", "ID": "Endonezya", "VN": "Vietnam", "TH": "Tayland", "PH": "Filipinler", "MY": "Malezya", "SA": "S. Arabistan", "AE": "BAE", "QA": "Katar", "AU": "Avustralya", "NZ": "Yeni Zelanda", "KZ": "Kazakistan", "UZ": "Özbekistan", "AZ": "Azerbaycan", "BD": "Bangladeş", "IR": "İran", "SG": "Singapur", "ZA": "Güney Afrika", "EG": "Mısır", "NG": "Nijerya", "MA": "Fas", "DZ": "Cezayir", "TN": "Tunus", "GH": "Gana", "KE": "Kenya", "SN": "Senegal", "CI": "Fildişi Sahili"},
+  en: Object.fromEntries(COUNTRIES.map((c) => [c.code, c.name]))
 };
 
 let lang = 'en';
@@ -280,6 +283,7 @@ export function t(key, vars) {
 }
 export const tl = (key) => String(t(key)).split('|'); // '|' ile ayrılmış liste
 export const countryName = (code) => (COUNTRY_NAMES[lang] || COUNTRY_NAMES.en)[code] || code;
+export const countryNameIn = (l, code) => ((COUNTRY_NAMES[l] || {})[code]) || code;
 export const onLang = (fn) => listeners.push(fn);
 
 export function refreshTitle() {

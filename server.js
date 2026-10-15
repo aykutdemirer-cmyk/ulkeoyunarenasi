@@ -13,6 +13,7 @@ import {
 } from './public/shared.js';
 
 import * as auth from './auth.js';
+import { COUNTRIES } from './public/countries.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -84,12 +85,7 @@ const PU_FIRST = 8;
 const PU_LIFE = 14;
 const PU_MAX = 3;
 
-const COUNTRIES = [
-  ['TR', 'Turkey'], ['ZA', 'South Africa'], ['NO', 'Norway'], ['CN', 'China'],
-  ['PK', 'Pakistan'], ['US', 'USA'], ['GB', 'UK'], ['DE', 'Germany'],
-  ['FR', 'France'], ['JP', 'Japan'], ['BR', 'Brazil'], ['AR', 'Argentina'],
-  ['IT', 'Italy'], ['ES', 'Spain'], ['KR', 'S. Korea'], ['NL', 'Netherlands']
-].map(([code, name]) => ({ code, name }));
+
 const COUNTRY_CODES = new Set(COUNTRIES.map((c) => c.code));
 const COUNTRY_NAME = Object.fromEntries(COUNTRIES.map((c) => [c.code, c.name]));
 const MAP_CHOICES = new Set([...MAP_KEYS, 'random']);

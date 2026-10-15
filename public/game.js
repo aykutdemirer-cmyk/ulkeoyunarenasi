@@ -3,7 +3,8 @@ import {
   DT, SUB, BALL_R, RUSH, isRush, RUSH_TRACK_KEYS, RUSH_TRACK_NAMES, RUSH_TRACKS, rushTrack, laserOn, pistonLen, ARMOR_R, DASH_CD, PU_R, MAPS, MAP_KEYS,
   advanceEnv, applyControl, moveSub, RACE, gapInfo, bumpers, mapFor, HILL_R, lavaCycle, lavaAt, LAVA_SECTORS
 } from './shared.js';
-import { t as T, tl as TL, countryName, setLang, applyStatic, onLang, getLang, refreshTitle } from './i18n.js';
+import { COUNTRIES, COUNTRY_BY_CODE } from './countries.js';
+import { t as T, tl as TL, countryName, countryNameIn, setLang, applyStatic, onLang, getLang, refreshTitle } from './i18n.js';
 
 const MODE_INFO = new Proxy({}, { get: (_, m) => [T('mode.' + String(m)), T('modedesc.' + String(m))] });
 
@@ -22,12 +23,7 @@ const MAP_DETAIL = new Proxy({}, { get: (_, k) => ({ stars: MAP_STARS[k] || 0, t
 const MODE_DETAIL = new Proxy({}, { get: (_, m) => ({ win: T('modewin.' + String(m)), rules: TL('moderules.' + String(m)), tip: T('modetip.' + String(m)) }) });
 const isTeam = (m) => m === 'TEAM' || m === 'SOCCER' || m === 'RUSHT';
 
-const COUNTRIES = [
-  ['TR', 'Turkey'], ['ZA', 'South Africa'], ['NO', 'Norway'], ['CN', 'China'],
-  ['PK', 'Pakistan'], ['US', 'USA'], ['GB', 'UK'], ['DE', 'Germany'],
-  ['FR', 'France'], ['JP', 'Japan'], ['BR', 'Brazil'], ['AR', 'Argentina'],
-  ['IT', 'Italy'], ['ES', 'Spain'], ['KR', 'S. Korea'], ['NL', 'Netherlands']
-].map(([code, name]) => ({ code, name }));
+
 const CNAME = {};
 function refreshNames() { COUNTRIES.forEach((c) => { CNAME[c.code] = countryName(c.code); }); }
 refreshNames();
@@ -179,11 +175,63 @@ const FLAGS = {
 };
 
 const flagCache = {};
+/* Veri tabanlı bayrak çizici (countries.js içindeki operasyon listeleri) */
+function drawUnion(c, x, y, w, h) {
+  c.save();
+  c.beginPath(); c.rect(x, y, w, h); c.clip();
+  c.translate(x, y);
+  c.fillStyle = '#012169'; c.fillRect(0, 0, w, h);
+  c.lineCap = 'butt';
+  c.strokeStyle = '#fff'; c.lineWidth = h * 0.2;
+  c.beginPath(); c.moveTo(0, 0); c.lineTo(w, h); c.moveTo(w, 0); c.lineTo(0, h); c.stroke();
+  c.strokeStyle = '#c8102e'; c.lineWidth = h * 0.08;
+  c.beginPath(); c.moveTo(0, 0); c.lineTo(w, h); c.moveTo(w, 0); c.lineTo(0, h); c.stroke();
+  c.fillStyle = '#fff'; c.fillRect(w * 0.42, 0, w * 0.16, h); c.fillRect(0, h * 0.38, w, h * 0.24);
+  c.fillStyle = '#c8102e'; c.fillRect(w * 0.45, 0, w * 0.10, h); c.fillRect(0, h * 0.42, w, h * 0.16);
+  c.restore();
+}
+function drawFlagSpec(c, ops) {
+  for (const op of ops) {
+    const k = op[0];
+    if (k === 'h' || k === 'v') {
+      const cols = op[1];
+      const ws = op[2] || cols.map(() => 1);
+      (k === 'h' ? hbands : vbands)(c, cols, ws);
+    } else if (k === 'rect') rect(c, op[1], op[2], op[3], op[4], op[5]);
+    else if (k === 'disc') disc(c, op[1], op[2], op[3], op[4]);
+    else if (k === 'star') { c.fillStyle = op[1]; star(c, op[2], op[3], op[4], -Math.PI / 2, op[5] || 0.382); }
+    else if (k === 'poly') {
+      c.fillStyle = op[1]; c.beginPath();
+      for (let i = 0; i < op[2].length; i += 2) { if (i === 0) c.moveTo(op[2][i], op[2][i + 1]); else c.lineTo(op[2][i], op[2][i + 1]); }
+      c.closePath(); c.fill();
+    } else if (k === 'ring') {
+      const [, col, cx, cy, R, n, r, a0, a1] = op;
+      for (let i = 0; i < n; i++) { const a = a0 + ((a1 - a0) * i) / Math.max(1, n - 1); disc(c, col, cx + Math.cos(a) * R, cy + Math.sin(a) * R, r); }
+    } else if (k === 'circ') { c.strokeStyle = op[1]; c.lineWidth = op[5]; c.beginPath(); c.arc(op[2], op[3], op[4], 0, Math.PI * 2); c.stroke(); }
+    else if (k === 'starline') {
+      const [, col, cx, cy, R, w] = op;
+      c.strokeStyle = col; c.lineWidth = w; c.lineJoin = 'miter'; c.beginPath();
+      for (let i = 0; i <= 5; i++) { const a = -Math.PI / 2 + ((i * 2) % 5) * (Math.PI * 2 / 5); const x = cx + Math.cos(a) * R; const y = cy + Math.sin(a) * R; if (i === 0) c.moveTo(x, y); else c.lineTo(x, y); }
+      c.closePath(); c.stroke();
+    } else if (k === 'union') drawUnion(c, op[1], op[2], op[3], op[4]);
+  }
+}
+function drawFallbackFlag(c, code) {
+  rect(c, '#334155', 0, 0, FW, FH);
+  c.fillStyle = '#e2e8f0'; c.font = '900 56px Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(String(code || '?').slice(0, 2), FW / 2, FH / 2);
+}
 function flagCanvas(code) {
   if (flagCache[code]) return flagCache[code];
   const c = document.createElement('canvas');
   c.width = FW; c.height = FH;
-  (FLAGS[code] || FLAGS.TR)(c.getContext('2d'));
+  const g = c.getContext('2d');
+  try {
+    const def = COUNTRY_BY_CODE[code];
+    if (FLAGS[code]) FLAGS[code](g);
+    else if (def && Array.isArray(def.flag)) drawFlagSpec(g, def.flag);
+    else drawFallbackFlag(g, code);
+  } catch (e) { drawFallbackFlag(c.getContext('2d'), code); }
   flagCache[code] = c;
   return c;
 }
@@ -551,10 +599,19 @@ COUNTRIES.forEach((c) => {
   countryEls[c.code] = b;
 });
 
+$('flagSearch').addEventListener('input', () => {
+  const q = $('flagSearch').value.trim().toLowerCase();
+  COUNTRIES.forEach((c) => {
+    const hay = (CNAME[c.code] + ' ' + c.name + ' ' + countryNameIn('tr', c.code) + ' ' + c.code).toLowerCase();
+    countryEls[c.code].style.display = !q || hay.includes(q) ? '' : 'none';
+  });
+});
 function refreshCountrySel() {
   COUNTRIES.forEach((c) => {
     countryEls[c.code].classList.toggle('sel', c.code === S.myCountry);
   });
+  const cur = countryEls[S.myCountry];
+  if (cur && !S.flagScrolled) { S.flagScrolled = true; try { cur.scrollIntoView({ block: 'nearest' }); } catch (e) { /* yok */ } }
 }
 refreshCountrySel();
 

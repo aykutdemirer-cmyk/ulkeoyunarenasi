@@ -808,3 +808,9 @@ html[data-theme="royal"] { --pink: #facc15; --pink-rgb: 250, 204, 21; --cyan: #a
 
 #cv, #gameCanvas { will-change: transform; transform: translateZ(0); touch-action: none; }
 .seo-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* kaydırılabilir bayrak paneli */
+.flag-search { width: 100%; font: inherit; font-size: 14px; color: #fff; background: #090916; border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; margin: 4px 0 8px; }
+.country-grid { max-height: 220px; overflow-y: auto; padding: 4px; scrollbar-width: thin; scrollbar-color: var(--pink) #090916; }
+.country.sel { border-color: var(--pink) !important; box-shadow: 0 0 0 2px var(--pink), 0 0 16px rgba(var(--pink-rgb), 0.85); background: rgba(var(--pink-rgb), 0.14); }
+@media (min-width: 900px) { #lobby:not(.in-room) .country-grid { max-height: 300px; } }
