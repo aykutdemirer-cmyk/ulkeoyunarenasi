@@ -283,7 +283,7 @@ export const countryName = (code) => (COUNTRY_NAMES[lang] || COUNTRY_NAMES.en)[c
 export const onLang = (fn) => listeners.push(fn);
 
 export function refreshTitle() {
-  document.title = document.hidden ? '\u26A0\uFE0F Hey, come back! Your country needs you!' : 'PLAY BALL WAR \u2694\uFE0F | Last One Wins!';
+  document.title = document.hidden ? '\u26A0\uFE0F Hey, come back! Your country needs you!' : 'PlayBallWar - Country Balls Physics Battle Arena (.io Game)';
 }
 
 export function applyStatic() {

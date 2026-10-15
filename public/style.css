@@ -806,3 +806,6 @@ html[data-theme="royal"] { --pink: #facc15; --pink-rgb: 250, 204, 21; --cyan: #a
 
 
 #cv { will-change: transform; transform: translate3d(0, 0, 0); image-rendering: -webkit-optimize-contrast; }
+
+#cv, #gameCanvas { will-change: transform; transform: translateZ(0); touch-action: none; }
+.seo-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

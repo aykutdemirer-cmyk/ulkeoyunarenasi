@@ -1151,11 +1151,12 @@ socket.on('snap', (s) => {
   const exp = S.lastAt ? S.lastAt + 33.33 : arr;
   s.at = Math.abs(arr - exp) > 120 ? arr : exp + (arr - exp) * 0.2;
   S.lastAt = s.at;
-  const mm = new Map();
+  const mm = MAPPOOL.length ? MAPPOOL.pop() : new Map();
+  mm.clear();
   for (let i = 0; i < s.b.length; i++) mm.set(s.b[i][0], s.b[i]);
   s.m = mm;
   S.snaps.push(s);
-  if (S.snaps.length > 12) S.snaps.shift();
+  if (S.snaps.length > 12) MAPPOOL.push(S.snaps.shift().m);
   S.latest = s;
   S.alive = s.m.has(PID);
   reconcile(s);
@@ -1618,7 +1619,16 @@ document.addEventListener('visibilitychange', refreshTitle);
 /* ------------------------------ Efektler ------------------------------ */
 const PPOOL = [];
 for (let i = 0; i < 40; i++) PPOOL.push({ x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 1, col: '#fff', r: 2 });
+/* Performans bekçisi: FPS 55'in altına inince parçacık/iz üretimi kapanır, 3 sn >58 FPS olunca açılır */
+const PERF = { ema: 60, low: false, okSince: 0 };
+function perfGuard(dtSec, now) {
+  if (dtSec <= 0) return;
+  PERF.ema += (1 / dtSec - PERF.ema) * 0.08;
+  if (PERF.ema < 55) { PERF.low = true; PERF.okSince = 0; }
+  else if (PERF.low && PERF.ema > 58) { if (!PERF.okSince) PERF.okSince = now; else if (now - PERF.okSince > 3000) PERF.low = false; }
+}
 function spawnP(x, y, vx, vy, life, max, col, r) {
+  if (PERF.low) return;
   const p = PPOOL.length ? PPOOL.pop() : S.particles.shift(); // havuz boşsa en eskiyi geri dönüştür
   if (!p) return;
   p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.life = life; p.max = max; p.col = col; p.r = r;
@@ -1855,13 +1865,16 @@ function ballFromArr(a) {
   return { id: a[0], x: a[1], y: a[2], f: a[5], cd: a[6], arm: a[7], gh: a[8], sup: a[9], dsh: a[10], fin: !!a[11], fo: a[12] || 0, dmg: a[13] || 0, sp: Math.hypot(a[3], a[4]) };
 }
 
+const MAPPOOL = [];
 const SS = { sb: null, t: 0, rot: 0, gh: 0, R: 0, balls: [], pu: null, ph: '', gate: 0 };
 const ballObjs = new Map();
 const EXTRA_MAX = 90; // ms: yeni paket gecikirse hızla tahmin yürüt
 function sampleState() {
   const snaps = S.snaps;
+  if (!snaps.length) return null;
+  const rt0 = performance.now() - INTERP_MS;
+  while (snaps.length > 2 && snaps[1].at < rt0 - 150) MAPPOOL.push(snaps.shift().m); // süresi geçen paketleri at
   const n = snaps.length;
-  if (!n) return null;
   const rt = performance.now() - INTERP_MS;
   let a = snaps[0];
   let b = snaps[0];
@@ -2641,6 +2654,8 @@ function frame(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
   if (!S.inGame) return;
+  perfGuard((now - (S.perfT || now)) / 1000, now);
+  S.perfT = now;
   const time = now / 1000;
 
   // sabit 30Hz istemci tick (tahmin + girdi gönderimi)
@@ -2651,7 +2666,9 @@ function frame(now) {
 
   const sc = S.scale;
   ctx.setTransform(sc, 0, 0, sc, 0, 0);
+  ctx.imageSmoothingEnabled = true;
   ctx.drawImage(bg, 0, 0);
+  ctx.imageSmoothingEnabled = false;
   if (S.shake > 0.5) {
     ctx.translate((Math.random() - 0.5) * S.shake, (Math.random() - 0.5) * S.shake);
     S.shake *= 0.86;
